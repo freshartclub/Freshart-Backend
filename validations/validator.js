@@ -1,6 +1,6 @@
 const { body } = require("express-validator");
 const loginData = [
-	body("username")
+	body("email")
 		.exists({ checkFalsy: true })
 		.withMessage("Email or phone number is required"),
 	body("password")

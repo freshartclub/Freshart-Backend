@@ -1,5 +1,6 @@
 const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
+const md5 = require("md5");
 const Admin = require("../models/adminModel");
 const { createLog } = require("../functions/common");
 const APIErrorLog = createLog("API_error_log");
