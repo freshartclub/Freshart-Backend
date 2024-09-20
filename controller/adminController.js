@@ -55,9 +55,13 @@ const login = async (req, res) => {
 
 const testAdmin = async (req, res) => {
 	try {
+		const admin = await Admin.findOne({
+			_id: req.user._id,
+			isDeleted: false,
+		}).lean(true);
 		return res.status(200).json({
 			admin: req.user,
-			message: `welcome ${req?.user?.firstName}`,
+			message: `welcome ${admin?.firstName}`,
 		});
 	} catch (error) {
 		APIErrorLog.error("Error while get the data of the dashboard admin");
