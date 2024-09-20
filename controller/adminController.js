@@ -23,7 +23,7 @@ const login = async (req, res) => {
 		// Validate if user exist in our database
 		const admins = await Admin.findOne(
 			{ email: email.toLowerCase(), isDeleted: false, status: "active" },
-			{ tokens: 0, createdAt: 0, updatedAt: 0 }
+			{ _id: 1, roles: 1 }
 		).lean(true);
 
 		if (admins && admins.password === md5(password)) {
