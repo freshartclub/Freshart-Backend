@@ -24,7 +24,7 @@ const validateAdminToken = async (req, res, next) => {
 					);
 					adminData = await Admin.findOne(
 						{ tokens: { $elemMatch: { $eq: token } } },
-						{ _id: 1, roles: 1 }
+						{ roles: 1 }
 					).lean();
 					if (adminData) {
 						req.user = adminData;
