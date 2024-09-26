@@ -56,8 +56,45 @@ module.exports.getListArtworks = async (response) => {
 						$project: {
 							styleName: 1,
 							spanishStyleName: 1,
-							categories: 1,
-							_id: 0,
+							createdAt: 1,
+							categoryName: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value", // The accumulated string
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categoryName", // The current element
+										],
+									},
+								},
+							},
+							categorySpanish: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value", // The accumulated string
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categorySpanishName", // The current element
+										],
+									},
+								},
+							},
 						},
 					},
 				]);
@@ -75,7 +112,44 @@ module.exports.getListArtworks = async (response) => {
 						$project: {
 							styleName: 1,
 							spanishStyleName: 1,
-							categories: 1,
+							categoryName: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value", // The accumulated string
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categoryName", // The current element
+										],
+									},
+								},
+							},
+							categorySpanish: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value",
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categorySpanishName",
+										],
+									},
+								},
+							},
 							_id: 0,
 						},
 					},
@@ -94,7 +168,44 @@ module.exports.getListArtworks = async (response) => {
 						$project: {
 							styleName: 1,
 							spanishStyleName: 1,
-							categories: 1,
+							categoryName: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value",
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categoryName",
+										],
+									},
+								},
+							},
+							categorySpanish: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value",
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categorySpanishName",
+										],
+									},
+								},
+							},
 							_id: 0,
 						},
 					},
@@ -113,7 +224,44 @@ module.exports.getListArtworks = async (response) => {
 						$project: {
 							styleName: 1,
 							spanishStyleName: 1,
-							categories: 1,
+							categoryName: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value",
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categoryName",
+										],
+									},
+								},
+							},
+							categorySpanish: {
+								$reduce: {
+									input: "$categories",
+									initialValue: "",
+									in: {
+										$concat: [
+											"$$value",
+											{
+												$cond: {
+													if: { $eq: ["$$value", ""] },
+													then: "",
+													else: ", ",
+												},
+											},
+											"$$this.categorySpanishName",
+										],
+									},
+								},
+							},
 							_id: 0,
 						},
 					},

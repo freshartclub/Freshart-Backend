@@ -1,6 +1,7 @@
 const { validationResult } = require("express-validator");
 const jwt = require("jsonwebtoken");
 const md5 = require("md5");
+const moment = require("moment");
 const Admin = require("../models/adminModel");
 const Artist = require("../models/artistModel");
 const ArtworkMediaStyle = require("../models/artWorkMediaModel");
@@ -190,6 +191,12 @@ const listArtworkStyle = async (req, res) => {
 		}
 
 		const data = await getListArtworks(req.params.response);
+
+		if (data.length) {
+			for (let elem of data) {
+				elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
+			}
+		}
 
 		return res.status(200).send({
 			data: data,
