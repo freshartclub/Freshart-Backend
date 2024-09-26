@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const md5 = require("md5");
 const humanize = require("string-humanize");
 const Admin = require("../models/adminModel");
+const Category = require("../models/categoryModel");
 const moment = require("moment");
 mongoose.set("strictQuery", true);
 
@@ -17,7 +18,10 @@ const connectDb = async () => {
 			connect.connection.name
 		);
 
-		const checkAdmin = await Admin.countDocuments();
+		const [checkAdmin, checkCategory] = await Promise.all([
+			Admin.countDocuments(),
+			Category.countDocuments(),
+		]);
 
 		if (!checkAdmin) {
 			await Admin.create({
@@ -33,6 +37,27 @@ const connectDb = async () => {
 				),
 				adminId: 1,
 			});
+		}
+
+		if (!checkCategory) {
+			await Category.insertMany([
+				{
+					categoryName: "Paintings",
+					categorySpanishName: "Pintura",
+				},
+				{
+					categoryName: "Drawings",
+					categorySpanishName: "Dibujo",
+				},
+				{
+					categoryName: "Photografy",
+					categorySpanishName: "Fotografia",
+				},
+				{
+					categoryName: "Sculpture",
+					categorySpanishName: "Escultura",
+				},
+			]);
 		}
 	} catch (err) {
 		console.log(err);
