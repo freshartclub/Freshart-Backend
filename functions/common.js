@@ -2,6 +2,9 @@ const ArtworkMediaStyle = require("../models/artWorkMediaModel");
 const ArtworkMediaTheme = require("../models/artWorkMediaThemeModel");
 const ArtworkMediaTechnic = require("../models/artWorkMediaTechnicModel");
 const ArtworkMediaSupport = require("../models/artWorkMediaSupportModel");
+const multer = require("multer");
+
+const upload = require("../functions/upload");
 
 module.exports.createLog = (logName) => {
 	try {
@@ -150,7 +153,6 @@ module.exports.getListArtworks = async (response) => {
 									},
 								},
 							},
-							_id: 0,
 						},
 					},
 				]);
@@ -206,7 +208,6 @@ module.exports.getListArtworks = async (response) => {
 									},
 								},
 							},
-							_id: 0,
 						},
 					},
 				]);
@@ -262,7 +263,6 @@ module.exports.getListArtworks = async (response) => {
 									},
 								},
 							},
-							_id: 0,
 						},
 					},
 				]);
@@ -273,4 +273,46 @@ module.exports.getListArtworks = async (response) => {
 	} catch (error) {
 		throw error;
 	}
+};
+
+module.exports.fileUploadFunc = (request, response) => {
+	return new Promise(async function (resolve, reject) {
+		try {
+			upload(request, response, (err) => {
+				if (request.fileValidationError) {
+					return resolve({
+						type: request.fileValidationError,
+						status: 400,
+					});
+				}
+
+				if (err instanceof multer.MulterError) {
+					// Handle Multer-specific errors
+					if (err.code === "LIMIT_UNEXPECTED_FILE") {
+						return resolve({
+							type: "Unexpected file field",
+							status: 400,
+						});
+					}
+					return resolve({
+						type: err.message,
+						status: 400,
+					});
+				} else if (err) {
+					// Handle other errors
+					return resolve({
+						type: "File upload failed",
+						status: 400,
+					});
+				}
+
+				return resolve({
+					type: "success",
+					status: 200,
+				});
+			});
+		} catch (error) {
+			return reject(error);
+		}
+	});
 };

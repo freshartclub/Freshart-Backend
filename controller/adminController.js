@@ -4,13 +4,15 @@ const md5 = require("md5");
 const moment = require("moment");
 const Admin = require("../models/adminModel");
 const Artist = require("../models/artistModel");
-const ArtworkMediaStyle = require("../models/artWorkMediaModel");
-const { createLog, getListArtworks } = require("../functions/common");
-const multer = require("multer");
+const Category = require("../models/categoryModel");
+
+const {
+	createLog,
+	getListArtworks,
+	fileUploadFunc,
+} = require("../functions/common");
 const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
-
-const upload = require("../functions/upload");
 
 const login = async (req, res) => {
 	try {
@@ -79,96 +81,71 @@ const testAdmin = async (req, res) => {
 
 const artistRegister = async (req, res) => {
 	try {
-		// const admin = await Admin.countDocuments({
-		// 	_id: req.user._id,
-		// 	isDeleted: false,
-		// }).lean(true);
+		const admin = await Admin.countDocuments({
+			_id: req.user._id,
+			isDeleted: false,
+		}).lean(true);
+		if (!admin) {
+			return res.status(400).send({
+				message: `Admin not found`,
+			});
+		}
+		let obj = {
+			artistName: req.body.artistName
+				.toLowerCase()
+				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+				.trim(),
+			artistId: req.body.artistId,
+			phone: req.body.phone.replace(/[- )(]/g, "").trim(),
+			email: req.body.email.toLowerCase(),
+			language: req.body.language,
+			gender: req.body.gender,
+			description: req.body.description,
+			aboutArtist: req.body.aboutArtist,
+		};
+		if (req?.body?.artistSurname1) {
+			obj["artistSurname1"] = req.body.artistSurname1
+				.toLowerCase()
+				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+				.trim();
+		}
+		if (req?.body?.artistSurname2) {
+			obj["artistSurname2"] = req.body.artistSurname2
+				.toLowerCase()
+				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+				.trim();
+		}
+		if (req?.body?.nickname) {
+			obj["nickname"] = req.body.nickname
+				.toLowerCase()
+				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+				.trim();
+		}
+		obj["address"] = {
+			country: req.body.country,
+			zipCode: String(req.body.zipCode),
+			city: req.body.city,
+			state: req.body.state,
+			address: req.body.address,
+		};
+		obj["category"] = {
+			artistCategory: req.body.artistCategory,
+			style1: req.body.style1,
+			style2: req.body.style2,
+		};
 
-		// if (!admin) {
-		// 	return res.status(400).send({
-		// 		message: `Admin not found`,
-		// 	});
-		// }
+		const fileData = await fileUploadFunc(req, res);
 
-		upload(req, res, (err) => {
-			if (req.fileValidationError) {
-				return res.status(400).send({
-					status: 400,
-					message: req.fileValidationError,
-				});
-			}
+		if (fileData.type !== "success") {
+			return res.status(fileData.status).send({
+				message: fileData.type,
+			});
+		}
 
-			if (err instanceof multer.MulterError) {
-				// Handle Multer-specific errors
-				if (err.code === "LIMIT_UNEXPECTED_FILE") {
-					return res.status(400).json({ error: "Unexpected file field" });
-				}
-				return res.status(400).json({ error: err.message });
-			} else if (err) {
-				// Handle other errors
-				return res.status(500).json({ error: "File upload failed" });
-			}
-
-			console.log(req.files.profileImage);
-			console.log(req.files.coverImage);
-
-			res.status(200).json({ message: "Files uploaded successfully" });
+		await Artist.create(obj);
+		return res.status(200).send({
+			message: "Artist Registered successfully",
 		});
-
-		// let obj = {
-		// 	artistName: req.body.artistName
-		// 		.toLowerCase()
-		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-		// 		.trim(),
-		// 	artistId: req.body.artistId,
-		// 	phone: req.body.phone.replace(/[- )(]/g, "").trim(),
-		// 	email: req.body.email.toLowerCase(),
-		// 	language: req.body.language,
-		// 	gender: req.body.gender,
-		// 	description: req.body.description,
-		// 	aboutArtist: req.body.aboutArtist,
-		// };
-
-		// if (req?.body?.artistSurname1) {
-		// 	obj["artistSurname1"] = req.body.artistSurname1
-		// 		.toLowerCase()
-		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-		// 		.trim();
-		// }
-
-		// if (req?.body?.artistSurname2) {
-		// 	obj["artistSurname2"] = req.body.artistSurname2
-		// 		.toLowerCase()
-		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-		// 		.trim();
-		// }
-
-		// if (req?.body?.nickname) {
-		// 	obj["nickname"] = req.body.nickname
-		// 		.toLowerCase()
-		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-		// 		.trim();
-		// }
-
-		// obj["address"] = {
-		// 	country: req.body.country,
-		// 	zipCode: String(req.body.zipCode),
-		// 	city: req.body.city,
-		// 	state: req.body.state,
-		// 	address: req.body.address,
-		// };
-
-		// obj["category"] = {
-		// 	artistCategory: req.body.artistCategory,
-		// 	style1: req.body.style1,
-		// 	style2: req.body.style2,
-		// };
-
-		// await Artist.create(obj);
-
-		// return res.status(200).send({
-		// 	message: "Artist Registered successfully",
-		// });
 	} catch (error) {
 		APIErrorLog.error("Error while registered the artist by admin");
 		APIErrorLog.error(error);
@@ -210,9 +187,49 @@ const listArtworkStyle = async (req, res) => {
 	}
 };
 
+const listDiscipline = async (req, res) => {
+	try {
+		const admin = await Admin.countDocuments({
+			_id: req.user._id,
+			isDeleted: false,
+		}).lean(true);
+
+		if (!admin) {
+			return res.status(400).send({
+				message: `Admin not found`,
+			});
+		}
+
+		const data = await Category.find(
+			{ isDeleted: false },
+			{
+				categoryName: 1,
+				categorySpanishName: 1,
+			}
+		).lean(true);
+
+		if (data.length) {
+			for (let elem of data) {
+				elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
+			}
+		}
+
+		return res.status(200).send({
+			data: data,
+			message: "Discipline List successfully received",
+		});
+	} catch (error) {
+		APIErrorLog.error("Error while get the list of the discipline");
+		APIErrorLog.error(error);
+		// error response
+		return res.status(500).send({ message: "Something went wrong" });
+	}
+};
+
 module.exports = {
 	login,
 	testAdmin,
 	artistRegister,
 	listArtworkStyle,
+	listDiscipline,
 };

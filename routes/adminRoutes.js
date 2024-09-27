@@ -6,6 +6,7 @@ const {
 	testAdmin,
 	artistRegister,
 	listArtworkStyle,
+	listDiscipline,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 
@@ -20,5 +21,7 @@ router.get(
 	validateAdminToken,
 	listArtworkStyle
 );
+
+router.get("/list-discipline", validateAdminToken, listDiscipline);
 
 module.exports = router;
