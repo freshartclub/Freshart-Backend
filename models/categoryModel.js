@@ -12,6 +12,9 @@ const categorySchema = new mongoose.Schema(
 		categorySpanishName: {
 			type: String,
 		},
+		description: {
+			type: String,
+		},
 	},
 	{
 		timestamps: true,

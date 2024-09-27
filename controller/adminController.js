@@ -205,6 +205,7 @@ const listDiscipline = async (req, res) => {
 			{
 				categoryName: 1,
 				categorySpanishName: 1,
+				description: 1,
 			}
 		).lean(true);
 
