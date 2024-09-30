@@ -142,7 +142,7 @@ const artistRegister = async (req, res) => {
 			});
 		}
 
-		await Artist.create(obj);
+		// await Artist.create(obj);
 		return res.status(200).send({
 			message: "Artist Registered successfully",
 		});

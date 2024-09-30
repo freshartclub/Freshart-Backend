@@ -3,8 +3,8 @@ const mongoose = require("mongoose");
 
 const storage = multer.diskStorage({
 	destination: function (req, file, cb) {
-		if (file && file?.fieldname === "imageFile") {
-			cb(null, "./public/uploads/arts");
+		if (file?.fieldname === "uploadDocs") {
+			cb(null, "./public/uploads/documents");
 		} else {
 			cb(null, "./public/uploads/users");
 		}
@@ -16,7 +16,9 @@ const storage = multer.diskStorage({
 			file.originalname.length
 		);
 		let data;
-		if (["profileImage", "coverImage"].includes(file?.fieldname)) {
+		if (
+			["profileImage", "coverImage", "uploadDocs"].includes(file?.fieldname)
+		) {
 			data = mongoose.Types.ObjectId();
 		} else {
 			data = req?.user?._id;
@@ -26,16 +28,30 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-	if (
-		file.mimetype === "image/jpeg" ||
-		file.mimetype === "image/jpg" ||
-		file.mimetype === "image/png"
-	) {
-		cb(null, true);
+	if (file?.fieldname === "uploadDocs") {
+		const fileExtension = file.originalname.substr(
+			file.originalname.lastIndexOf(".") + 1,
+			file.originalname.length
+		);
+
+		if (
+			["docx", "xlsx"].includes(fileExtension) ||
+			file.mimetype === "application/pdf"
+		) {
+			return cb(null, true);
+		}
 	} else {
-		req.fileValidationError = "Please upload valid image format";
-		return cb(null, false, req.fileValidationError);
+		if (
+			file.mimetype === "image/jpeg" ||
+			file.mimetype === "image/jpg" ||
+			file.mimetype === "image/png"
+		) {
+			return cb(null, true);
+		}
 	}
+
+	req.fileValidationError = "Please upload valid image format";
+	return cb(null, false, req.fileValidationError);
 };
 
 const upload = multer({
@@ -45,8 +61,9 @@ const upload = multer({
 	},
 	fileFilter: fileFilter,
 }).fields([
-	{ name: "profileImage", maxCount: 1 },
+	{ name: "profileImage", maxCount: 3 },
 	{ name: "coverImage", maxCount: 1 },
+	{ name: "uploadDocs", maxCount: 1 },
 ]);
 
 module.exports = upload;

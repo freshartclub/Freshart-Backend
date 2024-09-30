@@ -306,9 +306,17 @@ module.exports.fileUploadFunc = (request, response) => {
 					});
 				}
 
+				if (!request.files.uploadDocs) {
+					return resolve({
+						type: "please upload the documents",
+						status: 400,
+					});
+				}
+
 				return resolve({
 					type: "success",
 					status: 200,
+					data: request.files.uploadDocs[0].filename,
 				});
 			});
 		} catch (error) {

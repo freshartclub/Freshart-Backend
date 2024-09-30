@@ -3,6 +3,7 @@ const md5 = require("md5");
 const humanize = require("string-humanize");
 const Admin = require("../models/adminModel");
 const Category = require("../models/categoryModel");
+const MailTemplate = require("../models/mailTemplates");
 const moment = require("moment");
 mongoose.set("strictQuery", true);
 
@@ -56,6 +57,20 @@ const connectDb = async () => {
 				{
 					categoryName: "Sculpture",
 					categorySpanishName: "Escultura",
+				},
+			]);
+		}
+
+		const template = await MailTemplate.countDocuments({});
+		if (!template) {
+			await MailTemplate.insertMany([
+				{
+					templateEvent: "become-an-artist",
+					subject: "Become an artist",
+					mailVariables: "%fullName% %email% %phone%",
+					htmlBody: `<!DOCTYPE html> <html lang="en"> <head> <meta charset="UTF-8" /> <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <title>Document</title> </head> <body> <h3>Become an artist Details: -</h3><table border="2px" width ="50%"><tr><th>FullName</th><td>Email</td><td>Phone</td></tr><tr><td>%fullName%</td><td>%email%</td><td>%phone%</td></tr></table></body></html>`,
+					textBody:
+						"Become an artist credentials are as: %fullName% %email% %phone%",
 				},
 			]);
 		}
