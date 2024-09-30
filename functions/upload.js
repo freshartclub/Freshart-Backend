@@ -17,7 +17,13 @@ const storage = multer.diskStorage({
 		);
 		let data;
 		if (
-			["profileImage", "coverImage", "uploadDocs"].includes(file?.fieldname)
+			[
+				"profileImage",
+				"coverImage",
+				"uploadDocs",
+				"additionalVideo",
+				"mainVideo",
+			].includes(file?.fieldname)
 		) {
 			data = mongoose.Types.ObjectId();
 		} else {
@@ -37,6 +43,14 @@ const fileFilter = (req, file, cb) => {
 		if (
 			["docx", "xlsx"].includes(fileExtension) ||
 			file.mimetype === "application/pdf"
+		) {
+			return cb(null, true);
+		}
+	} else if (["additionalVideo", "mainVideo"].includes(file?.fieldname)) {
+		if (
+			file.mimetype === "image/jpeg" ||
+			file.mimetype === "image/jpg" ||
+			file.mimetype === "image/png"
 		) {
 			return cb(null, true);
 		}

@@ -90,49 +90,69 @@ const artistRegister = async (req, res) => {
 				message: `Admin not found`,
 			});
 		}
-		let obj = {
-			artistName: req.body.artistName
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim(),
-			artistId: req.body.artistId,
-			phone: req.body.phone.replace(/[- )(]/g, "").trim(),
-			email: req.body.email.toLowerCase(),
-			language: req.body.language,
-			gender: req.body.gender,
-			description: req.body.description,
-			aboutArtist: req.body.aboutArtist,
-		};
-		if (req?.body?.artistSurname1) {
-			obj["artistSurname1"] = req.body.artistSurname1
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim();
-		}
-		if (req?.body?.artistSurname2) {
-			obj["artistSurname2"] = req.body.artistSurname2
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim();
-		}
-		if (req?.body?.nickname) {
-			obj["nickname"] = req.body.nickname
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim();
-		}
-		obj["address"] = {
-			country: req.body.country,
-			zipCode: String(req.body.zipCode),
-			city: req.body.city,
-			state: req.body.state,
-			address: req.body.address,
-		};
-		obj["category"] = {
-			artistCategory: req.body.artistCategory,
-			style1: req.body.style1,
-			style2: req.body.style2,
-		};
+		// let obj = {
+		// 	artistName: req.body.artistName
+		// 		.toLowerCase()
+		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 		.trim(),
+		// 	artistId: req.body.artistId,
+		// 	phone: req.body.phone.replace(/[- )(]/g, "").trim(),
+		// 	email: req.body.email.toLowerCase(),
+		// 	gender: req.body.gender,
+		// };
+
+		// if (req?.body?.language.length) {
+		// 	obj["language"] = req?.body?.language.split(",");
+		// }
+
+		// if (req?.body?.artistSurname1) {
+		// 	obj["artistSurname1"] = req.body.artistSurname1
+		// 		.toLowerCase()
+		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 		.trim();
+		// }
+		// if (req?.body?.artistSurname2) {
+		// 	obj["artistSurname2"] = req.body.artistSurname2
+		// 		.toLowerCase()
+		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 		.trim();
+		// }
+		// if (req?.body?.nickName) {
+		// 	obj["nickname"] = req.body.nickname
+		// 		.toLowerCase()
+		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 		.trim();
+		// }
+		// obj["address"] = {
+		// 	residentialAddress: req.body.residentialAddress,
+		// 	country: req.body.country,
+		// 	zipCode: String(req.body.zipCode),
+		// 	city: req.body.city,
+		// 	state: req.body.state,
+		// 	latitude: req.body.latitude,
+		// 	longitude: req.body.longitude,
+		// };
+
+		// obj["highlights"] = {
+		// 	addHighlights: req.body.highlights.trim(),
+		// };
+
+		// if (req?.body?.cvData.length) {
+		// 	obj["highlights"]["cv"] = req?.body?.cvData.split(",");
+		// }
+
+		// obj["aboutArtist"] = {
+		// 	about: req.body.about.trim(),
+		// };
+
+		// if (req?.body?.artistCategory.length) {
+		// 	obj["aboutArtist"]["category"] = req?.body?.artistCategory.split(",");
+		// }
+
+		// obj["status"] = {
+		// 	artwork: req.body.artwork,
+		// 	product: req.body.product,
+		// };
 
 		const fileData = await fileUploadFunc(req, res);
 
@@ -141,6 +161,68 @@ const artistRegister = async (req, res) => {
 				message: fileData.type,
 			});
 		}
+
+		// obj["invoice"] = {
+		// 	taxNumber: req.body.taxNumber.trim(),
+		// 	taxLegalName: req.body.taxLegalName
+		// 		.toLowerCase()
+		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 		.trim(),
+		// 	taxAddress: req.body.taxAddress,
+		// 	taxZipCode: String(req.body.taxZipCode),
+		// 	taxCity: req.body.taxCity,
+		// 	taxProvince: req.body.taxProvince,
+		// 	taxCountry: req.body.taxCountry,
+		// 	taxEmail: req.body.taxEmail.toLowerCase(),
+		// 	taxPhone: req.body.taxPhone.replace(/[- )(]/g, "").trim(),
+		// 	taxBankIBAN: req.body.taxBankIBAN,
+		// 	taxBankName: req.body.taxBankName,
+		// };
+
+		// obj["logistics"] = {
+		// 	logName: req.body.logName
+		// 		.toLowerCase()
+		// 		.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 		.trim(),
+		// 	logAddress: req.body.logAddress,
+		// 	logZipCode: String(req.body.logZipCode),
+		// 	logCity: req.body.logCity,
+		// 	logProvince: req.body.logProvince,
+		// 	logCountry: req.body.logCountry,
+		// 	logEmail: req.body.logEmail.toLowerCase(),
+		// 	logPhone: req.body.logPhone.replace(/[- )(]/g, "").trim(),
+		// 	logNotes: req?.body?.logNotes,
+		// };
+
+		// if (JSON.parse(req.body.isManagerDetails)) {
+		// 	obj["managerDetails"] = {
+		// 		artistName: req.body.managerArtistName
+		// 			.toLowerCase()
+		// 			.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 			.trim(),
+		// 		artistSurname: req.body.managerArtistSurname
+		// 			.toLowerCase()
+		// 			.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+		// 			.trim(),
+		// 		artistPhone: req.body.managerArtistPhone.replace(/[- )(]/g, "").trim(),
+		// 		artistEmail: req.body.managerArtistEmail.toLowerCase(),
+		// 		artistGender: req.body.managerArtistGender,
+		// 	};
+		// 	obj["managerDetails"] = {
+		// 		address: {
+		// 			address1: req.body.address1,
+		// 			city: req.body.managerCity,
+		// 			state: req.body.managerState,
+		// 			zipCode: String(req.body.managerZipCode),
+		// 			country: req.body.managerCountry,
+		// 		},
+		// 	};
+
+		// 	if (req.body.managerArtistLanguage.length) {
+		// 		obj["managerDetails"]["language"] =
+		// 			req.body.managerArtistLanguage.split(",");
+		// 	}
+		// }
 
 		// await Artist.create(obj);
 		return res.status(200).send({

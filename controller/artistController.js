@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const BecomeArtist = require("../models/becomeArtistModel");
+const Artist = require("../models/artistModel");
 
 const { createLog, fileUploadFunc } = require("../functions/common");
 
