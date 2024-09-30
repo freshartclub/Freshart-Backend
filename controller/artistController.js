@@ -67,7 +67,9 @@ const becomeArtist = async (req, res) => {
 			});
 		}
 
-		obj["_id"] = mongoose.Types.ObjectId(fileData.data.slice(0, 24));
+		obj["uploadFile"] = fileData.data.uploadDocs[0].filename;
+
+		obj["_id"] = mongoose.Types.ObjectId(obj["uploadFile"].slice(0, 24));
 		await BecomeArtist.create(obj);
 
 		const mailVariable = {

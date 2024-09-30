@@ -31,6 +31,7 @@ const dir = [
 	"./public/uploads/artist",
 	"./public/uploads/art",
 	"./public/uploads/documents",
+	"./public/uploads/videos",
 ];
 for (let data of dir) {
 	if (!fs.existsSync(data)) {

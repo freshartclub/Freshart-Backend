@@ -6,7 +6,11 @@ const storage = multer.diskStorage({
 		if (file?.fieldname === "uploadDocs") {
 			cb(null, "./public/uploads/documents");
 		} else {
-			cb(null, "./public/uploads/users");
+			if (["additionalVideo", "mainVideo"].includes(file?.fieldname)) {
+				cb(null, "./public/uploads/videos");
+			} else {
+				cb(null, "./public/uploads/users");
+			}
 		}
 	},
 
@@ -19,7 +23,8 @@ const storage = multer.diskStorage({
 		if (
 			[
 				"profileImage",
-				"coverImage",
+				"additionalImage",
+				"inProcessImage",
 				"uploadDocs",
 				"additionalVideo",
 				"mainVideo",
@@ -47,11 +52,7 @@ const fileFilter = (req, file, cb) => {
 			return cb(null, true);
 		}
 	} else if (["additionalVideo", "mainVideo"].includes(file?.fieldname)) {
-		if (
-			file.mimetype === "image/jpeg" ||
-			file.mimetype === "image/jpg" ||
-			file.mimetype === "image/png"
-		) {
+		if (file.mimetype === "video/mp4") {
 			return cb(null, true);
 		}
 	} else {
@@ -70,13 +71,16 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
 	storage: storage,
-	limits: {
-		fileSize: 1024 * 1024 * 5,
-	},
+	// limits: {
+	// 	fileSize: 1024 * 1024 * 5,
+	// },
 	fileFilter: fileFilter,
 }).fields([
 	{ name: "profileImage", maxCount: 3 },
-	{ name: "coverImage", maxCount: 1 },
+	{ name: "additionalImage", maxCount: 1 },
+	{ name: "inProcessImage", maxCount: 1 },
+	{ name: "mainVideo", maxCount: 1 },
+	{ name: "additionalVideo", maxCount: 1 },
 	{ name: "uploadDocs", maxCount: 1 },
 ]);
 

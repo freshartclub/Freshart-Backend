@@ -294,10 +294,10 @@ module.exports.fileUploadFunc = (request, response) => {
 							status: 400,
 						});
 					}
-					return resolve({
-						type: err.message,
-						status: 400,
-					});
+					// return resolve({
+					// 	type: err.message,
+					// 	status: 400,
+					// });
 				} else if (err) {
 					// Handle other errors
 					return resolve({
@@ -306,17 +306,19 @@ module.exports.fileUploadFunc = (request, response) => {
 					});
 				}
 
-				if (!request.files.uploadDocs) {
+				if (
+					!request.url === "/artist-register" &&
+					!request?.files?.uploadDocs
+				) {
 					return resolve({
 						type: "please upload the documents",
 						status: 400,
 					});
 				}
-
 				return resolve({
 					type: "success",
 					status: 200,
-					data: request.files.uploadDocs[0].filename,
+					data: request.files,
 				});
 			});
 		} catch (error) {

@@ -86,7 +86,7 @@ const artistSchema = new mongoose.Schema(
 				type: [Object],
 			},
 		},
-		profileImage: {
+		profile: {
 			type: Object,
 		},
 		token: {
