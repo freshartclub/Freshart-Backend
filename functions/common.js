@@ -306,15 +306,6 @@ module.exports.fileUploadFunc = (request, response) => {
 					});
 				}
 
-				if (
-					!request.url === "/artist-register" &&
-					!request?.files?.uploadDocs
-				) {
-					return resolve({
-						type: "please upload the documents",
-						status: 400,
-					});
-				}
 				return resolve({
 					type: "success",
 					status: 200,

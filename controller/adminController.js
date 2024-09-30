@@ -91,6 +91,19 @@ const artistRegister = async (req, res) => {
 				message: `Admin not found`,
 			});
 		}
+
+		const fileData = await fileUploadFunc(req, res);
+
+		if (fileData.type !== "success") {
+			return res.status(fileData.status).send({
+				message: fileData.type,
+			});
+		}
+
+		// if (!fileData?.data?.insigniaImage?.length) {
+		// 	return res.status(400).send({ message: "Please upload the image." });
+		// }
+
 		let obj = {
 			artistName: req.body.artistName
 				.toLowerCase()
@@ -154,14 +167,6 @@ const artistRegister = async (req, res) => {
 			artwork: req.body.artwork,
 			product: req.body.product,
 		};
-
-		const fileData = await fileUploadFunc(req, res);
-
-		if (fileData.type !== "success") {
-			return res.status(fileData.status).send({
-				message: fileData.type,
-			});
-		}
 
 		obj["profile"] = {
 			mainImage: fileData.data.profileImage[0].filename,
@@ -330,13 +335,6 @@ const createInsignias = async (req, res) => {
 			});
 		}
 
-		const obj = {
-			area: req.body.credentialName.trim(),
-			group: req.body.credentialGroup.trim(),
-			priority: req.body.credentialPriority.trim(),
-			isActive: JSON.parse(req.body.isActive),
-		};
-
 		const fileData = await fileUploadFunc(req, res);
 
 		if (fileData.type !== "success") {
@@ -345,9 +343,18 @@ const createInsignias = async (req, res) => {
 			});
 		}
 
-		if (fileData?.data) {
-			obj["uploadImage"] = fileData.data.insigniaImage[0]?.filename;
+		if (!fileData?.data?.insigniaImage?.length) {
+			return res.status(400).send({ message: "Please upload the image." });
 		}
+
+		const obj = {
+			area: req.body.credentialName.trim(),
+			group: req.body.credentialGroup.trim(),
+			priority: req.body.credentialPriority.trim(),
+			isActive: JSON.parse(req.body.isActive),
+		};
+
+		obj["uploadImage"] = fileData.data.insigniaImage[0]?.filename;
 
 		await Insignia.create(obj);
 		return res.status(200).send({
