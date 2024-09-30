@@ -39,6 +39,18 @@ const becomeArtist = async (req, res) => {
 			});
 		}
 
+		const fileData = await fileUploadFunc(req, res);
+
+		if (fileData.type !== "success") {
+			return res.status(fileData.status).send({
+				message: fileData.type,
+			});
+		}
+
+		if (!fileData?.data?.uploadDocs?.length) {
+			return res.status(400).send({ message: "Please upload the documents." });
+		}
+
 		let obj = {
 			fullName: req.body.fullName
 				.toLowerCase()
@@ -59,16 +71,7 @@ const becomeArtist = async (req, res) => {
 			zipCode: String(req.body.zipCode),
 		};
 
-		const fileData = await fileUploadFunc(req, res);
-
-		if (fileData.type !== "success") {
-			return res.status(fileData.status).send({
-				message: fileData.type,
-			});
-		}
-
 		obj["uploadFile"] = fileData.data.uploadDocs[0].filename;
-
 		obj["_id"] = mongoose.Types.ObjectId(obj["uploadFile"].slice(0, 24));
 		await BecomeArtist.create(obj);
 
