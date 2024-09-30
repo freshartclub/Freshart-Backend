@@ -279,6 +279,13 @@ module.exports.fileUploadFunc = (request, response) => {
 	return new Promise(async function (resolve, reject) {
 		try {
 			upload(request, response, (err) => {
+				if (!Object.keys(request.files).length) {
+					return resolve({
+						type: "fileNotFound",
+						status: 400,
+					});
+				}
+
 				if (request.fileValidationError) {
 					return resolve({
 						type: request.fileValidationError,
@@ -309,7 +316,7 @@ module.exports.fileUploadFunc = (request, response) => {
 				return resolve({
 					type: "success",
 					status: 200,
-					data: request?.files,
+					data: request.files,
 				});
 			});
 		} catch (error) {

@@ -96,13 +96,12 @@ const artistRegister = async (req, res) => {
 
 		if (fileData.type !== "success") {
 			return res.status(fileData.status).send({
-				message: fileData.type,
+				message:
+					fileData?.type === "fileNotFound"
+						? "Please upload the documents"
+						: fileData.type,
 			});
 		}
-
-		// if (!fileData?.data?.insigniaImage?.length) {
-		// 	return res.status(400).send({ message: "Please upload the image." });
-		// }
 
 		let obj = {
 			artistName: req.body.artistName
@@ -339,12 +338,11 @@ const createInsignias = async (req, res) => {
 
 		if (fileData.type !== "success") {
 			return res.status(fileData.status).send({
-				message: fileData.type,
+				message:
+					fileData?.type === "fileNotFound"
+						? "Please upload the image"
+						: fileData.type,
 			});
-		}
-
-		if (!fileData?.data?.insigniaImage?.length) {
-			return res.status(400).send({ message: "Please upload the image." });
 		}
 
 		const obj = {
