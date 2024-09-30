@@ -70,12 +70,12 @@ const becomeArtist = async (req, res) => {
 		await BecomeArtist.create(obj);
 
 		const mailVariable = {
-			"%fullName%": "Aman",
-			"%phone%": "+918770797151",
-			"%email%": "aman@gmail.com",
+			"%fullName%": obj.fullName,
+			"%phone%": obj.phone,
+			"%email%": obj.email,
 		};
 
-		sendMail("become-an-artist", mailVariable, "amanneemasdbc@gmail.com");
+		sendMail("become-an-artist", mailVariable, obj.email);
 
 		return res.status(200).send({
 			message: "Your Become Artist request sent successfully.",
