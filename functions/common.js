@@ -318,7 +318,7 @@ module.exports.fileUploadFunc = (request, response) => {
 				return resolve({
 					type: "success",
 					status: 200,
-					data: request.files,
+					data: request?.files,
 				});
 			});
 		} catch (error) {

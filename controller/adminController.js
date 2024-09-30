@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const md5 = require("md5");
 const moment = require("moment");
 const Admin = require("../models/adminModel");
+const Insignia = require("../models/insigniasModel");
 const Artist = require("../models/artistModel");
 const Category = require("../models/categoryModel");
 
@@ -317,10 +318,54 @@ const listDiscipline = async (req, res) => {
 	}
 };
 
+const createInsignias = async (req, res) => {
+	try {
+		const admin = await Admin.countDocuments({
+			_id: req.user._id,
+			isDeleted: false,
+		}).lean(true);
+		if (!admin) {
+			return res.status(400).send({
+				message: `Admin not found`,
+			});
+		}
+
+		const obj = {
+			area: req.body.credentialName.trim(),
+			group: req.body.credentialGroup.trim(),
+			priority: req.body.credentialPriority.trim(),
+			isActive: JSON.parse(req.body.isActive),
+		};
+
+		const fileData = await fileUploadFunc(req, res);
+
+		if (fileData.type !== "success") {
+			return res.status(fileData.status).send({
+				message: fileData.type,
+			});
+		}
+
+		if (fileData?.data) {
+			obj["uploadImage"] = fileData.data.insigniaImage[0]?.filename;
+		}
+
+		await Insignia.create(obj);
+		return res.status(200).send({
+			message: "Insignia created successfully",
+		});
+	} catch (error) {
+		APIErrorLog.error("Error while created the insignia by admin");
+		APIErrorLog.error(error);
+		// error response
+		return res.status(500).send({ message: "Something went wrong" });
+	}
+};
+
 module.exports = {
 	login,
 	testAdmin,
 	artistRegister,
 	listArtworkStyle,
 	listDiscipline,
+	createInsignias,
 };

@@ -28,6 +28,7 @@ const storage = multer.diskStorage({
 				"uploadDocs",
 				"additionalVideo",
 				"mainVideo",
+				"insigniaImage",
 			].includes(file?.fieldname)
 		) {
 			data = mongoose.Types.ObjectId();
@@ -82,6 +83,7 @@ const upload = multer({
 	{ name: "mainVideo", maxCount: 1 },
 	{ name: "additionalVideo", maxCount: 1 },
 	{ name: "uploadDocs", maxCount: 1 },
+	{ name: "insigniaImage", maxCount: 1 },
 ]);
 
 module.exports = upload;
