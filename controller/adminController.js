@@ -6,7 +6,6 @@ const Admin = require("../models/adminModel");
 const Insignia = require("../models/insigniasModel");
 const Artist = require("../models/artistModel");
 const Category = require("../models/categoryModel");
-
 const {
 	createLog,
 	getListArtworks,
@@ -82,163 +81,205 @@ const testAdmin = async (req, res) => {
 
 const artistRegister = async (req, res) => {
 	try {
-		const admin = await Admin.countDocuments({
-			_id: req.user._id,
-			isDeleted: false,
-		}).lean(true);
+		const admin = await Admin.countDocuments({ _id: req.user._id, isDeleted: false }).lean(true);
+
 		if (!admin) {
 			return res.status(400).send({
 				message: `Admin not found`,
 			});
 		}
 
-		const fileData = await fileUploadFunc(req, res);
+		let obj = {}
+		let artist = {}
+		if (req?.params?.id) {
+			artist = await Artist.findOne({ _id: req.params.id }, { pageCount: 1 }).lean(true)
+		}
+		
+		switch (req.body.count) {
+			case 1:
+				obj = {
+					artistName: req.body.artistName.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim(),
+					// artistId: req.body.artistId,
+					phone: req.body.phone.replace(/[- )(]/g, "").trim(),
+					email: req.body.email.toLowerCase(),
+					gender: req.body.gender,
+					notes: req?.body?.notes
+				};
 
-		if (fileData.type !== "success") {
-			return res.status(fileData.status).send({
-				message:
-					fileData?.type === "fileNotFound"
-						? "Please upload the documents"
-						: fileData.type,
-			});
+				if (req?.body?.language.length) {
+					obj["language"] = req.body.language;
+				}
+
+				if (req?.body?.artistSurname1) {
+					obj["artistSurname1"] = req.body.artistSurname1.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim();
+				}
+
+				if (req?.body?.artistSurname2) {
+					obj["artistSurname2"] = req.body.artistSurname2.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim();
+				}
+
+				if (req?.body?.nickName) {
+					obj["nickName"] = req.body.nickName.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim();
+				}
+
+				obj["address"] = {
+					residentialAddress: req.body.residentialAddress,
+					country: req.body.country,
+					zipCode: String(req.body.zipCode),
+					city: req.body.city,
+					state: req.body.state,
+					// latitude: req.body.latitude,
+					// longitude: req.body.longitude,
+				};
+
+				obj["artworkStatus"] = {
+					artwork: req.body.artwork,
+					product: req.body.product,
+				};
+
+				if (req.body.count > artist?.pageCount) {
+					obj['pageCount'] = req.body.count
+				}
+				
+				break;
+
+			case 2:
+				obj["highlights"] = {
+					addHighlights: req.body.highlights.trim(),
+				};
+
+				if (req?.body?.cvData.length) {
+					obj["highlights"]["cv"] = req?.body?.cvData;
+				}
+
+				if (req.body.count > artist.pageCount) {
+					obj['pageCount'] = req.body.count
+				}
+
+				break;
+
+			case 3:
+
+				obj["aboutArtist"] = {
+					about: req.body.about.trim(),
+				};
+
+				if (req?.body?.artistCategory.length) {
+					obj["aboutArtist"]["category"] = req?.body?.artistCategory;
+				}
+
+				if (req.body.count > artist.pageCount) {
+					obj['pageCount'] = req.body.count
+				}
+				
+				break;
+
+			case 4:
+
+				const fileData = await fileUploadFunc(req, res);
+
+				if (fileData.type !== "success") {
+
+					return res.status(fileData.status).send({
+						message: fileData?.type === "fileNotFound" ? "Please upload the documents" : fileData.type
+					});
+
+				}
+
+				obj["profile"] = {
+					mainImage: fileData.data.profileImage[0].filename,
+					additionalImage: fileData.data.additionalImage[0].filename,
+					inProcessImage: fileData.data.inProcessImage[0].filename,
+					mainVideo: fileData.data.mainVideo[0].filename,
+					additionalVideo: fileData.data.additionalVideo[0].filename,
+				};
+
+				if (req.body.count > artist.pageCount) {
+					obj['pageCount'] = req.body.count
+				}
+				break;
+			
+			case 5:
+
+				obj["invoice"] = {
+					taxNumber: req.body.taxNumber.trim(),
+					taxLegalName: req.body.taxLegalName.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim(),
+					taxAddress: req.body.taxAddress,
+					taxZipCode: String(req.body.taxZipCode),
+					taxCity: req.body.taxCity,
+					taxProvince: req.body.taxProvince,
+					taxCountry: req.body.taxCountry,
+					taxEmail: req.body.taxEmail.toLowerCase(),
+					taxPhone: req.body.taxPhone.replace(/[- )(]/g, "").trim(),
+					taxBankIBAN: req.body.taxBankIBAN,
+					taxBankName: req.body.taxBankName,
+				};
+
+				if (req.body.count > artist.pageCount) {
+					obj['pageCount'] = req.body.count
+				}
+
+				break;
+
+			case 6:
+
+				
+				obj["logistics"] = {
+					logName: req.body.logName.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim(),
+					logAddress: req.body.logAddress,
+					logZipCode: String(req.body.logZipCode),
+					logCity: req.body.logCity,
+					logProvince: req.body.logProvince,
+					logCountry: req.body.logCountry,
+					logEmail: req.body.logEmail.toLowerCase(),
+					logPhone: req.body.logPhone.replace(/[- )(]/g, "").trim(),
+					logNotes: req?.body?.logNotes,
+				};
+
+				if (req.body.count > artist.pageCount) {
+					obj['pageCount'] = req.body.count
+				}
+				break;
+			
+			case 7:
+				
+				if (JSON.parse(req.body.isManagerDetails)) {
+					obj["managerDetails"] = {
+						artistName: req.body.managerArtistName.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim(),
+						artistSurname: req.body.managerArtistSurname.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim(),
+						artistPhone: req.body.managerArtistPhone.replace(/[- )(]/g, "").trim(),
+						artistEmail: req.body.managerArtistEmail.toLowerCase(),
+						artistGender: req.body.managerArtistGender,
+					};
+					obj["managerDetails"] = {
+						address: {
+							address1: req.body.address1,
+							city: req.body.managerCity,
+							state: req.body.managerState,
+							zipCode: String(req.body.managerZipCode),
+							country: req.body.managerCountry,
+						},
+					};
+
+					if (req.body.managerArtistLanguage.length) {
+						obj["managerDetails"]["language"] = req.body.managerArtistLanguage;
+					}
+				}
+				break;
 		}
 
-		let obj = {
-			artistName: req.body.artistName
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim(),
-			artistId: req.body.artistId,
-			phone: req.body.phone.replace(/[- )(]/g, "").trim(),
-			email: req.body.email.toLowerCase(),
-			gender: req.body.gender,
-		};
-
-		if (req?.body?.language.length) {
-			obj["language"] = req?.body?.language.split(",");
+		let condition = {
+			$set: obj
+		}
+		if (req.body.count > 6) {
+			condition['$unset'] = { pageCount: '' }
 		}
 
-		if (req?.body?.artistSurname1) {
-			obj["artistSurname1"] = req.body.artistSurname1
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim();
-		}
-		if (req?.body?.artistSurname2) {
-			obj["artistSurname2"] = req.body.artistSurname2
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim();
-		}
-		if (req?.body?.nickName) {
-			obj["nickname"] = req.body.nickname
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim();
-		}
-		obj["address"] = {
-			residentialAddress: req.body.residentialAddress,
-			country: req.body.country,
-			zipCode: String(req.body.zipCode),
-			city: req.body.city,
-			state: req.body.state,
-			latitude: req.body.latitude,
-			longitude: req.body.longitude,
-		};
+		let dataArtist = {}
+		req?.params?.id ? Artist.updateOne({ _id: req.params.id }, condition).then() : dataArtist = await Artist.create(obj)
 
-		obj["highlights"] = {
-			addHighlights: req.body.highlights.trim(),
-		};
-
-		if (req?.body?.cvData.length) {
-			obj["highlights"]["cv"] = req?.body?.cvData.split(",");
-		}
-
-		obj["aboutArtist"] = {
-			about: req.body.about.trim(),
-		};
-
-		if (req?.body?.artistCategory.length) {
-			obj["aboutArtist"]["category"] = req?.body?.artistCategory.split(",");
-		}
-
-		obj["status"] = {
-			artwork: req.body.artwork,
-			product: req.body.product,
-		};
-
-		obj["profile"] = {
-			mainImage: fileData.data.profileImage[0].filename,
-			additionalImage: fileData.data.additionalImage[0].filename,
-			inProcessImage: fileData.data.inProcessImage[0].filename,
-			mainVideo: fileData.data.mainVideo[0].filename,
-			additionalVideo: fileData.data.additionalVideo[0].filename,
-		};
-
-		obj["invoice"] = {
-			taxNumber: req.body.taxNumber.trim(),
-			taxLegalName: req.body.taxLegalName
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim(),
-			taxAddress: req.body.taxAddress,
-			taxZipCode: String(req.body.taxZipCode),
-			taxCity: req.body.taxCity,
-			taxProvince: req.body.taxProvince,
-			taxCountry: req.body.taxCountry,
-			taxEmail: req.body.taxEmail.toLowerCase(),
-			taxPhone: req.body.taxPhone.replace(/[- )(]/g, "").trim(),
-			taxBankIBAN: req.body.taxBankIBAN,
-			taxBankName: req.body.taxBankName,
-		};
-
-		obj["logistics"] = {
-			logName: req.body.logName
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim(),
-			logAddress: req.body.logAddress,
-			logZipCode: String(req.body.logZipCode),
-			logCity: req.body.logCity,
-			logProvince: req.body.logProvince,
-			logCountry: req.body.logCountry,
-			logEmail: req.body.logEmail.toLowerCase(),
-			logPhone: req.body.logPhone.replace(/[- )(]/g, "").trim(),
-			logNotes: req?.body?.logNotes,
-		};
-
-		if (JSON.parse(req.body.isManagerDetails)) {
-			obj["managerDetails"] = {
-				artistName: req.body.managerArtistName
-					.toLowerCase()
-					.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-					.trim(),
-				artistSurname: req.body.managerArtistSurname
-					.toLowerCase()
-					.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-					.trim(),
-				artistPhone: req.body.managerArtistPhone.replace(/[- )(]/g, "").trim(),
-				artistEmail: req.body.managerArtistEmail.toLowerCase(),
-				artistGender: req.body.managerArtistGender,
-			};
-			obj["managerDetails"] = {
-				address: {
-					address1: req.body.address1,
-					city: req.body.managerCity,
-					state: req.body.managerState,
-					zipCode: String(req.body.managerZipCode),
-					country: req.body.managerCountry,
-				},
-			};
-
-			if (req.body.managerArtistLanguage.length) {
-				obj["managerDetails"]["language"] =
-					req.body.managerArtistLanguage.split(",");
-			}
-		}
-
-		await Artist.create(obj);
 		return res.status(200).send({
+			id: req?.params?.id ? req.params.id : dataArtist._id,
 			message: "Artist Registered successfully",
 		});
 	} catch (error) {
@@ -324,24 +365,17 @@ const listDiscipline = async (req, res) => {
 
 const createInsignias = async (req, res) => {
 	try {
-		const admin = await Admin.countDocuments({
-			_id: req.user._id,
-			isDeleted: false,
-		}).lean(true);
+		const admin = await Admin.countDocuments({ _id: req.user._id, isDeleted: false }).lean(true);
+		
 		if (!admin) {
-			return res.status(400).send({
-				message: `Admin not found`,
-			});
+			return res.status(400).send({ message: `Admin not found` });
 		}
 
 		const fileData = await fileUploadFunc(req, res);
 
 		if (fileData.type !== "success") {
 			return res.status(fileData.status).send({
-				message:
-					fileData?.type === "fileNotFound"
-						? "Please upload the image"
-						: fileData.type,
+				message: fileData?.type === "fileNotFound" ? "Please upload the image" : fileData.type,
 			});
 		}
 
@@ -358,10 +392,33 @@ const createInsignias = async (req, res) => {
 		return res.status(200).send({
 			message: "Insignia created successfully",
 		});
+
 	} catch (error) {
 		APIErrorLog.error("Error while created the insignia by admin");
 		APIErrorLog.error(error);
 		// error response
+		return res.status(500).send({ message: "Something went wrong" });
+	}
+};
+
+const getRegisterArtist = async (req, res) => {
+	try {
+		const admin = await Admin.countDocuments({ _id: req.user._id, isDeleted: false }).lean(true);
+
+		if (!admin) {
+			return res.status(400).send({ message: `Admin not found` });
+		}
+
+		const data = await Artist.findOne({ _id: req.params.id, isDeleted: false }).lean(true)
+
+		if (data) {
+			return res.status(200).send({ data: data, message: 'Artist data received successfully' })
+		}
+		return res.status(400).send({ message: 'Artist not found' })
+	} catch (error) {
+		APIErrorLog.error("Error while get the artist data");
+		APIErrorLog.error(error);
+	// error response
 		return res.status(500).send({ message: "Something went wrong" });
 	}
 };
@@ -373,4 +430,5 @@ module.exports = {
 	listArtworkStyle,
 	listDiscipline,
 	createInsignias,
+	getRegisterArtist
 };

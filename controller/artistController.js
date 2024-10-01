@@ -24,17 +24,11 @@ const login = async (req, res) => {
 
 const becomeArtist = async (req, res) => {
 	try {
-		const checkDuplicate = await Artist.countDocuments({
-			$or: [{ phone: req.body.phone.replace(/[- )(]/g, "").trim() }, { email: req.body.email.toLowerCase() },
-			],
-			isDeleted: false,
-		});
+		
+		const checkDuplicate = await Artist.countDocuments({ $or: [{ phone: req.body.phone.replace(/[- )(]/g, "").trim() }, { email: req.body.email.toLowerCase() }], isDeleted: false });
 
 		if (checkDuplicate) {
-			return res.status(400).send({
-				message:
-					"These credentials have already been used. Please use different credentials.",
-			});
+			return res.status(400).send({ message: "These credentials have already been used. Please use different credentials." });
 		}
 
 		const fileData = await fileUploadFunc(req, res);

@@ -20,12 +20,15 @@ const artistSchema = new mongoose.Schema(
 		nickName: {
 			type: String,
 		},
-		status: {
+		artworkStatus: {
 			type: Object,
 		},
 		roles: {
 			type: String,
 			default: "artist",
+		},
+		notes: {
+			type: String,
 		},
 		gender: {
 			type: String,
@@ -110,6 +113,10 @@ const artistSchema = new mongoose.Schema(
 		updatedBy: {
 			type: mongoose.Schema.Types.ObjectId,
 		},
+		pageCount: {
+			type: Number,
+			default: 1
+		}
 	},
 	{
 		timestamps: true,

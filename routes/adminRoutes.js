@@ -8,6 +8,7 @@ const {
 	listArtworkStyle,
 	listDiscipline,
 	createInsignias,
+	getRegisterArtist
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 
@@ -15,7 +16,9 @@ router.post("/login", loginData, login);
 
 router.get("/dashboard", validateAdminToken, testAdmin);
 
-router.post("/artist-register", validateAdminToken, artistRegister);
+router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
+
+router.post("/artist-register/:id?", validateAdminToken, artistRegister);
 
 router.get(
 	"/list-artwork-style/:response",
