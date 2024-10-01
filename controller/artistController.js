@@ -25,12 +25,6 @@ const login = async (req, res) => {
 const becomeArtist = async (req, res) => {
 	try {
 		
-		const checkDuplicate = await Artist.countDocuments({ $or: [{ phone: req.body.phone.replace(/[- )(]/g, "").trim() }, { email: req.body.email.toLowerCase() }], isDeleted: false });
-
-		if (checkDuplicate) {
-			return res.status(400).send({ message: "These credentials have already been used. Please use different credentials." });
-		}
-
 		const fileData = await fileUploadFunc(req, res);
 
 		if (fileData.type !== "success") {
@@ -42,11 +36,14 @@ const becomeArtist = async (req, res) => {
 			});
 		}
 
+		const checkDuplicate = await Artist.countDocuments({ $or: [{ phone: req.body.phone.replace(/[- )(]/g, "").trim() }, { email: req.body.email.toLowerCase() }], isDeleted: false });
+
+		if (checkDuplicate) {
+			return res.status(400).send({ message: "These credentials have already been used. Please use different credentials." });
+		}
+
 		let obj = {
-			fullName: req.body.fullName
-				.toLowerCase()
-				.replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-				.trim(),
+			fullName: req.body.fullName.toLowerCase().replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase()).trim(),
 			phone: req.body.phone.replace(/[- )(]/g, "").trim(),
 			email: req.body.email.toLowerCase(),
 			category: req.body.category,
@@ -56,9 +53,9 @@ const becomeArtist = async (req, res) => {
 		};
 
 		obj["address"] = {
-			city: req.body.city.trim(),
-			region: req.body.region.trim(),
-			country: req.body.country.trim(),
+			city: req.body.city,
+			region: req.body.region,
+			country: req.body.country,
 			zipCode: String(req.body.zipCode),
 		};
 
@@ -74,9 +71,7 @@ const becomeArtist = async (req, res) => {
 
 		sendMail("become-an-artist", mailVariable, obj.email);
 
-		return res.status(200).send({
-			message: "Your Become Artist request sent successfully.",
-		});
+		return res.status(200).send({ message: "Your Become Artist request sent successfully."});
 	} catch (error) {
 		APIErrorLog.error("Error while register the artist information");
 		APIErrorLog.error(error);
