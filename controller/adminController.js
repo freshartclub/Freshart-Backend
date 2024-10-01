@@ -346,7 +346,7 @@ const createInsignias = async (req, res) => {
 		}
 
 		const obj = {
-			area: req.body.credentialName.trim(),
+			areaName: req.body.credentialName.trim(),
 			group: req.body.credentialGroup.trim(),
 			priority: req.body.credentialPriority.trim(),
 			isActive: JSON.parse(req.body.isActive),

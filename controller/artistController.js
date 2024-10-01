@@ -25,9 +25,7 @@ const login = async (req, res) => {
 const becomeArtist = async (req, res) => {
 	try {
 		const checkDuplicate = await Artist.countDocuments({
-			$or: [
-				{ phone: req.body.phone.replace(/[- )(]/g, "").trim() },
-				{ email: req.body.email.toLowerCase() },
+			$or: [{ phone: req.body.phone.replace(/[- )(]/g, "").trim() }, { email: req.body.email.toLowerCase() },
 			],
 			isDeleted: false,
 		});
