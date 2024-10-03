@@ -155,7 +155,65 @@ const resetPassword = async (req, res) => {
       .send({ message: "Something went wrong", error: error.message });
   }
 };
+const changePassword = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    const checkValid = await checkValidations(errors);
 
+    if (checkValid.type === "error") {
+      return res.status(400).send({
+        message: checkValid.errors.msg,
+      });
+    }
+    const { password, newPassword, confirmPassword } = req.body;
+    console.log('passwordpasswordpassword', req.body);
+
+    // Check if all required fields are present
+    if (!password || !newPassword || !confirmPassword) {
+      return res.status(400).send({
+        message: "Password, New password and confirm password are required",
+      });
+    }
+
+    const hashPassword = md5(password);
+
+    // Find the user by ID and get their current password
+    const user = await Artist.findOne(
+      { _id: req.user._id, isDeleted: false },
+      { password: 1 }
+    ).lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    // Corrected password comparison
+    if (user.password !== hashPassword) {
+      return res.status(400).send({ message: "The current password you entered is incorrect" });
+    }
+
+    // Check if newPassword matches confirmPassword
+    if (newPassword !== confirmPassword) {
+      return res.status(400).send({
+        message: "New password and confirm password must be same",
+      });
+    }
+
+    // Update the user's password with the new hashed password
+    await Artist.updateOne(
+      { _id: user._id },
+      { $set: { password: md5(newPassword) } }
+    );
+
+    return res.status(200).send({ message: "Password changed successfully" });
+  } catch (error) {
+    console.error("Error in changing password:", error);
+    return res.status(500).send({
+      message: "Something went wrong",
+      error: error.message,
+    });
+  }
+};
 const User = async (req, res) => {
   try {
     const fileData = await fileUploadFunc(req, res);
@@ -232,5 +290,6 @@ module.exports = {
   forgotPassword,
   verifyOtp,
   resetPassword,
+  changePassword,
   User,
 };

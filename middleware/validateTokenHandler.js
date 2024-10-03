@@ -1,9 +1,9 @@
 const jwt = require("jsonwebtoken");
 const { createLog } = require("../functions/common");
 const APIErrorLog = createLog("API_error_log");
-const User = require("../models/userModel");
+
 const Artist = require("../models/artistModel");
-const { getImageFile } = require("../functions/aws-sdk");
+const UserModel = require("../models/UserModel");
 
 const validateToken = async (req, res, next) => {
 	try {
@@ -27,7 +27,7 @@ const validateToken = async (req, res, next) => {
 					);
 
 					if (data?.user?.roles == "user") {
-						const users = await User.findOne(
+						const users = await UserModel.findOne(
 							{ isDeleted: false, tokens: { $elemMatch: { $eq: token } } },
 							{ tokens: 0 }
 						).lean(true);
@@ -52,13 +52,7 @@ const validateToken = async (req, res, next) => {
 											"Your subscription has been ended. Please contact your business owner to again subscribe.",
 									});
 							}
-							if (users?.profileImage) {
-								const imgURL = await getImageFile(
-									process.env.BUCKET_NAME,
-									users.profileImage
-								);
-								users["profileImage"] = imgURL.imageUrl;
-							}
+							
 							req.user = users;
 							return next();
 						}
@@ -127,13 +121,6 @@ const validateToken = async (req, res, next) => {
 									});
 							}
 
-							if (artist?.profileImage) {
-								const imgURL = await getImageFile(
-									process.env.BUCKET_NAME,
-									artist.profileImage
-								);
-								artist["profileImage"] = imgURL.imageUrl;
-							}
 							req.user = artist;
 							return next();
 						}
