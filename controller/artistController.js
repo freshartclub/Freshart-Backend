@@ -1,5 +1,5 @@
 const mongoose = require("mongoose");
-const BecomeArtist = require("../models/becomeArtistModel");
+
 const Artist = require("../models/artistModel");
 const { v4: uuidv4 } = require("uuid");
 const { createLog, fileUploadFunc } = require("../functions/common");
@@ -9,6 +9,7 @@ const jwt = require("jsonwebtoken");
 const { validationResult } = require("express-validator");
 const { checkValidations } = require("../functions/checkValidation");
 const { generateOtp } = require("../functions/genrateOtp");
+const userSchema = require("../models/UserModel");
 
 const APIErrorLog = createLog("API_error_log");
 
@@ -120,6 +121,7 @@ const verifyOtp = async (req, res) => {
       .send({ message: "Something went wrong", error: error.message });
   }
 };
+
 const resetPassword = async (req, res) => {
   try {
     const { newPassword, confirmPassword } = req.body;
@@ -154,7 +156,7 @@ const resetPassword = async (req, res) => {
   }
 };
 
-const becomeArtist = async (req, res) => {
+const User = async (req, res) => {
   try {
     const fileData = await fileUploadFunc(req, res);
 
@@ -204,7 +206,7 @@ const becomeArtist = async (req, res) => {
 
     obj["uploadFile"] = fileData.data.uploadDocs[0].filename;
     obj["_id"] = mongoose.Types.ObjectId(obj["uploadFile"].slice(0, 24));
-    await BecomeArtist.create(obj);
+    await userSchema.create(obj);
 
     const mailVariable = {
       "%fullName%": obj.fullName,
@@ -212,13 +214,13 @@ const becomeArtist = async (req, res) => {
       "%email%": obj.email,
     };
 
-    sendMail("become-an-artist", mailVariable, obj.email);
+    sendMail("user", mailVariable, obj.email);
 
     return res
       .status(200)
-      .send({ message: "Your Become Artist request sent successfully." });
+      .send({ message: "Your user request sent successfully." });
   } catch (error) {
-    APIErrorLog.error("Error while register the artist information");
+    APIErrorLog.error("Error while register the user information");
     APIErrorLog.error(error);
     // error response
     return res.status(500).send({ message: "Something went wrong" });
@@ -230,5 +232,5 @@ module.exports = {
   forgotPassword,
   verifyOtp,
   resetPassword,
-  becomeArtist,
+  User,
 };
