@@ -1,0 +1,5 @@
+node_modules
+.env
+logs
+config/cronConfig.js
+public/uploads
