@@ -39,13 +39,13 @@ for (let data of dir) {
 	}
 }
 
-const limiter = rateLimit({
-	windowMs: 15 * 60 * 1000,
-	max: 10000,
-	message: "Too many request from this IP",
-});
+// const limiter = rateLimit({
+// 	windowMs: 15 * 60 * 1000,
+// 	max: 10000,
+// 	message: "Too many request from this IP",
+// });
 
-app.use(limiter);
+// app.use(limiter);
 app.use(express.json({ limit: "30mb" }));
 app.use(express.urlencoded({ extended: true, limit: "30mb" }));
 const directory = path.join(__dirname, "public");

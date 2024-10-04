@@ -10,9 +10,11 @@ const {
   createLog,
   getListArtworks,
   fileUploadFunc,
+  generateRandomId,
 } = require("../functions/common");
 const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
+const { sendMail } = require("../functions/mailer");
 
 const login = async (req, res) => {
   try {
@@ -81,6 +83,8 @@ const testAdmin = async (req, res) => {
 
 const artistRegister = async (req, res) => {
   try {
+    const fileData = await fileUploadFunc(req, res);
+
     const admin = await Admin.countDocuments({
       _id: req.user._id,
       isDeleted: false,
@@ -101,7 +105,16 @@ const artistRegister = async (req, res) => {
       ).lean(true);
     }
 
-    switch (req.body.count) {
+    let count = null;
+    if (fileData.data === undefined) {
+      count = req.body.count;
+    } else if (Object.keys(fileData.data).includes("profileImage")) {
+      count = 4;
+    } else {
+      count = 7;
+    }
+
+    switch (count) {
       case 1:
         obj = {
           artistName: req.body.artistName
@@ -146,14 +159,12 @@ const artistRegister = async (req, res) => {
           zipCode: String(req.body.zipCode),
           city: req.body.city,
           state: req.body.state,
-          // latitude: req.body.latitude,
-          // longitude: req.body.longitude,
         };
 
-        obj["artworkStatus"] = {
-          artwork: req.body.artwork,
-          product: req.body.product,
-        };
+        // obj["artworkStatus"] = {
+        //   artwork: req.body.artwork,
+        //   product: req.body.product,
+        // };
 
         if (req.body.count > artist?.pageCount) {
           obj["pageCount"] = req.body.count;
@@ -192,8 +203,6 @@ const artistRegister = async (req, res) => {
         break;
 
       case 4:
-        const fileData = await fileUploadFunc(req, res);
-
         if (fileData.type !== "success") {
           return res.status(fileData.status).send({
             message:
@@ -203,16 +212,29 @@ const artistRegister = async (req, res) => {
           });
         }
 
+        // console.log("this is body", req.body);
+        // console.log("this is data", fileData.data);
+
         obj["profile"] = {
-          mainImage: fileData.data.profileImage[0].filename,
-          additionalImage: fileData.data.additionalImage[0].filename,
-          inProcessImage: fileData.data.inProcessImage[0].filename,
-          mainVideo: fileData.data.mainVideo[0].filename,
-          additionalVideo: fileData.data.additionalVideo[0].filename,
+          mainImage: fileData.data.profileImage
+            ? fileData.data.profileImage[0].filename
+            : null,
+          additionalImage: fileData.data.additionalImage
+            ? fileData.data.additionalImage[0].filename
+            : [],
+          inProcessImage: fileData.data.inProcessImage
+            ? fileData.data.inProcessImage[0].filename
+            : null,
+          mainVideo: fileData.data.mainVideo
+            ? fileData.data.mainVideo[0].filename
+            : null,
+          additionalVideo: fileData.data.additionalVideo
+            ? fileData.data.additionalVideo[0].filename
+            : [],
         };
 
-        if (req.body.count > artist.pageCount) {
-          obj["pageCount"] = req.body.count;
+        if (count > artist.pageCount) {
+          obj["pageCount"] = count;
         }
         break;
 
@@ -262,34 +284,69 @@ const artistRegister = async (req, res) => {
         break;
 
       case 7:
-        if (JSON.parse(req.body.isManagerDetails)) {
+        if (fileData.type !== "success") {
+          return res.status(fileData.status).send({
+            message:
+              fileData?.type === "fileNotFound"
+                ? "Please upload the documents"
+                : fileData.type,
+          });
+        }
+
+        obj["document"] = {
+          documentPath: fileData.data.uploadDocs[0].filename,
+          documentName: req.body.documentName,
+        };
+
+        if (req.body.isManagerDetails == "true") {
+          obj["isManagerDetails"] = true;
           obj["managerDetails"] = {
             artistName: req.body.managerArtistName
               .toLowerCase()
               .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
               .trim(),
-            artistSurname: req.body.managerArtistSurname
+            artistSurname1: req.body.managerArtistSurnameOther1
               .toLowerCase()
               .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
               .trim(),
+            artistSurname2: req.body.managerArtistSurname2
+              .toLowerCase()
+              .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+              .trim(),
+            artistNickname: req.body.managerArtistNickname
+              .toLowerCase()
+              .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+              .trim(),
+            artistContactTo: req.body.managerArtistContactTo,
+            // .replace(/[- )(]/g, "")
+            // .trim(),
             artistPhone: req.body.managerArtistPhone
               .replace(/[- )(]/g, "")
               .trim(),
             artistEmail: req.body.managerArtistEmail.toLowerCase(),
             artistGender: req.body.managerArtistGender,
-          };
-          obj["managerDetails"] = {
             address: {
-              address1: req.body.address1,
+              address: req.body.address,
               city: req.body.managerCity,
               state: req.body.managerState,
               zipCode: String(req.body.managerZipCode),
               country: req.body.managerCountry,
+              extraInfo1: req.body.managerExtraInfo1,
+              extraInfo2: req.body.managerExtraInfo2,
+              extraInfo3: req.body.managerExtraInfo3,
             },
           };
 
           if (req.body.managerArtistLanguage.length) {
-            obj["managerDetails"]["language"] = req.body.managerArtistLanguage;
+            obj["managerDetails"]["language"] = Array.isArray(
+              req.body.managerArtistLanguage
+            )
+              ? req.body.managerArtistLanguage
+              : [req.body.managerArtistLanguage];
+          }
+
+          if (count > artist.pageCount) {
+            obj["pageCount"] = count;
           }
         }
         break;
@@ -298,17 +355,21 @@ const artistRegister = async (req, res) => {
     let condition = {
       $set: obj,
     };
-    if (req.body.count > 6) {
-      condition["$unset"] = { pageCount: "" };
+
+    let newArtist = null;
+
+    req?.params?.id
+      ? await Artist.updateOne({ _id: req.params.id }, condition)
+      : (newArtist = await Artist.create(obj));
+
+    if (newArtist) {
+      newArtist.artistId = generateRandomId(newArtist._id);
+      await newArtist.save();
     }
 
-    let dataArtist = {};
-    req?.params?.id
-      ? Artist.updateOne({ _id: req.params.id }, condition).then()
-      : (dataArtist = await Artist.create(obj));
-
     return res.status(200).send({
-      id: req?.params?.id ? req.params.id : dataArtist._id,
+      id: req?.params?.id ? req.params.id : newArtist._id,
+      popUpFlag: count === 7 ? true : false,
       message: "Artist Registered successfully",
     });
   } catch (error) {
@@ -489,6 +550,42 @@ const getInsignias = async (req, res) => {
   }
 };
 
+const activateArtist = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const artist = await Artist.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false },
+      { $set: { isActivated: true } },
+      { new: true }
+    ).lean(true);
+
+    if (!artist) return res.status(400).send({ message: "Artist not found" });
+
+    const mailVaribles = {
+      "%fullName%": artist.artistName,
+      "%email%": artist.email,
+      "%phone%": artist.phone,
+    };
+
+    await sendMail("Become-an-artist-credentials", mailVaribles, artist.email);
+
+    return res
+      .status(200)
+      .send({ message: "Artist data updated successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   testAdmin,
@@ -498,4 +595,5 @@ module.exports = {
   createInsignias,
   getRegisterArtist,
   getInsignias,
+  activateArtist,
 };
