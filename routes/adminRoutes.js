@@ -34,6 +34,6 @@ router.post("/create-insignias", validateAdminToken, createInsignias);
 
 router.get("/get-insignias", validateAdminToken, getInsignias);
 
-router.post("/activate-artist", activateArtist);
+router.post("/activate-artist", validateAdminToken, activateArtist);
 
 module.exports = router;
