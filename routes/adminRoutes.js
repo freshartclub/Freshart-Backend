@@ -20,7 +20,7 @@ router.get("/dashboard", validateAdminToken, testAdmin);
 
 router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
 
-router.post("/artist-register/:id", validateAdminToken, artistRegister);
+router.post("/artist-register/:id?", validateAdminToken, artistRegister);
 
 router.get(
   "/list-artwork-style/:response",
@@ -34,6 +34,6 @@ router.post("/create-insignias", validateAdminToken, createInsignias);
 
 router.get("/get-insignias", validateAdminToken, getInsignias);
 
-router.post("/activate-artist", validateAdminToken, activateArtist);
+router.post("/activate-artist/:id", validateAdminToken, activateArtist);
 
 module.exports = router;
