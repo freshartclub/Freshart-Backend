@@ -577,7 +577,7 @@ const activateArtist = async (req, res) => {
 
     return res
       .status(200)
-      .send({ message: "Artist data updated successfully" });
+      .send({ message: "Artist activated successfully" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
