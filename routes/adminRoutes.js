@@ -20,7 +20,7 @@ router.get("/dashboard", validateAdminToken, testAdmin);
 
 router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
 
-router.post("/artist-register/:id?", validateAdminToken, artistRegister);
+router.post("/artist-register/:id", validateAdminToken, artistRegister);
 
 router.get(
   "/list-artwork-style/:response",
