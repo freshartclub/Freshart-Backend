@@ -15,6 +15,7 @@ const {
 const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
+const crypto = require("crypto");
 
 const login = async (req, res) => {
   try {
@@ -364,6 +365,7 @@ const artistRegister = async (req, res) => {
 
     if (newArtist) {
       newArtist.artistId = generateRandomId(newArtist._id);
+      newArtist.role = "artist";
       await newArtist.save();
     }
 
@@ -559,25 +561,103 @@ const activateArtist = async (req, res) => {
 
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artist = await Artist.findOneAndUpdate(
-      { _id: req.params.id, isDeleted: false },
-      { $set: { isActivated: true } },
-      { new: true }
-    ).lean(true);
+    const artist = await Artist.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    });
 
     if (!artist) return res.status(400).send({ message: "Artist not found" });
+    if (artist.isActivated) {
+      return res.status(400).send({ message: "Artist already activated" });
+    }
+    if (artist.pageCount < 7) {
+      return res
+        .status(400)
+        .send({ message: "Admin must complete the full form" });
+    }
 
+    artist.isActivated = true;
+    artist.passwordLinkToken = crypto.randomBytes(32).toString("hex");
+    artist.passwordLinkTokenUsed = false;
+    await artist.save();
+
+    const link = `${process.env.FRONTEND_URL}/reset-password?artistId=${artist._id}&&token=${artist.passwordLinkToken}`;
     const mailVaribles = {
       "%fullName%": artist.artistName,
       "%email%": artist.email,
       "%phone%": artist.phone,
+      "%link%": link,
     };
 
-    await sendMail("Become-an-artist-credentials", mailVaribles, artist.email);
+    if (artist.password) {
+      await sendMail(
+        "Become-an-artist-credentials",
+        mailVaribles,
+        artist.email
+      );
+    }
 
-    return res
-      .status(200)
-      .send({ message: "Artist activated successfully" });
+    await sendMail("Become-an-artist-mail", mailVaribles, artist.email);
+
+    return res.status(200).send({ message: "Artist activated successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getAllArtists = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const getArtists = await Artist.find({
+      role: "artist",
+      isDeleted: false,
+    }).lean(true);
+
+    res.status(200).send({ data: getArtists });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const setNewPasswordViaLink = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const artist = await Artist.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    });
+    if (!artist) return res.status(400).send({ message: "Artist not found" });
+    if (artist.passwordLinkTokenUsed === true) {
+      return res.status(400).send({ message: "Link is either expired/broken" });
+    }
+
+    const { password, confirmPassword } = req.body;
+    if (password !== confirmPassword) {
+      return res
+        .status(400)
+        .send({ message: "Password and confirm password does not match" });
+    }
+
+    artist.passwordLinkTokenUsed = false;
+    artist.password = md5(password);
+    await artist.save();
+    return res.status(200).send({ message: "Password reset successfully" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -596,4 +676,6 @@ module.exports = {
   getRegisterArtist,
   getInsignias,
   activateArtist,
+  getAllArtists,
+  setNewPasswordViaLink,
 };

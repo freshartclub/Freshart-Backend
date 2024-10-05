@@ -6,10 +6,15 @@ const artistSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    artistName: {
+    artistId: {
       type: String,
     },
-    artistId: {
+    role: {
+      type: String,
+      enum: ["artist", "user"],
+      default: "user",
+    },
+    artistName: {
       type: String,
     },
     email: {
@@ -21,15 +26,15 @@ const artistSchema = new mongoose.Schema(
     artistSurname2: {
       type: String,
     },
+    password: {
+      type: String,
+      select: false,
+    },
     nickName: {
       type: String,
     },
     artworkStatus: {
       type: Object,
-    },
-    roles: {
-      type: String,
-      default: "artist",
     },
     notes: {
       type: String,
@@ -114,16 +119,18 @@ const artistSchema = new mongoose.Schema(
     managerDetails: {
       type: Object,
     },
-    createdBy: {
-      type: mongoose.Schema.Types.ObjectId,
-    },
-    updatedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-    },
+    // createdBy: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    // },
+    // updatedBy: {
+    //   type: mongoose.Schema.Types.ObjectId,
+    // },
     pageCount: {
       type: Number,
       default: 1,
     },
+    passwordLinkToken: { type: String, default: null },
+    passwordLinkTokenUsed: { type: Boolean, default: false },
   },
   {
     timestamps: true,
