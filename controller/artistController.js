@@ -4,6 +4,25 @@ const Artist = require("../models/artistModel");
 const { createLog, fileUploadFunc } = require("../functions/common");
 const { sendMail } = require("../functions/mailer");
 const APIErrorLog = createLog("API_error_log");
+const md5 = require("md5");
+
+const isStrongPassword = (password) => {
+  const uppercaseRegex = /[A-Z]/;
+  const lowercaseRegex = /[a-z]/;
+  const numericRegex = /\d/;
+  const specialCharRegex = /[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]/;
+
+  if (
+    uppercaseRegex.test(password) &&
+    lowercaseRegex.test(password) &&
+    numericRegex.test(password) &&
+    specialCharRegex.test(password)
+  ) {
+    return true;
+  } else {
+    return false;
+  }
+};
 
 const login = async (req, res) => {
   try {
@@ -41,12 +60,10 @@ const becomeArtist = async (req, res) => {
     });
 
     if (checkDuplicate) {
-      return res
-        .status(400)
-        .send({
-          message:
-            "These credentials have already been used. Please use different credentials.",
-        });
+      return res.status(400).send({
+        message:
+          "These credentials have already been used. Please use different credentials.",
+      });
     }
 
     let obj = {
@@ -92,7 +109,73 @@ const becomeArtist = async (req, res) => {
   }
 };
 
+const resetPassword = async (req, res) => {
+  try {
+    const { artistId, token } = req.query;
+    const { password, confirmPassword } = req.body;
+
+    if (token) {
+      const artist = await Artist.findOne({
+        _id: artistId,
+        isDeleted: false,
+      });
+      if (!artist) return res.status(400).send({ message: "Artist not found" });
+      if (artist.passwordLinkTokenUsed === true) {
+        return res
+          .status(400)
+          .send({ message: "Link is either expired/broken" });
+      }
+
+      if (!isStrongPassword(password)) {
+        return res.status(400).send({
+          message:
+            "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+        });
+      }
+      if (password !== confirmPassword) {
+        return res
+          .status(400)
+          .send({ message: "Password and confirm password does not match" });
+      }
+
+      artist.password = md5(password);
+      artist.passwordLinkTokenUsed = true;
+      artist.passwordLinkToken = null;
+      await artist.save();
+      return res.status(200).send({ message: "New Password set successfully" });
+    } else {
+      const artist = await Artist.findOne({
+        _id: artistId,
+        isDeleted: false,
+      });
+      if (!artist) return res.status(400).send({ message: "Artist not found" });
+
+      if (!isStrongPassword(password)) {
+        return res.status(400).send({
+          message:
+            "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+        });
+      }
+      if (password !== confirmPassword) {
+        return res
+          .status(400)
+          .send({ message: "Password and confirm password does not match" });
+      }
+
+      artist.password = md5(password);
+      await artist.save();
+      return res.status(200).send({ message: "Password reset successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   becomeArtist,
+  resetPassword,
 };
