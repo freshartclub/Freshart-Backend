@@ -16,6 +16,7 @@ const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
+const BecomeArtist = require("../models/becomeArtistModel");
 
 const login = async (req, res) => {
   try {
@@ -609,6 +610,7 @@ const activateArtist = async (req, res) => {
 };
 
 const getAllArtists = async (req, res) => {
+  
   try {
     const admin = await Admin.countDocuments({
       _id: req.user._id,
@@ -630,6 +632,28 @@ const getAllArtists = async (req, res) => {
   }
 };
 
+const becomeAnArtistSubmitList = async (req, res) => {
+
+  
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const artistSubmittedForm = await BecomeArtist.find({ isDeleted: false }).lean(true);
+
+    res.status(200).send({ data: artistSubmittedForm });
+
+  }
+  catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);``
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+}
 module.exports = {
   login,
   testAdmin,
@@ -641,4 +665,5 @@ module.exports = {
   getInsignias,
   activateArtist,
   getAllArtists,
+  becomeAnArtistSubmitList,
 };

@@ -12,6 +12,7 @@ const {
   getInsignias,
   activateArtist,
   getAllArtists,
+  becomeAnArtistSubmitList,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 
@@ -38,5 +39,7 @@ router.get("/get-insignias", validateAdminToken, getInsignias);
 router.post("/activate-artist/:id", validateAdminToken, activateArtist);
 
 router.get("/get-all-artists", validateAdminToken, getAllArtists);
+
+router.get("/get-all-become-an-artist-list", validateAdminToken, becomeAnArtistSubmitList);
 
 module.exports = router;
