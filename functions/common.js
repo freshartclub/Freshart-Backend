@@ -19,14 +19,32 @@ module.exports.createLog = (logName) => {
   }
 };
 
-module.exports.generateRandomId = (_id) => {
+module.exports.generateRandomId = (user) => {
   try {
-    _id = _id.toString();
-    const lastSixDigits = _id.slice(-6);
-    const randomDigits = Math.floor(Math.random() * 90 + 10); // Random number between 10 and 99
-    const randomId = lastSixDigits + randomDigits.toString();
+    const characters = user
+      ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+      : "0123456789";
+    let result = "";
 
-    return randomId;
+    for (let i = 0; i < 8; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters[randomIndex];
+    }
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
+
+module.exports.generateRandomOTP = () => {
+  try {
+    const digits = "0123456789";
+    let OTP = "";
+    for (let i = 0; i < 6; i++) {
+      OTP += digits[Math.floor(Math.random() * 10)];
+    }
+    return OTP;
   } catch (error) {
     throw error;
   }

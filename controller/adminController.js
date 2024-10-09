@@ -10,15 +10,15 @@ const {
   createLog,
   getListArtworks,
   fileUploadFunc,
+  generateRandomOTP,
   generateRandomId,
 } = require("../functions/common");
 const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
-const BecomeArtist = require("../models/becomeArtistModel");
 
-const login = async (req, res) => {
+const sendLoginOTP = async (req, res) => {
   try {
     const errors = validationResult(req);
 
@@ -36,27 +36,115 @@ const login = async (req, res) => {
     const admins = await Admin.findOne(
       { email: email.toLowerCase(), isDeleted: false, status: "active" },
       { email: 1, password: 1, roles: 1 }
-    ).lean(true);
+    );
 
     if (admins && admins.password === md5(password)) {
+      const otp = await generateRandomOTP();
+      const mailVaribles = {
+        "%fullName%": admins.firstName,
+        "%email%": admins.email,
+        "%otp%": otp,
+      };
+
+      await sendMail("send-admin-otp", mailVaribles, admins.email);
+
+      await Admin.updateOne(
+        { _id: admins._id, isDeleted: false },
+        { $set: { OTP: otp } }
+      );
+
+      return res.status(200).send({
+        id: admins._id,
+        message: "OTP sent Successfully",
+      });
+    }
+
+    return res.status(400).send({ message: "Invalid Email/Password" });
+  } catch (error) {
+    APIErrorLog.error("Error while login the admin");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const validateOTP = async (req, res) => {
+  try {
+    const { id, otp } = req.body;
+
+    const admins = await Admin.findOne({
+      _id: id,
+      isDeleted: false,
+      status: "active",
+    }).lean(true);
+
+    const adminField = {
+      _id: id,
+      roles: admins.roles,
+      status: admins.status,
+      password: admins.password,
+    };
+
+    if (admins && admins.OTP == otp) {
       // Create token
       const token = jwt.sign(
-        { user: admins },
+        { user: adminField },
         process.env.ACCESS_TOKEN_SECERT,
         { expiresIn: "30d" }
       );
 
       Admin.updateOne(
         { _id: admins._id, isDeleted: false },
-        { $push: { tokens: token } }
+        {
+          $unset: { OTP: "" },
+          $push: { tokens: token },
+        }
       ).then();
 
       return res.status(200).send({
         token,
-        message: "Admin login Successfully",
+        message: "OTP Verified Successfully",
       });
     }
-    return res.status(400).send({ message: "Invalid Username and Password" });
+
+    return res.status(400).send({ message: "Invalid OTP" });
+  } catch (error) {
+    APIErrorLog.error("Error while login the admin");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const resendOTP = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    const admins = await Admin.findOne({
+      _id: id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (admins) {
+      const otp = await generateRandomOTP();
+      const mailVaribles = {
+        "%fullName%": admins.firstName,
+        "%email%": admins.email,
+        "%otp%": otp,
+      };
+
+      await sendMail("send-admin-otp", mailVaribles, admins.email);
+
+      await Admin.updateOne(
+        { _id: admins._id, isDeleted: false },
+        { $set: { OTP: otp } }
+      );
+
+      return res.status(200).send({
+        id: admins._id,
+        message: "OTP sent Successfully",
+      });
+    }
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
@@ -116,6 +204,7 @@ const artistRegister = async (req, res) => {
       count = 7;
     }
 
+    let user = true;
     switch (count) {
       case 1:
         obj = {
@@ -128,6 +217,8 @@ const artistRegister = async (req, res) => {
           email: req.body.email.toLowerCase(),
           gender: req.body.gender,
           notes: req?.body?.notes,
+          role: "user",
+          uesrId: generateRandomId(user),
         };
 
         if (req?.body?.language.length) {
@@ -350,6 +441,9 @@ const artistRegister = async (req, res) => {
           if (count > artist.pageCount) {
             obj["pageCount"] = count;
           }
+
+          obj["role"] = "artist";
+          obj["artistId"] = generateRandomId();
         }
         break;
     }
@@ -359,16 +453,33 @@ const artistRegister = async (req, res) => {
     };
 
     let newArtist = null;
+    const checkAritst = async (email) => {
+      const isExistingAritst = await Artist.countDocuments({
+        email: email.toLowerCase(),
+        isDeleted: false,
+      });
+
+      if (isExistingAritst) {
+        return res
+          .status(400)
+          .send({ message: "Artist already exist with this email" });
+      }
+
+      newArtist = await Artist.create(obj);
+
+      await Artist.updateOne(
+        { _id: newArtist._id, isDeleted: false },
+        {
+          $set: {
+            isArtistRequest: false,
+          },
+        }
+      );
+    };
 
     req?.params?.id
       ? await Artist.updateOne({ _id: req.params.id }, condition)
-      : (newArtist = await Artist.create(obj));
-
-    if (newArtist) {
-      newArtist.artistId = generateRandomId(newArtist._id);
-      newArtist.role = "artist";
-      await newArtist.save();
-    }
+      : await checkAritst(obj.email);
 
     return res.status(200).send({
       id: req?.params?.id ? req.params.id : newArtist._id,
@@ -577,12 +688,19 @@ const activateArtist = async (req, res) => {
         .send({ message: "Admin must complete the full form" });
     }
 
-    artist.isActivated = true;
-    artist.passwordLinkToken = crypto.randomBytes(32).toString("hex");
-    artist.passwordLinkTokenUsed = false;
-    await artist.save();
+    const token = crypto.randomBytes(32).toString("hex");
 
-    const link = `${process.env.FRONTEND_URL}/reset-password?artistId=${artist._id}&token=${artist.passwordLinkToken}`;
+    await Artist.updateOne(
+      { _id: req.params.id },
+      {
+        $set: {
+          isActivated: true,
+          passwordLinkToken: token,
+        },
+      }
+    );
+
+    const link = `${process.env.FRONTEND_URL}/reset-password?artistId=${artist._id}&token=${token}`;
     const mailVaribles = {
       "%fullName%": artist.artistName,
       "%email%": artist.email,
@@ -590,7 +708,7 @@ const activateArtist = async (req, res) => {
       "%link%": link,
     };
 
-    if (!artist.password) {
+    if (!artist?.password) {
       await sendMail(
         "Become-an-artist-credentials",
         mailVaribles,
@@ -610,7 +728,6 @@ const activateArtist = async (req, res) => {
 };
 
 const getAllArtists = async (req, res) => {
-  
   try {
     const admin = await Admin.countDocuments({
       _id: req.user._id,
@@ -619,8 +736,9 @@ const getAllArtists = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const getArtists = await Artist.find({
-      role: "artist",
+      pageCount: 7,
       isDeleted: false,
+      role: "artist",
     }).lean(true);
 
     res.status(200).send({ data: getArtists });
@@ -632,30 +750,163 @@ const getAllArtists = async (req, res) => {
   }
 };
 
-const becomeAnArtistSubmitList = async (req, res) => {
-
-  
+const getArtistRequestList = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
       _id: req.user._id,
       isDeleted: false,
     }).lean(true);
-
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artistSubmittedForm = await BecomeArtist.find({ isDeleted: false }).lean(true);
+    const artistlist = await Artist.find({
+      isDeleted: false,
+      isArtistRequest: true,
+    }).lean(true);
 
-    res.status(200).send({ data: artistSubmittedForm });
-
-  }
-  catch (error) {
+    res.status(200).send({ data: artistlist });
+  } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
-    APIErrorLog.error(error);``
+    APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
-}
+};
+
+const getArtistPendingList = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const artistlist = await Artist.find({
+      isDeleted: false,
+      pageCount: { $lt: 7 },
+      isArtistRequest: false,
+    }).lean(true);
+
+    res.status(200).send({ data: artistlist });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const createNewUser = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const fileData = await fileUploadFunc(req, res);
+    if (fileData.type !== "success") {
+      return res.status(fileData.status).send({
+        message:
+          fileData?.type === "fileNotFound"
+            ? "Please upload the documents"
+            : fileData.type,
+      });
+    }
+
+    if (req.body.value === "new") {
+      const isExitingUser = await Artist.countDocuments({
+        email: req.body.email.toLowerCase(),
+      });
+
+      if (isExitingUser) {
+        return res
+          .status(400)
+          .send({ message: "User with this email already exists" });
+      }
+    }
+
+    const user = await Artist.create({
+      artistName: req.body.name,
+      email: req.body.email,
+      phone: req.body.phoneNumber,
+      avatar: fileData.data.avatar[0].filename,
+      role: "user",
+      address: {
+        residentialAddress: req.body.address,
+        country: req.body.country,
+        city: req.body.city,
+        state: req.body.state,
+        zipCode: req.body.zipCode,
+      },
+    });
+
+    await Artist.updateOne(
+      { _id: user._id },
+      { $set: { userId: generateRandomId(user._id) } }
+    );
+
+    return res
+      .status(200)
+      .send({ message: "User created successfully", id: user._id });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const serachUser = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { userId } = req.query;
+    const query = {};
+
+    if (userId) {
+      query.userId = { $regex: userId, $options: "i" };
+    }
+
+    const users = await Artist.find({
+      isDeleted: false,
+      role: "user",
+      ...query,
+    }).lean(true);
+    return res.status(200).send({ data: users });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getAllUsers = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const users = await Artist.find({
+      isDeleted: false,
+      role: "user",
+      userId: { $exists: true },
+    }).lean(true);
+
+    return res.status(200).send({ data: users });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
-  login,
+  sendLoginOTP,
+  validateOTP,
+  resendOTP,
   testAdmin,
   artistRegister,
   listArtworkStyle,
@@ -665,5 +916,9 @@ module.exports = {
   getInsignias,
   activateArtist,
   getAllArtists,
-  becomeAnArtistSubmitList,
+  getArtistRequestList,
+  getArtistPendingList,
+  createNewUser,
+  serachUser,
+  getAllUsers,
 };

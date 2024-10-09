@@ -11,8 +11,13 @@ const artistSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["artist", "user"],
-      default: "user",
+    },
+    isArtistRequest: {
+      type: Boolean,
+      default: false,
+    },
+    userId: {
+      type: String,
     },
     artistName: {
       type: String,
@@ -26,6 +31,9 @@ const artistSchema = new mongoose.Schema(
     artistSurname2: {
       type: String,
     },
+    avatar: {
+      type: String,
+    },
     password: {
       type: String,
       select: false,
@@ -33,9 +41,9 @@ const artistSchema = new mongoose.Schema(
     nickName: {
       type: String,
     },
-    artworkStatus: {
-      type: Object,
-    },
+    // artworkStatus: {
+    //   type: Object,
+    // },
     notes: {
       type: String,
     },
@@ -101,9 +109,9 @@ const artistSchema = new mongoose.Schema(
     profile: {
       type: Object,
     },
-    token: {
-      type: String,
-    },
+    // token: {
+    //   type: String,
+    // },
     tokens: {
       type: [String],
     },
@@ -119,6 +127,12 @@ const artistSchema = new mongoose.Schema(
     managerDetails: {
       type: Object,
     },
+    links: {
+      type: Object,
+    },
+    OTP: {
+      type: String,
+    },
     // createdBy: {
     //   type: mongoose.Schema.Types.ObjectId,
     // },
@@ -130,7 +144,6 @@ const artistSchema = new mongoose.Schema(
       default: 1,
     },
     passwordLinkToken: { type: String, default: null },
-    passwordLinkTokenUsed: { type: Boolean, default: false },
   },
   {
     timestamps: true,

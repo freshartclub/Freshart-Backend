@@ -1,7 +1,12 @@
 const mongoose = require("mongoose");
-const BecomeArtist = require("../models/becomeArtistModel");
 const Artist = require("../models/artistModel");
-const { createLog, fileUploadFunc } = require("../functions/common");
+const jwt = require("jsonwebtoken");
+const {
+  createLog,
+  fileUploadFunc,
+  generateRandomId,
+  generateRandomOTP,
+} = require("../functions/common");
 const { sendMail } = require("../functions/mailer");
 const APIErrorLog = createLog("API_error_log");
 const md5 = require("md5");
@@ -26,9 +31,106 @@ const isStrongPassword = (password) => {
 
 const login = async (req, res) => {
   try {
+    const { email, password } = req.body;
+
+    const user = await Artist.findOne({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    })
+      .select("+password")
+      .lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    if (user.password !== md5(password)) {
+      return res.status(400).send({ message: "Invalid credentials" });
+    }
+
+    const userField = {
+      _id: user._id,
+      role: user.role,
+      password: user.password,
+    };
+
+    const token = jwt.sign(
+      { user: userField },
+      process.env.ACCESS_TOKEN_SECERT,
+      {
+        expiresIn: "30d",
+      }
+    );
+
     return res.status(200).send({
       token,
       message: "Artist login Successfully",
+    });
+  } catch (error) {
+    APIErrorLog.error("Error while login the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const registerUser = async (req, res) => {
+  try {
+    const { email, password, cpassword } = req.body;
+
+    if (password !== cpassword) {
+      return res.status(400).send({ message: "Password does not match" });
+    }
+
+    if (!isStrongPassword(password)) {
+      return res.status(400).send({
+        message:
+          "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+      });
+    }
+
+    const isExist = await Artist.countDocuments({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    });
+
+    if (isExist) {
+      return res.status(400).send({
+        message:
+          "User with this email already exist. Please try with another email",
+      });
+    }
+
+    let user = true;
+    const newUser = await Artist.create({
+      email: email.toLowerCase(),
+      password: md5(password),
+      userId: generateRandomId(user),
+      role: "user",
+    });
+
+    const userField = {
+      _id: newUser._id,
+      role: newUser.role,
+      password: newUser.password,
+    };
+
+    const token = jwt.sign(
+      { user: userField },
+      process.env.ACCESS_TOKEN_SECERT,
+      { expiresIn: "30d" }
+    );
+
+    await Artist.updateOne(
+      { _id: newUser._id, isDeleted: false },
+      {
+        $push: { tokens: token },
+      }
+    );
+
+    return res.status(200).send({
+      token,
+      message: "Artist registered Successfully",
     });
   } catch (error) {
     APIErrorLog.error("Error while login the artist");
@@ -51,30 +153,22 @@ const becomeArtist = async (req, res) => {
       });
     }
 
-    const checkDuplicate = await Artist.countDocuments({
-      $or: [
-        { phone: req.body.phone.replace(/[- )(]/g, "").trim() },
-        { email: req.body.email.toLowerCase() },
-      ],
-      isDeleted: false,
-    });
-
-    if (checkDuplicate) {
-      return res.status(400).send({
-        message:
-          "These credentials have already been used. Please use different credentials.",
-      });
-    }
-
     let obj = {
-      fullName: req.body.fullName
+      artistName: req.body.fullName
         .toLowerCase()
         .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
         .trim(),
       phone: req.body.phone.replace(/[- )(]/g, "").trim(),
       email: req.body.email.toLowerCase(),
+      isArtistRequest: true,
+      // style: req.body.style,
+    };
+
+    obj["category"] = {
       category: req.body.category,
-      style: req.body.style,
+    };
+
+    obj["links"] = {
       socialMedia: req.body.socialMedia,
       website: req.body.website,
     };
@@ -88,21 +182,118 @@ const becomeArtist = async (req, res) => {
 
     obj["uploadFile"] = fileData.data.uploadDocs[0].filename;
     obj["_id"] = mongoose.Types.ObjectId(obj["uploadFile"].slice(0, 24));
-    await BecomeArtist.create(obj);
+
+    let condition = {
+      $set: obj,
+    };
+
+    const checkAritst = async (email) => {
+      const isExistingAritst = await Artist.countDocuments({
+        email: email.toLowerCase(),
+        isDeleted: false,
+      });
+
+      if (isExistingAritst) {
+        return res
+          .status(400)
+          .send({ message: "Artist already exist with this email" });
+      }
+
+      await Artist.create(obj);
+    };
+
+    req?.params?.id
+      ? await Artist.updateOne({ _id: req.params.id }, condition)
+      : await checkAritst(obj.email);
 
     const mailVariable = {
-      "%fullName%": obj.fullName,
-      "%phone%": obj.phone,
+      "%fullName%": obj.artistName,
       "%email%": obj.email,
     };
 
-    sendMail("become-an-artist", mailVariable, obj.email);
+    await sendMail("become-an-artist", mailVariable, obj.email);
 
     return res
       .status(200)
-      .send({ message: "Your Become Artist request sent successfully." });
+      .send({ message: "Your Become Artist request sent successfully" });
   } catch (error) {
     APIErrorLog.error("Error while register the artist information");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const sendForgotPasswordOTP = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    const user = await Artist.findOne({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    });
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    const otp = await generateRandomOTP();
+    const mailVaribles = {
+      "%fullName%": user.firstName,
+      "%email%": user.email,
+      "%otp%": otp,
+    };
+
+    await sendMail("send-forgotpassword-otp", mailVaribles, user.email);
+
+    await Artist.updateOne(
+      { _id: user._id, isDeleted: false },
+      { $set: { OTP: otp } }
+    );
+
+    return res.status(200).send({
+      id: user._id,
+      message: "OTP sent Successfully",
+    });
+  } catch (error) {
+    APIErrorLog.error("Error while register the artist information");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const validateOTP = async (req, res) => {
+  try {
+    const { id, otp } = req.body;
+
+    const user = await Artist.findOne({
+      _id: id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    if (!user.OTP) {
+      return res.status(400).send({ message: "Invalid OTP" });
+    }
+
+    if (user.OTP !== otp) {
+      return res.status(200).send({ message: "Invalid OTP" });
+    }
+
+    await Artist.updateOne(
+      { _id: user._id, isDeleted: false },
+      { $unset: { OTP: "" } }
+    );
+
+    return res
+      .status(200)
+      .send({ message: "OTP verified successfully", id: user._id });
+  } catch (error) {
+    APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
     // error response
     return res.status(500).send({ message: "Something went wrong" });
@@ -120,7 +311,7 @@ const resetPassword = async (req, res) => {
         isDeleted: false,
       });
       if (!artist) return res.status(400).send({ message: "Artist not found" });
-      if (artist.passwordLinkTokenUsed === true) {
+      if (!artist?.passwordLinkToken) {
         return res
           .status(400)
           .send({ message: "Link is either expired/broken" });
@@ -132,16 +323,24 @@ const resetPassword = async (req, res) => {
             "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
         });
       }
+
       if (password !== confirmPassword) {
         return res
           .status(400)
           .send({ message: "Password and confirm password does not match" });
       }
 
-      artist.password = md5(password);
-      artist.passwordLinkTokenUsed = true;
-      artist.passwordLinkToken = null;
-      await artist.save();
+      await Artist.updateOne(
+        { _id: artist._id },
+        {
+          $set: {
+            password: md5(password),
+          },
+          $unset: {
+            passwordLinkToken: 1,
+          },
+        }
+      );
       return res.status(200).send({ message: "New Password set successfully" });
     } else {
       const artist = await Artist.findOne({
@@ -162,8 +361,14 @@ const resetPassword = async (req, res) => {
           .send({ message: "Password and confirm password does not match" });
       }
 
-      artist.password = md5(password);
-      await artist.save();
+      await Artist.updateOne(
+        { _id: artist._id },
+        {
+          $set: {
+            password: md5(password),
+          },
+        }
+      );
       return res.status(200).send({ message: "Password reset successfully" });
     }
   } catch (error) {
@@ -174,8 +379,53 @@ const resetPassword = async (req, res) => {
   }
 };
 
+const resendOTP = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    const user = await Artist.findOne({
+      _id: id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    if (admins) {
+      const otp = await generateRandomOTP();
+      const mailVaribles = {
+        "%fullName%": user.firstName,
+        "%email%": user.email,
+        "%otp%": otp,
+      };
+
+      await sendMail("send-forgotpassword-otp", mailVaribles, user.email);
+
+      await Artist.updateOne(
+        { _id: user._id, isDeleted: false },
+        { $set: { OTP: otp } }
+      );
+
+      return res.status(200).send({
+        id: user._id,
+        message: "OTP sent Successfully",
+      });
+    }
+  } catch (error) {
+    APIErrorLog.error("Error while login the admin");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
+  registerUser,
   becomeArtist,
+  sendForgotPasswordOTP,
+  validateOTP,
   resetPassword,
+  resendOTP,
 };
