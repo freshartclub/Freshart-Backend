@@ -62,6 +62,11 @@ const login = async (req, res) => {
       }
     );
 
+    Artist.updateOne(
+      { _id: user._id, isDeleted: false },
+      { $push: { tokens: token } }
+    ).then();
+
     return res.status(200).send({
       token,
       message: "Artist login Successfully",
@@ -281,7 +286,7 @@ const validateOTP = async (req, res) => {
     }
 
     if (user.OTP !== otp) {
-      return res.status(200).send({ message: "Invalid OTP" });
+      return res.status(400).send({ message: "Invalid OTP" });
     }
 
     await Artist.updateOne(
@@ -295,17 +300,18 @@ const validateOTP = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
 const resetPassword = async (req, res) => {
   try {
-    const { artistId, token } = req.query;
-    const { password, confirmPassword } = req.body;
+    let { artistId, token } = req.query;
+    const { newPassword, confirmPassword } = req.body;
 
-    if (token) {
+    if (token === "null") token = null;
+
+    if (token !== null) {
       const artist = await Artist.findOne({
         _id: artistId,
         isDeleted: false,
@@ -317,14 +323,14 @@ const resetPassword = async (req, res) => {
           .send({ message: "Link is either expired/broken" });
       }
 
-      if (!isStrongPassword(password)) {
+      if (!isStrongPassword(newPassword)) {
         return res.status(400).send({
           message:
             "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
         });
       }
 
-      if (password !== confirmPassword) {
+      if (newPassword !== confirmPassword) {
         return res
           .status(400)
           .send({ message: "Password and confirm password does not match" });
@@ -334,7 +340,7 @@ const resetPassword = async (req, res) => {
         { _id: artist._id },
         {
           $set: {
-            password: md5(password),
+            password: md5(newPassword),
           },
           $unset: {
             passwordLinkToken: 1,
@@ -349,13 +355,13 @@ const resetPassword = async (req, res) => {
       });
       if (!artist) return res.status(400).send({ message: "Artist not found" });
 
-      if (!isStrongPassword(password)) {
+      if (!isStrongPassword(newPassword)) {
         return res.status(400).send({
           message:
             "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
         });
       }
-      if (password !== confirmPassword) {
+      if (newPassword !== confirmPassword) {
         return res
           .status(400)
           .send({ message: "Password and confirm password does not match" });
@@ -365,7 +371,7 @@ const resetPassword = async (req, res) => {
         { _id: artist._id },
         {
           $set: {
-            password: md5(password),
+            password: md5(newPassword),
           },
         }
       );
@@ -381,38 +387,30 @@ const resetPassword = async (req, res) => {
 
 const resendOTP = async (req, res) => {
   try {
-    const { id } = req.body;
+  } catch (error) {
+    APIErrorLog.error("Error while login the admin");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
 
-    const user = await Artist.findOne({
-      _id: id,
+const getArtistDetails = async (req, res) => {
+  try {
+    const artist = await Artist.findOne({
+      _id: req.user._id,
       isDeleted: false,
     }).lean(true);
 
-    if (!user) {
-      return res.status(400).send({ message: "User not found" });
+    if (!artist) {
+      return res.status(400).send({ message: "Artist/User not found" });
     }
 
-    if (admins) {
-      const otp = await generateRandomOTP();
-      const mailVaribles = {
-        "%fullName%": user.firstName,
-        "%email%": user.email,
-        "%otp%": otp,
-      };
-
-      await sendMail("send-forgotpassword-otp", mailVaribles, user.email);
-
-      await Artist.updateOne(
-        { _id: user._id, isDeleted: false },
-        { $set: { OTP: otp } }
-      );
-
-      return res.status(200).send({
-        id: user._id,
-        message: "OTP sent Successfully",
-      });
-    }
-  } catch (error) {
+    res.status(200).send({
+      artist: req.user,
+      message: `welcome ${artist.artistName ? artist.artistName : "Back"}`,
+    });
+  } catch {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
     // error response
@@ -428,4 +426,5 @@ module.exports = {
   validateOTP,
   resetPassword,
   resendOTP,
+  getArtistDetails,
 };

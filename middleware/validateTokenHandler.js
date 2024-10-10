@@ -23,10 +23,12 @@ const validateToken = async (req, res, next) => {
               "base64"
             ).toString()
           );
+
           userData = await Artist.findOne({
             tokens: { $elemMatch: { $eq: token } },
             isDeleted: false,
           }).lean();
+
           if (userData) {
             req.user = userData;
             return next();

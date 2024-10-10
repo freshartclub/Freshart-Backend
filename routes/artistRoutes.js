@@ -8,7 +8,9 @@ const {
   sendForgotPasswordOTP,
   validateOTP,
   resendOTP,
+  getArtistDetails,
 } = require("../controller/artistController");
+const validateToken = require("../middleware/validateTokenHandler");
 
 router.post("/login", login);
 
@@ -23,5 +25,7 @@ router.post("/validate-otp", validateOTP);
 router.post("/reset-password", resetPassword);
 
 router.post("/resend-otp", resendOTP);
+
+router.get("/get-artist", validateToken, getArtistDetails);
 
 module.exports = router;
