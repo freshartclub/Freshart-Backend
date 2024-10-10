@@ -17,6 +17,7 @@ const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
+const BecomeArtist = require("../models/becomeArtistModel")
 
 const sendLoginOTP = async (req, res) => {
   try {
@@ -758,7 +759,7 @@ const getArtistRequestList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artistlist = await Artist.find({
+    const artistlist = await BecomeArtist.find({
       isDeleted: false,
       isArtistRequest: true,
     }).lean(true);
