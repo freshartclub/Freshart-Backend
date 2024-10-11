@@ -476,17 +476,17 @@ const artistRegister = async (req, res) => {
     let newArtist = null;
 
     if (id) {
-      const isExistingAritst = await Artist.findOne({
-        email: req.body.email.toLowerCase(),
-        isDeleted: false,
-      });
-      if (
-        isExistingAritst.email.toLowerCase() !== req.body.email.toLowerCase()
-      ) {
-        return res
-          .status(400)
-          .send({ message: "Artist already exist with this email" });
-      }
+      // const isExistingAritst = await Artist.findOne({
+      //   email: req.body.email.toLowerCase(),
+      //   isDeleted: false,
+      // });
+      // if (
+      //   isExistingAritst.email.toLowerCase() !== req.body.email.toLowerCase()
+      // ) {
+      //   return res
+      //     .status(400)
+      //     .send({ message: "Artist already exist with this email" });
+      // }
       Artist.updateOne({ _id: req.params.id }, condition).then();
     } else {
       const isExistingAritst = await Artist.countDocuments({
