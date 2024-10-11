@@ -767,9 +767,9 @@ const getAllArtists = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const getArtists = await Artist.find({
-      pageCount: 7,
+      isActivated: true,
       isDeleted: false,
-      role: "artist",
+      // role: "artist",
     })
       .sort({ createdAt: -1 })
       .lean(true);
