@@ -766,6 +766,29 @@ const getAllArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    const artists = await Artist.find({
+      isDeleted: false,
+      pageCount: { $gt: 0 },
+    })
+      .sort({ createdAt: -1 })
+      .lean(true);
+
+    return res.status(200).send({ data: artists });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getAllCompletedArtists = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
     const getArtists = await Artist.find({
       isActivated: true,
       isDeleted: false,
@@ -817,13 +840,38 @@ const getArtistPendingList = async (req, res) => {
 
     const artistlist = await Artist.find({
       isDeleted: false,
-      pageCount: { $gt: 0, $lt: 7 },
+      pageCount: { $gt: 0 },
       isArtistRequest: false,
     })
       .sort({ createdAt: -1 })
       .lean(true);
 
     res.status(200).send({ data: artistlist });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getUserFromId = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    });
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const artist = await Artist.findOne({ _id: id, isDeleted: false }).lean(
+      true
+    );
+    if (!artist)
+      return res.status(400).send({ message: `Artist Request not found` });
+
+    const userId = artist.userId ? artist.userId : null;
+
+    return res.status(200).send({ data: artist, userId: userId });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -884,6 +932,26 @@ const createNewUser = async (req, res) => {
     return res
       .status(200)
       .send({ message: "User created successfully", id: user._id });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const suspendedArtist = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const suspendedList = await Artist.find({
+      isDeleted: true,
+    });
+
+    return res.status(200).send({ data: suspendedList });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -955,10 +1023,13 @@ module.exports = {
   getRegisterArtist,
   getInsignias,
   activateArtist,
+  getAllCompletedArtists,
   getAllArtists,
   getArtistRequestList,
   getArtistPendingList,
+  getUserFromId,
   createNewUser,
   serachUser,
   getAllUsers,
+  suspendedArtist,
 };

@@ -110,6 +110,7 @@ const registerUser = async (req, res) => {
       password: md5(password),
       userId: generateRandomId(user),
       role: "user",
+      pageCount: 0,
     });
 
     const userField = {

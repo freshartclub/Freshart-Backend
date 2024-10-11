@@ -12,7 +12,7 @@ const {
   getRegisterArtist,
   getInsignias,
   activateArtist,
-  getAllArtists,
+  getAllCompletedArtists,
   getArtistPendingList,
   getArtistRequestList,
   resendOTP,
@@ -20,6 +20,9 @@ const {
   serachUser,
   getAllUsers,
   logOut,
+  suspendedArtist,
+  getAllArtists,
+  getUserFromId,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 
@@ -51,6 +54,12 @@ router.get("/get-insignias", validateAdminToken, getInsignias);
 
 router.post("/activate-artist/:id", validateAdminToken, activateArtist);
 
+router.get(
+  "/get-all-completed-artists",
+  validateAdminToken,
+  getAllCompletedArtists
+);
+
 router.get("/get-all-artists", validateAdminToken, getAllArtists);
 
 router.get(
@@ -65,10 +74,14 @@ router.get(
   getArtistPendingList
 );
 
+router.get("/get-user/:id", validateAdminToken, getUserFromId);
+
 router.post("/create-new-user", validateAdminToken, createNewUser);
 
 router.post("/serach-user", validateAdminToken, serachUser);
 
 router.get("/get-all-users", validateAdminToken, getAllUsers);
+
+router.get("/suspended-list", validateAdminToken, suspendedArtist);
 
 module.exports = router;
