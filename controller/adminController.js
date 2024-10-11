@@ -477,7 +477,7 @@ const artistRegister = async (req, res) => {
 
     if (id) {
       const isExistingAritst = await Artist.findOne({
-        _id: id,
+        email: req.body.email.toLowerCase(),
         isDeleted: false,
       });
       if (
