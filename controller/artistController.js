@@ -1,4 +1,3 @@
-const mongoose = require("mongoose");
 const Artist = require("../models/artistModel");
 const jwt = require("jsonwebtoken");
 const {
@@ -62,10 +61,10 @@ const login = async (req, res) => {
       }
     );
 
-    Artist.updateOne(
+    await Artist.updateOne(
       { _id: user._id, isDeleted: false },
       { $push: { tokens: token } }
-    ).then();
+    );
 
     return res.status(200).send({
       token,
@@ -101,8 +100,7 @@ const registerUser = async (req, res) => {
 
     if (isExist) {
       return res.status(400).send({
-        message:
-          "User with this email already exist. Please try with another email",
+        message: "Email already exist. Please try with another email",
       });
     }
 
@@ -147,6 +145,7 @@ const registerUser = async (req, res) => {
 
 const becomeArtist = async (req, res) => {
   try {
+    const { id } = req.params;
     const fileData = await fileUploadFunc(req, res);
 
     if (fileData.type !== "success") {
@@ -166,7 +165,7 @@ const becomeArtist = async (req, res) => {
       phone: req.body.phone.replace(/[- )(]/g, "").trim(),
       email: req.body.email.toLowerCase(),
       isArtistRequest: true,
-      // style: req.body.style,
+      pageCount: 0,
     };
 
     obj["category"] = {
@@ -186,37 +185,39 @@ const becomeArtist = async (req, res) => {
     };
 
     obj["uploadFile"] = fileData.data.uploadDocs[0].filename;
-    obj["_id"] = mongoose.Types.ObjectId(obj["uploadFile"].slice(0, 24));
+
+    const isExistingAritst = await Artist.countDocuments({
+      email: req.body.email.toLowerCase(),
+      isDeleted: false,
+    });
+
+    if (isExistingAritst) {
+      return res.status(400).send({
+        message: "Become Artist Requset already exist with this email",
+      });
+    }
 
     let condition = {
       $set: obj,
     };
 
-    const checkAritst = async (email) => {
-      const isExistingAritst = await Artist.countDocuments({
-        email: email.toLowerCase(),
-        isDeleted: false,
-      });
+    let newArtist = null;
 
-      if (isExistingAritst) {
-        return res
-          .status(400)
-          .send({ message: "Artist already exist with this email" });
-      }
-
-      await Artist.create(obj);
-    };
-
-    req?.params?.id
-      ? await Artist.updateOne({ _id: req.params.id }, condition)
-      : await checkAritst(obj.email);
+    if (id) {
+      newArtist = await Artist.updateOne(
+        { _id: id, isDeleted: false },
+        condition
+      );
+    } else {
+      newArtist = await Artist.create(obj);
+    }
 
     const mailVariable = {
-      "%fullName%": obj.artistName,
-      "%email%": obj.email,
+      "%fullName%": newArtist.artistName,
+      "%email%": newArtist.email,
     };
 
-    await sendMail("become-an-artist", mailVariable, obj.email);
+    await sendMail("become-an-artist", mailVariable, newArtist.email);
 
     return res
       .status(200)
@@ -306,14 +307,14 @@ const validateOTP = async (req, res) => {
 
 const resetPassword = async (req, res) => {
   try {
-    let { artistId, token } = req.query;
+    let { id, token } = req.query;
     const { newPassword, confirmPassword } = req.body;
 
     if (token === "null") token = null;
 
     if (token !== null) {
       const artist = await Artist.findOne({
-        _id: artistId,
+        _id: id,
         isDeleted: false,
       });
       if (!artist) return res.status(400).send({ message: "Artist not found" });
@@ -350,7 +351,7 @@ const resetPassword = async (req, res) => {
       return res.status(200).send({ message: "New Password set successfully" });
     } else {
       const artist = await Artist.findOne({
-        _id: artistId,
+        _id: id,
         isDeleted: false,
       });
       if (!artist) return res.status(400).send({ message: "Artist not found" });
@@ -395,6 +396,25 @@ const resendOTP = async (req, res) => {
   }
 };
 
+const logOut = async (req, res) => {
+  try {
+    // get token from headers
+    const { 1: token } = req.headers.authorization.split(" ");
+    const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECERT);
+
+    await Artist.updateOne(
+      { _id: decodeToken.user._id },
+      { $pull: { tokens: token } }
+    );
+    return res.status(200).send({ message: "Logout successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const getArtistDetails = async (req, res) => {
   try {
     const artist = await Artist.findOne({
@@ -427,4 +447,5 @@ module.exports = {
   resetPassword,
   resendOTP,
   getArtistDetails,
+  logOut,
 };

@@ -19,6 +19,7 @@ const {
   createNewUser,
   serachUser,
   getAllUsers,
+  logOut,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 
@@ -27,6 +28,8 @@ router.post("/send-login-otp", loginData, sendLoginOTP);
 router.post("/validate-otp", validateOTP);
 
 router.post("/resend-otp", resendOTP);
+
+router.patch("/logout", validateAdminToken, logOut);
 
 router.get("/dashboard", validateAdminToken, testAdmin);
 

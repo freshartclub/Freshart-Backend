@@ -154,6 +154,25 @@ const resendOTP = async (req, res) => {
   }
 };
 
+const logOut = async (req, res) => {
+  try {
+    // get token from headers
+    const { 1: token } = req.headers.authorization.split(" ");
+    const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECERT);
+
+    await Admin.updateOne(
+      { _id: decodeToken.user._id },
+      { $pull: { tokens: token } }
+    );
+    return res.status(200).send({ message: "Logout successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const testAdmin = async (req, res) => {
   try {
     const admin = await Admin.findOne({
@@ -174,6 +193,7 @@ const testAdmin = async (req, res) => {
 
 const artistRegister = async (req, res) => {
   try {
+    const { id } = req.params;
     const fileData = await fileUploadFunc(req, res);
 
     const admin = await Admin.countDocuments({
@@ -454,9 +474,23 @@ const artistRegister = async (req, res) => {
     };
 
     let newArtist = null;
-    const checkAritst = async (email) => {
+
+    if (id) {
+      const isExistingAritst = await Artist.findOne({
+        _id: id,
+        isDeleted: false,
+      });
+      if (
+        isExistingAritst.email.toLowerCase() !== req.body.email.toLowerCase()
+      ) {
+        return res
+          .status(400)
+          .send({ message: "Artist already exist with this email" });
+      }
+      Artist.updateOne({ _id: req.params.id }, condition).then();
+    } else {
       const isExistingAritst = await Artist.countDocuments({
-        email: email.toLowerCase(),
+        email: req.body.email.toLowerCase(),
         isDeleted: false,
       });
 
@@ -476,14 +510,10 @@ const artistRegister = async (req, res) => {
           },
         }
       );
-    };
-
-    req?.params?.id
-      ? await Artist.updateOne({ _id: req.params.id }, condition)
-      : await checkAritst(obj.email);
+    }
 
     return res.status(200).send({
-      id: req?.params?.id ? req.params.id : newArtist._id,
+      id: id ? id : newArtist._id,
       popUpFlag: count === 7 ? true : false,
       message: "Artist Registered successfully",
     });
@@ -701,7 +731,7 @@ const activateArtist = async (req, res) => {
       }
     );
 
-    const link = `${process.env.FRONTEND_URL}/reset-password?artistId=${artist._id}&token=${token}`;
+    const link = `${process.env.FRONTEND_URL}/reset-password?id=${artist._id}&token=${token}`;
     const mailVaribles = {
       "%fullName%": artist.artistName,
       "%email%": artist.email,
@@ -740,7 +770,9 @@ const getAllArtists = async (req, res) => {
       pageCount: 7,
       isDeleted: false,
       role: "artist",
-    }).lean(true);
+    })
+      .sort({ createdAt: -1 })
+      .lean(true);
 
     res.status(200).send({ data: getArtists });
   } catch (error) {
@@ -759,9 +791,13 @@ const getArtistRequestList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artistlist = await BecomeArtist.find({
+    const artistlist = await Artist.find({
       isDeleted: false,
-    }).lean(true);
+      isArtistRequest: true,
+      pageCount: 0,
+    })
+      .sort({ createdAt: -1 })
+      .lean(true);
 
     res.status(200).send({ data: artistlist });
   } catch (error) {
@@ -781,9 +817,11 @@ const getArtistPendingList = async (req, res) => {
 
     const artistlist = await Artist.find({
       isDeleted: false,
-      pageCount: { $lt: 7 },
+      pageCount: { $gt: 0, $lt: 7 },
       isArtistRequest: false,
-    }).lean(true);
+    })
+      .sort({ createdAt: -1 })
+      .lean(true);
 
     res.status(200).send({ data: artistlist });
   } catch (error) {
@@ -891,9 +929,10 @@ const getAllUsers = async (req, res) => {
 
     const users = await Artist.find({
       isDeleted: false,
-      role: "user",
       userId: { $exists: true },
-    }).lean(true);
+    })
+      .sort({ createdAt: -1 })
+      .lean(true);
 
     return res.status(200).send({ data: users });
   } catch (error) {
@@ -907,6 +946,7 @@ module.exports = {
   sendLoginOTP,
   validateOTP,
   resendOTP,
+  logOut,
   testAdmin,
   artistRegister,
   listArtworkStyle,
