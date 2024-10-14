@@ -47,6 +47,25 @@ const login = async (req, res) => {
       return res.status(400).send({ message: "Invalid credentials" });
     }
 
+    if (user.isEmailVerified === false) {
+      const otp = await generateRandomOTP();
+      const mailVaribles = {
+        "%email%": email,
+        "%otp%": otp,
+      };
+
+      await sendMail("verify-email", mailVaribles, email.toLowerCase());
+
+      Artist.updateOne(
+        { _id: user._id, isDeleted: false },
+        { $set: { OTP: otp } }
+      ).then();
+
+      return res
+        .status(200)
+        .send({ message: "OTP sent successfully", id: user._id });
+    }
+
     const userField = {
       _id: user._id,
       role: user.role,
@@ -78,7 +97,7 @@ const login = async (req, res) => {
   }
 };
 
-const registerUser = async (req, res) => {
+const sendRegisterUserOTP = async (req, res) => {
   try {
     const { email, password, cpassword } = req.body;
 
@@ -104,19 +123,57 @@ const registerUser = async (req, res) => {
       });
     }
 
-    let user = true;
-    const newUser = await Artist.create({
+    const otp = await generateRandomOTP();
+    const mailVaribles = {
+      "%email%": email,
+      "%otp%": otp,
+    };
+
+    await sendMail("verify-email", mailVaribles, email.toLowerCase());
+
+    let nUser = true;
+    const user = await Artist.create({
       email: email.toLowerCase(),
       password: md5(password),
-      userId: generateRandomId(user),
+      userId: generateRandomId(nUser),
       role: "user",
       pageCount: 0,
+      OTP: otp,
     });
 
+    return res.status(200).send({
+      id: user._id,
+      message: "OTP sent Successfully",
+    });
+  } catch (error) {
+    APIErrorLog.error("Error while login the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const verifyRegisterUserMail = async (req, res) => {
+  try {
+    const { id, otp } = req.body;
+
+    const user = await Artist.findOne({
+      _id: id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    if (otp !== user.OTP) {
+      return res.status(400).send({ message: "Invalid OTP" });
+    }
+
     const userField = {
-      _id: newUser._id,
-      role: newUser.role,
-      password: newUser.password,
+      _id: user._id,
+      role: user.role,
+      password: user.password,
     };
 
     const token = jwt.sign(
@@ -125,17 +182,18 @@ const registerUser = async (req, res) => {
       { expiresIn: "30d" }
     );
 
-    await Artist.updateOne(
-      { _id: newUser._id, isDeleted: false },
+    Artist.updateOne(
+      { _id: user._id, isDeleted: false },
       {
+        $unset: { OTP: "" },
         $push: { tokens: token },
+        $set: { isEmailVerified: true },
       }
-    );
+    ).then();
 
-    return res.status(200).send({
-      token,
-      message: "Artist registered Successfully",
-    });
+    return res
+      .status(200)
+      .send({ token, id: user._id, message: "Email verified Successfully" });
   } catch (error) {
     APIErrorLog.error("Error while login the artist");
     APIErrorLog.error(error);
@@ -439,9 +497,50 @@ const getArtistDetails = async (req, res) => {
   }
 };
 
+const completeProfile = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fileData = await fileUploadFunc(req, res);
+
+    if (fileData.type !== "success") {
+      return res.status(fileData.status).send({
+        message:
+          fileData?.type === "fileNotFound"
+            ? "Please upload the documents"
+            : fileData.type,
+      });
+    }
+
+    let obj = {
+      avatar: fileData?.data.avatar[0].filename,
+      artistName: req.body.artistName,
+      artistSurname1: req.body.artistSurname2,
+      artistSurname2: req.body.artistSurname2,
+      gender: req.body.gender,
+      dob: req.body.dob,
+      address: {
+        country: req.body.country,
+        zipCode: String(req.body.zipCode),
+        city: req.body.city,
+        state: req.body.state,
+      },
+    };
+
+    Artist.updateOne({ _id: id, isDeleted: false }, { $set: obj }).then();
+
+    return res.status(200).send({ message: "Profile updated successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while login the admin");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
-  registerUser,
+  sendRegisterUserOTP,
+  verifyRegisterUserMail,
   becomeArtist,
   sendForgotPasswordOTP,
   validateOTP,
@@ -449,4 +548,5 @@ module.exports = {
   resendOTP,
   getArtistDetails,
   logOut,
+  completeProfile,
 };

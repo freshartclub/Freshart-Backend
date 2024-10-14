@@ -23,6 +23,9 @@ const {
   suspendedArtist,
   getAllArtists,
   getUserFromId,
+  suspendArtist,
+  changeArtistPassword,
+  unSuspendArtist,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 
@@ -83,5 +86,15 @@ router.post("/serach-user", validateAdminToken, serachUser);
 router.get("/get-all-users", validateAdminToken, getAllUsers);
 
 router.get("/suspended-list", validateAdminToken, suspendedArtist);
+
+router.patch("/suspend-artist/:id", validateAdminToken, suspendArtist);
+
+router.patch("/unsuspend-artist/:id", validateAdminToken, unSuspendArtist);
+
+router.patch(
+  "/change-artist-password/:id",
+  validateAdminToken,
+  changeArtistPassword
+);
 
 module.exports = router;

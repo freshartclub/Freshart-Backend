@@ -1010,6 +1010,94 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const suspendArtist = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const user = await Artist.findOne({ _id: req.params.id }).lean(true);
+    if (!user) return res.status(400).send({ message: `User not found` });
+    if (user.isDeleted)
+      return res.status(400).send({ message: `User already suspended` });
+
+    Artist.updateOne(
+      { _id: req.params.id },
+      { $set: { isDeleted: true } }
+    ).then();
+
+    return res.status(200).send({ message: "Artist suspended successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const unSuspendArtist = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const user = await Artist.findOne({ _id: req.params.id }).lean(true);
+    if (!user) return res.status(400).send({ message: `User not found` });
+    if (!user.isDeleted)
+      return res.status(400).send({ message: `User already unsuspended` });
+
+    Artist.updateOne(
+      { _id: req.params.id },
+      { $set: { isDeleted: false } }
+    ).then();
+
+    return res.status(200).send({ message: "Artist unsuspended successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const changeArtistPassword = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const { password, newPassword } = req.body;
+
+    const user = await Artist.countDocuments({
+      _id: id,
+      isDeleted: false,
+    }).lean(true);
+    if (!user) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    if (password !== newPassword) {
+      return res.status(400).send({ message: "Password does not match" });
+    }
+
+    Artist.updateOne(
+      { _id: id, isDeleted: false },
+      { $set: { password: md5(password) } }
+    ).then();
+
+    return res.status(200).send({ message: "Password changed successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -1032,4 +1120,7 @@ module.exports = {
   serachUser,
   getAllUsers,
   suspendedArtist,
+  suspendArtist,
+  unSuspendArtist,
+  changeArtistPassword,
 };

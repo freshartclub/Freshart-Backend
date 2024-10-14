@@ -12,6 +12,10 @@ const artistSchema = new mongoose.Schema(
     role: {
       type: String,
     },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
     isArtistRequest: {
       type: Boolean,
       default: false,
@@ -21,15 +25,18 @@ const artistSchema = new mongoose.Schema(
     },
     artistName: {
       type: String,
+      trim: true,
     },
     email: {
       type: String,
     },
     artistSurname1: {
       type: String,
+      trim: true,
     },
     artistSurname2: {
       type: String,
+      trim: true,
     },
     avatar: {
       type: String,
@@ -40,6 +47,7 @@ const artistSchema = new mongoose.Schema(
     },
     nickName: {
       type: String,
+      trim: true,
     },
     // artworkStatus: {
     //   type: Object,
