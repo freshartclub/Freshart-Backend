@@ -19,6 +19,24 @@ const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
 const BecomeArtist = require("../models/becomeArtistModel");
 
+const isStrongPassword = (password) => {
+  const uppercaseRegex = /[A-Z]/;
+  const lowercaseRegex = /[a-z]/;
+  const numericRegex = /\d/;
+  const specialCharRegex = /[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]/;
+
+  if (
+    uppercaseRegex.test(password) &&
+    lowercaseRegex.test(password) &&
+    numericRegex.test(password) &&
+    specialCharRegex.test(password)
+  ) {
+    return true;
+  } else {
+    return false;
+  }
+};
+
 const sendLoginOTP = async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -1071,7 +1089,7 @@ const changeArtistPassword = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
-    const { password, newPassword } = req.body;
+    const { newPassword, confirmPassword } = req.body;
 
     const user = await Artist.countDocuments({
       _id: id,
@@ -1081,13 +1099,20 @@ const changeArtistPassword = async (req, res) => {
       return res.status(400).send({ message: "Artist not found" });
     }
 
-    if (password !== newPassword) {
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).send({
+        message:
+          "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
       return res.status(400).send({ message: "Password does not match" });
     }
 
     Artist.updateOne(
       { _id: id, isDeleted: false },
-      { $set: { password: md5(password) } }
+      { $set: { password: md5(newPassword) } }
     ).then();
 
     return res.status(200).send({ message: "Password changed successfully" });
