@@ -24,9 +24,11 @@ module.exports.generateRandomId = (user) => {
     const characters = user
       ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
       : "0123456789";
+
+    const length = user ? 8 : 10;
     let result = "";
 
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < length; i++) {
       const randomIndex = Math.floor(Math.random() * characters.length);
       result += characters[randomIndex];
     }

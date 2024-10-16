@@ -20,14 +20,19 @@ const {
   serachUser,
   getAllUsers,
   logOut,
-  suspendedArtist,
   getAllArtists,
   getUserFromId,
   suspendArtist,
   changeArtistPassword,
   unSuspendArtist,
+  suspendedArtistList,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
+const {
+  createArtwork,
+  getArtworkList,
+  getArtistById,
+} = require("../controller/artworkController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -79,13 +84,13 @@ router.get(
 
 router.get("/get-user/:id", validateAdminToken, getUserFromId);
 
-router.post("/create-new-user", validateAdminToken, createNewUser);
+router.post("/create-new-user/:id?", validateAdminToken, createNewUser);
 
 router.post("/serach-user", validateAdminToken, serachUser);
 
 router.get("/get-all-users", validateAdminToken, getAllUsers);
 
-router.get("/suspended-list", validateAdminToken, suspendedArtist);
+router.get("/suspended-list", validateAdminToken, suspendedArtistList);
 
 router.patch("/suspend-artist/:id", validateAdminToken, suspendArtist);
 
@@ -96,5 +101,11 @@ router.patch(
   validateAdminToken,
   changeArtistPassword
 );
+
+router.post("/add-artwork/:id?", validateAdminToken, createArtwork);
+
+router.post("/get-artist-by-id", validateAdminToken, getArtistById);
+
+router.get("/get-artwork-list", validateAdminToken, getArtworkList);
 
 module.exports = router;

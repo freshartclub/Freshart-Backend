@@ -205,8 +205,22 @@ const verifyRegisterUserMail = async (req, res) => {
 const becomeArtist = async (req, res) => {
   try {
     const { id } = req.params;
-    const fileData = await fileUploadFunc(req, res);
 
+    if (id) {
+      const user = await Artist.countDocuments({
+        _id: id,
+        isArtistRequest: true,
+        isDeleted: false,
+      }).lean(true);
+
+      if (user) {
+        return res
+          .status(400)
+          .send({ message: "You have already requseted for artist" });
+      }
+    }
+
+    const fileData = await fileUploadFunc(req, res);
     if (fileData.type !== "success") {
       return res.status(fileData.status).send({
         message:
@@ -224,6 +238,7 @@ const becomeArtist = async (req, res) => {
       phone: req.body.phone.replace(/[- )(]/g, "").trim(),
       email: req.body.email.toLowerCase(),
       isArtistRequest: true,
+      isArtistRequestApproved: false,
       pageCount: 0,
     };
 
@@ -238,7 +253,7 @@ const becomeArtist = async (req, res) => {
 
     obj["address"] = {
       city: req.body.city,
-      region: req.body.region,
+      state: req.body.region,
       country: req.body.country,
       zipCode: String(req.body.zipCode),
     };
@@ -252,7 +267,7 @@ const becomeArtist = async (req, res) => {
 
     if (isExistingAritst) {
       return res.status(400).send({
-        message: "Become Artist Requset already exist with this email",
+        message: "You have already submitted the request",
       });
     }
 
@@ -268,6 +283,18 @@ const becomeArtist = async (req, res) => {
         condition
       );
     } else {
+      const user = await Artist.countDocuments({
+        email: req.body.email.toLowerCase(),
+        isArtistRequest: true,
+        isDeleted: false,
+      });
+
+      if (user) {
+        return res
+          .status(400)
+          .send({ message: "You have already filled this form" });
+      }
+
       newArtist = await Artist.create(obj);
     }
 

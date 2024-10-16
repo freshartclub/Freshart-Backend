@@ -20,6 +20,10 @@ const artistSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isArtistRequestApproved: {
+      type: Boolean,
+      default: false,
+    },
     userId: {
       type: String,
     },
@@ -29,6 +33,7 @@ const artistSchema = new mongoose.Schema(
     },
     email: {
       type: String,
+      trim: true,
     },
     artistSurname1: {
       type: String,
@@ -49,9 +54,6 @@ const artistSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    // artworkStatus: {
-    //   type: Object,
-    // },
     notes: {
       type: String,
     },
@@ -117,9 +119,6 @@ const artistSchema = new mongoose.Schema(
     profile: {
       type: Object,
     },
-    // token: {
-    //   type: String,
-    // },
     tokens: {
       type: [String],
     },
@@ -141,12 +140,6 @@ const artistSchema = new mongoose.Schema(
     OTP: {
       type: String,
     },
-    // createdBy: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    // },
-    // updatedBy: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    // },
     pageCount: {
       type: Number,
       default: 1,

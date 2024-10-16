@@ -17,7 +17,6 @@ const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
-const BecomeArtist = require("../models/becomeArtistModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -211,7 +210,7 @@ const testAdmin = async (req, res) => {
 
 const artistRegister = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { id } = req?.params;
     const fileData = await fileUploadFunc(req, res);
 
     const admin = await Admin.countDocuments({
@@ -232,6 +231,21 @@ const artistRegister = async (req, res) => {
         { _id: req.params.id },
         { pageCount: 1 }
       ).lean(true);
+    }
+
+    let additionalImages = [];
+    let additionalVideos = [];
+
+    if (fileData.data?.additionalImage) {
+      fileData.data?.additionalImage.forEach((element) => {
+        additionalImages.push(element.filename);
+      });
+    }
+
+    if (fileData.data?.additionalVideo) {
+      fileData.data?.additionalVideo.forEach((element) => {
+        additionalVideos.push(element.filename);
+      });
     }
 
     let count = null;
@@ -293,11 +307,6 @@ const artistRegister = async (req, res) => {
           state: req.body.state,
         };
 
-        // obj["artworkStatus"] = {
-        //   artwork: req.body.artwork,
-        //   product: req.body.product,
-        // };
-
         if (req.body.count > artist?.pageCount) {
           obj["pageCount"] = req.body.count;
         }
@@ -344,25 +353,18 @@ const artistRegister = async (req, res) => {
           });
         }
 
-        // console.log("this is body", req.body);
-        // console.log("this is data", fileData.data);
-
         obj["profile"] = {
-          mainImage: fileData.data.profileImage
+          mainImage: fileData.data?.profileImage
             ? fileData.data.profileImage[0].filename
             : null,
-          additionalImage: fileData.data.additionalImage
-            ? fileData.data.additionalImage[0].filename
-            : [],
-          inProcessImage: fileData.data.inProcessImage
+          additionalImage: additionalImages,
+          inProcessImage: fileData.data?.inProcessImage
             ? fileData.data.inProcessImage[0].filename
             : null,
-          mainVideo: fileData.data.mainVideo
+          mainVideo: fileData.data?.mainVideo
             ? fileData.data.mainVideo[0].filename
             : null,
-          additionalVideo: fileData.data.additionalVideo
-            ? fileData.data.additionalVideo[0].filename
-            : [],
+          additionalVideo: additionalVideos,
         };
 
         if (count > artist.pageCount) {
@@ -494,17 +496,6 @@ const artistRegister = async (req, res) => {
     let newArtist = null;
 
     if (id) {
-      // const isExistingAritst = await Artist.findOne({
-      //   email: req.body.email.toLowerCase(),
-      //   isDeleted: false,
-      // });
-      // if (
-      //   isExistingAritst.email.toLowerCase() !== req.body.email.toLowerCase()
-      // ) {
-      //   return res
-      //     .status(400)
-      //     .send({ message: "Artist already exist with this email" });
-      // }
       Artist.updateOne({ _id: req.params.id }, condition).then();
     } else {
       const isExistingAritst = await Artist.countDocuments({
@@ -520,14 +511,10 @@ const artistRegister = async (req, res) => {
 
       newArtist = await Artist.create(obj);
 
-      await Artist.updateOne(
+      Artist.updateOne(
         { _id: newArtist._id, isDeleted: false },
-        {
-          $set: {
-            isArtistRequest: false,
-          },
-        }
-      );
+        { $set: { isArtistRequestApproved: true } }
+      ).then();
     }
 
     return res.status(200).send({
@@ -835,6 +822,7 @@ const getArtistRequestList = async (req, res) => {
     const artistlist = await Artist.find({
       isDeleted: false,
       isArtistRequest: true,
+      // isArtistRequestApproved: false,
       pageCount: 0,
     })
       .sort({ createdAt: -1 })
@@ -858,8 +846,7 @@ const getArtistPendingList = async (req, res) => {
 
     const artistlist = await Artist.find({
       isDeleted: false,
-      pageCount: { $gt: 0 },
-      isArtistRequest: false,
+      pageCount: { $gt: 0, $lt: 7 },
     })
       .sort({ createdAt: -1 })
       .lean(true);
@@ -899,57 +886,97 @@ const getUserFromId = async (req, res) => {
 
 const createNewUser = async (req, res) => {
   try {
+    const { id } = req?.params;
     const admin = await Admin.countDocuments({
       _id: req.user._id,
       isDeleted: false,
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    const checkUser = await Artist.findOne({ _id: id }).lean(true);
+    if (checkUser.pageCount > 0)
+      return res
+        .status(400)
+        .send({ message: `Artist account already created` });
+
     const fileData = await fileUploadFunc(req, res);
-    if (fileData.type !== "success") {
-      return res.status(fileData.status).send({
-        message:
-          fileData?.type === "fileNotFound"
-            ? "Please upload the documents"
-            : fileData.type,
-      });
-    }
+    const isfileData = fileData.data ? true : false;
+
+    let obj = {
+      artistName: req.body.name
+        .toLowerCase()
+        .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+        .trim(),
+      phone: req.body.phoneNumber.replace(/[- )(]/g, "").trim(),
+      email: req.body.email.toLowerCase(),
+      avatar: isfileData ? fileData.data.avatar[0].filename : null,
+    };
+
+    obj["address"] = {
+      residentialAddress: req.body.address,
+      city: req.body.city,
+      state: req.body.state,
+      country: req.body.country,
+      zipCode: String(req.body.zipCode),
+    };
 
     if (req.body.value === "new") {
+      let nUser = true;
+      if (id === "null") {
+        const isExitingUser = await Artist.countDocuments({
+          email: req.body.email.toLowerCase(),
+        });
+
+        if (isExitingUser) {
+          return res
+            .status(400)
+            .send({ message: "User with this email already exists" });
+        }
+
+        obj["userId"] = generateRandomId(nUser);
+        obj["pageCount"] = 0;
+        const user = await Artist.create(obj);
+
+        return res
+          .status(200)
+          .send({ message: "User created successfully", id: user._id });
+      } else {
+        // const isExitingUser = await Artist.countDocuments({
+        //   email: req.body.email.toLowerCase(),
+        // });
+
+        // if (isExitingUser !== 1) {
+        //   return res
+        //     .status(400)
+        //     .send({ message: "User with this email already exists" });
+        // }
+
+        obj["userId"] = generateRandomId(nUser);
+        obj["pageCount"] = 1;
+        let condition = { $set: obj };
+        Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
+
+        return res
+          .status(200)
+          .send({ message: "User created successfully", id: id });
+      }
+    } else {
       const isExitingUser = await Artist.countDocuments({
         email: req.body.email.toLowerCase(),
       });
 
-      if (isExitingUser) {
+      if (isExitingUser !== 1) {
         return res
           .status(400)
           .send({ message: "User with this email already exists" });
       }
+      obj["pageCount"] = 1;
+      Artist.updateOne({ _id: id }, obj).then();
+
+      return res
+        .status(200)
+        .send({ message: "User created successfully", id: id });
     }
-
-    const user = await Artist.create({
-      artistName: req.body.name,
-      email: req.body.email,
-      phone: req.body.phoneNumber,
-      avatar: fileData.data.avatar[0].filename,
-      role: "user",
-      address: {
-        residentialAddress: req.body.address,
-        country: req.body.country,
-        city: req.body.city,
-        state: req.body.state,
-        zipCode: req.body.zipCode,
-      },
-    });
-
-    await Artist.updateOne(
-      { _id: user._id },
-      { $set: { userId: generateRandomId(user._id) } }
-    );
-
-    return res
-      .status(200)
-      .send({ message: "User created successfully", id: user._id });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -957,7 +984,7 @@ const createNewUser = async (req, res) => {
   }
 };
 
-const suspendedArtist = async (req, res) => {
+const suspendedArtistList = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
       _id: req.user._id,
@@ -967,7 +994,7 @@ const suspendedArtist = async (req, res) => {
 
     const suspendedList = await Artist.find({
       isDeleted: true,
-    });
+    }).lean(true);
 
     return res.status(200).send({ data: suspendedList });
   } catch (error) {
@@ -1144,7 +1171,7 @@ module.exports = {
   createNewUser,
   serachUser,
   getAllUsers,
-  suspendedArtist,
+  suspendedArtistList,
   suspendArtist,
   unSuspendArtist,
   changeArtistPassword,
