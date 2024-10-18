@@ -122,13 +122,12 @@ const sendVerifyEmailOTP = async (req, res) => {
 
       const isExist = await Artist.countDocuments({
         email: email.toLowerCase(),
+        userId: { $exists: false },
         isDeleted: false,
       });
 
-      if (isExist) {
-        return res.status(400).send({
-          message: "Email already exist. Please try with another email",
-        });
+      if (isExist > 1) {
+        return res.status(400).send({ message: "Email already exist" });
       }
 
       const otp = await generateRandomOTP();

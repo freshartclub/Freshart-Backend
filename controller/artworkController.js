@@ -6,13 +6,19 @@ const { fileUploadFunc } = require("../functions/common");
 
 const createArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  const fileData = await fileUploadFunc(req, res);
-
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
   }).lean(true);
   if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const artist = await Artist.findOne({ _id: id });
+  if (!artist) return res.status(400).send({ message: `Artist not found` });
+
+  if (!artist.isActivated) {
+    return res.status(400).send({ message: `Artist not activated` });
+  }
+  const fileData = await fileUploadFunc(req, res);
 
   let images = [];
   if (fileData.data?.images) {
