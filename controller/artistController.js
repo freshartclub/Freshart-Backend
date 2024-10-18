@@ -8,6 +8,7 @@ const {
 } = require("../functions/common");
 const { sendMail } = require("../functions/mailer");
 const APIErrorLog = createLog("API_error_log");
+const Ticket = require("../models/ticketModel");
 const md5 = require("md5");
 
 const isStrongPassword = (password) => {
@@ -97,54 +98,90 @@ const login = async (req, res) => {
   }
 };
 
-const sendRegisterUserOTP = async (req, res) => {
+const sendVerifyEmailOTP = async (req, res) => {
   try {
-    const { email, password, cpassword } = req.body;
-
-    if (password !== cpassword) {
-      return res.status(400).send({ message: "Password does not match" });
+    const { email, password, cpassword, isArtistRequest } = req.body;
+    if (!req.body.email) {
+      return res.status(400).send({ message: "Email is required" });
     }
 
-    if (!isStrongPassword(password)) {
-      return res.status(400).send({
-        message:
-          "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+    let becomeArtistRequest = false;
+    if (isArtistRequest) becomeArtistRequest = true;
+
+    if (!becomeArtistRequest) {
+      if (password !== cpassword) {
+        return res.status(400).send({ message: "Password does not match" });
+      }
+
+      if (!isStrongPassword(password)) {
+        return res.status(400).send({
+          message:
+            "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+        });
+      }
+
+      const isExist = await Artist.countDocuments({
+        email: email.toLowerCase(),
+        isDeleted: false,
+      });
+
+      if (isExist) {
+        return res.status(400).send({
+          message: "Email already exist. Please try with another email",
+        });
+      }
+
+      const otp = await generateRandomOTP();
+      const mailVaribles = {
+        "%email%": email,
+        "%otp%": otp,
+      };
+
+      let nUser = true;
+      const user = await Artist.create({
+        email: email.toLowerCase(),
+        password: md5(password),
+        userId: generateRandomId(nUser),
+        role: "user",
+        pageCount: 0,
+        OTP: otp,
+      });
+
+      await sendMail("verify-email", mailVaribles, email.toLowerCase());
+      return res.status(200).send({
+        id: user._id,
+        message: "OTP sent Successfully",
+      });
+    } else {
+      const otp = await generateRandomOTP();
+      const mailVaribles = {
+        "%email%": email,
+        "%otp%": otp,
+      };
+
+      const isExist = await Artist.countDocuments({
+        email: email.toLowerCase(),
+        isDeleted: false,
+      });
+
+      if (isExist) {
+        Artist.updateOne(
+          { email: email.toLowerCase(), isDeleted: false },
+          { $set: { OTP: otp } }
+        ).then();
+      } else {
+        await Artist.create({
+          email: req.body.email.toLowerCase(),
+          pageCount: 0,
+          OTP: otp,
+        });
+      }
+
+      await sendMail("verify-email", mailVaribles, email.toLowerCase());
+      return res.status(200).send({
+        message: "OTP sent Successfully",
       });
     }
-
-    const isExist = await Artist.countDocuments({
-      email: email.toLowerCase(),
-      isDeleted: false,
-    });
-
-    if (isExist) {
-      return res.status(400).send({
-        message: "Email already exist. Please try with another email",
-      });
-    }
-
-    const otp = await generateRandomOTP();
-    const mailVaribles = {
-      "%email%": email,
-      "%otp%": otp,
-    };
-
-    await sendMail("verify-email", mailVaribles, email.toLowerCase());
-
-    let nUser = true;
-    const user = await Artist.create({
-      email: email.toLowerCase(),
-      password: md5(password),
-      userId: generateRandomId(nUser),
-      role: "user",
-      pageCount: 0,
-      OTP: otp,
-    });
-
-    return res.status(200).send({
-      id: user._id,
-      message: "OTP sent Successfully",
-    });
   } catch (error) {
     APIErrorLog.error("Error while login the artist");
     APIErrorLog.error(error);
@@ -153,9 +190,33 @@ const sendRegisterUserOTP = async (req, res) => {
   }
 };
 
-const verifyRegisterUserMail = async (req, res) => {
+const verifyEmailOTP = async (req, res) => {
   try {
-    const { id, otp } = req.body;
+    const { id, otp, isArtistRequest, email } = req.body;
+
+    if (isArtistRequest) {
+      const user = await Artist.findOne({
+        email: email.toLowerCase(),
+        isDeleted: false,
+      }).lean(true);
+
+      if (!user) {
+        return res.status(400).send({ message: "User not found" });
+      }
+
+      if (otp !== user.OTP) {
+        return res.status(400).send({ message: "Invalid OTP" });
+      }
+
+      Artist.updateOne(
+        { email: email, isDeleted: false },
+        { $set: { isEmailVerified: true }, $unset: { OTP: "" } }
+      ).then();
+
+      return res.status(200).send({
+        message: "Email verified Successfully",
+      });
+    }
 
     const user = await Artist.findOne({
       _id: id,
@@ -195,123 +256,7 @@ const verifyRegisterUserMail = async (req, res) => {
       .status(200)
       .send({ token, id: user._id, message: "Email verified Successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while login the artist");
     APIErrorLog.error(error);
-    // error response
-    return res.status(500).send({ message: "Something went wrong" });
-  }
-};
-
-const becomeArtist = async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    if (id) {
-      const user = await Artist.countDocuments({
-        _id: id,
-        isArtistRequest: true,
-        isDeleted: false,
-      }).lean(true);
-
-      if (user) {
-        return res
-          .status(400)
-          .send({ message: "You have already requseted for artist" });
-      }
-    }
-
-    const fileData = await fileUploadFunc(req, res);
-    if (fileData.type !== "success") {
-      return res.status(fileData.status).send({
-        message:
-          fileData?.type === "fileNotFound"
-            ? "Please upload the documents"
-            : fileData.type,
-      });
-    }
-
-    let obj = {
-      artistName: req.body.fullName
-        .toLowerCase()
-        .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-        .trim(),
-      phone: req.body.phone.replace(/[- )(]/g, "").trim(),
-      email: req.body.email.toLowerCase(),
-      isArtistRequest: true,
-      isArtistRequestApproved: false,
-      pageCount: 0,
-    };
-
-    obj["category"] = {
-      category: req.body.category,
-    };
-
-    obj["links"] = {
-      socialMedia: req.body.socialMedia,
-      website: req.body.website,
-    };
-
-    obj["address"] = {
-      city: req.body.city,
-      state: req.body.region,
-      country: req.body.country,
-      zipCode: String(req.body.zipCode),
-    };
-
-    obj["uploadFile"] = fileData.data.uploadDocs[0].filename;
-
-    const isExistingAritst = await Artist.countDocuments({
-      email: req.body.email.toLowerCase(),
-      isDeleted: false,
-    });
-
-    if (isExistingAritst) {
-      return res.status(400).send({
-        message: "You have already submitted the request",
-      });
-    }
-
-    let condition = {
-      $set: obj,
-    };
-
-    let newArtist = null;
-
-    if (id) {
-      newArtist = await Artist.updateOne(
-        { _id: id, isDeleted: false },
-        condition
-      );
-    } else {
-      const user = await Artist.countDocuments({
-        email: req.body.email.toLowerCase(),
-        isArtistRequest: true,
-        isDeleted: false,
-      });
-
-      if (user) {
-        return res
-          .status(400)
-          .send({ message: "You have already filled this form" });
-      }
-
-      newArtist = await Artist.create(obj);
-    }
-
-    const mailVariable = {
-      "%fullName%": newArtist.artistName,
-      "%email%": newArtist.email,
-    };
-
-    await sendMail("become-an-artist", mailVariable, newArtist.email);
-
-    return res
-      .status(200)
-      .send({ message: "Your Become Artist request sent successfully" });
-  } catch (error) {
-    APIErrorLog.error("Error while register the artist information");
-    APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -482,6 +427,162 @@ const resendOTP = async (req, res) => {
   }
 };
 
+const becomeArtist = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const fileData = await fileUploadFunc(req, res);
+    if (fileData.type !== "success") {
+      return res.status(fileData.status).send({
+        message:
+          fileData?.type === "fileNotFound"
+            ? "Please upload the documents"
+            : fileData.type,
+      });
+    }
+
+    if (id) {
+      const user = await Artist.findOne({
+        _id: id,
+        isArtistRequest: true,
+        isDeleted: false,
+      }).lean(true);
+
+      if (user && user?.isArtistRequestApproved === "pending") {
+        return res.status(400).send({
+          message:
+            "You have already requested to become Artist. Your requset is in process",
+        });
+      } else if (user && user?.isArtistRequestApproved === "approved") {
+        return res.status(400).send({
+          message: "You are already an artist",
+        });
+      } else if (user && user?.isArtistRequestApproved === "ban") {
+        return res.status(400).send({
+          message: "You cannot requset to become artist. Please contact admin",
+        });
+      }
+    } else {
+      const user = await Artist.findOne({
+        email: req.body.email.toLowerCase(),
+        isArtistRequest: true,
+        isDeleted: false,
+      }).lean(true);
+
+      if (user && user.isArtistRequestApproved === "pending") {
+        return res.status(400).send({
+          message:
+            "You have already requested to become Artist. Your requset is in process",
+        });
+      } else if (user && user.isArtistRequestApproved === "approved") {
+        return res.status(400).send({
+          message: "You are already an artist",
+        });
+      } else if (user && user.isArtistRequestApproved === "ban") {
+        return res.status(400).send({
+          message: "You cannot requset to become artist. Please contact admin",
+        });
+      }
+    }
+
+    let documnets = [];
+    let documnet = {};
+
+    documnet["discipline"] = req.body.discipline;
+    if (req.body.style) {
+      if (typeof req.body.style === "string") {
+        documnet["style"] = [req.body.style];
+      } else {
+        documnet["style"] = [];
+        for (let i = 0; i < req.body.style.length; i++) {
+          documnet["style"].push(req.body.style[i]);
+        }
+      }
+    }
+
+    if (fileData.data.uploadDocs) {
+      for (let i = 0; i < fileData.data.uploadDocs.length; i++) {
+        documnets.push(fileData.data.uploadDocs[i].filename);
+      }
+    }
+
+    let obj = {
+      artistName: req.body.artistName
+        .toLowerCase()
+        .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+        .trim(),
+      phone: req.body.phone.replace(/[- )(]/g, "").trim(),
+      email: req.body.email.toLowerCase(),
+      isArtistRequest: true,
+      isArtistRequestApproved: "pending",
+      pageCount: 0,
+    };
+
+    if (req?.body?.artistSurname1) {
+      obj["artistSurname1"] = req.body.artistSurname1
+        .toLowerCase()
+        .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+        .trim();
+    }
+
+    if (req?.body?.artistSurname2) {
+      obj["artistSurname2"] = req.body.artistSurname2
+        .toLowerCase()
+        .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+        .trim();
+    }
+
+    obj["aboutArtist"] = {
+      discipline: [documnet],
+    };
+
+    obj["links"] = {
+      socialMedia: req.body.socialMedia,
+      website: req.body.website,
+    };
+
+    obj["address"] = {
+      city: req.body.city,
+      state: req.body.region,
+      country: req.body.country,
+      zipCode: String(req.body.zipCode),
+    };
+
+    obj["document"] = {
+      documents: documnets,
+    };
+
+    let condition = {
+      $set: obj,
+    };
+
+    if (id) {
+      Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
+    } else {
+      Artist.updateOne(
+        { email: req.body.email.toLowerCase(), isDeleted: false },
+        condition
+      ).then();
+    }
+
+    const name = req.body.artistName;
+    const email = req.body.email.toLowerCase();
+
+    const mailVariable = {
+      "%fullName%": name,
+      "%email%": email,
+    };
+
+    await sendMail("become-an-artist", mailVariable, email);
+
+    return res
+      .status(200)
+      .send({ message: "Your Become Artist request sent successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const logOut = async (req, res) => {
   try {
     // get token from headers
@@ -564,10 +665,70 @@ const completeProfile = async (req, res) => {
   }
 };
 
+// ------------ tickets-----------------
+
+const createTicket = async (req, res) => {
+  try {
+    const artist = await Artist.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist/User not found" });
+    }
+
+    const fileData = await fileUploadFunc(req, res);
+
+    if (fileData.type !== "success") {
+      return res.status(fileData.status).send({
+        message:
+          fileData?.type === "fileNotFound"
+            ? "Please upload the image"
+            : fileData.type,
+      });
+    }
+
+    const { name, email, subject, message, region } = req.body;
+    const ticketDate = new Date();
+    const year = ticketDate.getFullYear();
+    const randomNumber = Math.floor(100 + Math.random() * 900);
+    const ticketId = `Ticket# ${year}-CS${randomNumber}`;
+
+    const payload = {
+      artist: req.user._id,
+      name,
+      email,
+      subject,
+      message,
+      region,
+      ticketDate,
+      ticketId: ticketId,
+      ticketImg:
+        fileData.data.ticketImg && fileData.data.ticketImg.length > 0
+          ? fileData.data.ticketImg[0].filename
+          : null,
+    };
+
+    const ticketData = await Ticket.create(payload);
+
+    return res.status(201).json({
+      message: "Ticket posted successfully!",
+      data: ticketData,
+    });
+  } catch (error) {
+    APIErrorLog.error("Error while posting the ticket");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+// -------------------ticket----------------------------
+
 module.exports = {
   login,
-  sendRegisterUserOTP,
-  verifyRegisterUserMail,
+  sendVerifyEmailOTP,
+  verifyEmailOTP,
   becomeArtist,
   sendForgotPasswordOTP,
   validateOTP,
@@ -576,4 +737,5 @@ module.exports = {
   getArtistDetails,
   logOut,
   completeProfile,
+  createTicket,
 };

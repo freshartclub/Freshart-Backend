@@ -9,17 +9,18 @@ const {
   resendOTP,
   getArtistDetails,
   logOut,
-  sendRegisterUserOTP,
-  verifyRegisterUserMail,
   completeProfile,
+  createTicket,
+  sendVerifyEmailOTP,
+  verifyEmailOTP,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 
 router.post("/login", login);
 
-router.post("/send-register-otp", sendRegisterUserOTP);
+router.post("/send-register-otp", sendVerifyEmailOTP);
 
-router.post("/verify-email", verifyRegisterUserMail);
+router.post("/verify-email", verifyEmailOTP);
 
 router.post("/become-artist", becomeArtist);
 
@@ -36,5 +37,7 @@ router.get("/get-artist", validateToken, getArtistDetails);
 router.patch("/logout", validateToken, logOut);
 
 router.post("/complete-profile/:id", validateToken, completeProfile);
+
+router.post("/create-ticket", validateToken, createTicket);
 
 module.exports = router;

@@ -2,19 +2,16 @@ const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
 const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
-const { fileUploadFunc, createLog } = require("../functions/common");
-const APIErrorLog = createLog("API_error_log");
+const { fileUploadFunc } = require("../functions/common");
 
 const createArtwork = catchAsyncError(async (req, res, next) => {
-  // const { id } = req.params;
-  const id = "6708131b37736542341fd013";
+  const { id } = req.params;
   const fileData = await fileUploadFunc(req, res);
 
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
   }).lean(true);
-
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   let images = [];
@@ -125,13 +122,22 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
     query.artistId = { $regex: artistId, $options: "i" };
   }
 
-  const artists = await Artist.find({
-    isDeleted: false,
-    role: "artist",
-    ...query,
-  })
-    .select("artistName artistId email artistSurname1 artistSurname2")
-    .lean(true);
+  const artists = await Artist.find(
+    {
+      isDeleted: false,
+      isActivated: true,
+      ...query,
+    },
+    {
+      email: 1,
+      artistName: 1,
+      artistSurname1: 1,
+      artistSurname2: 1,
+      artistId: 1,
+      userId: 1,
+      avatar: 1,
+    }
+  ).lean(true);
 
   res.status(200).send({ data: artists });
 });
@@ -144,7 +150,43 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
 
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  const artworkList = await ArtWork.find({}).lean(true);
+  const artworkList = await ArtWork.aggregate([
+    {
+      $lookup: {
+        from: "artists",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$ownerInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        artistName: "$ownerInfo.artistName",
+        isDeleted: 1,
+        isApproved: 1,
+        artworkName: 1,
+        artworkCreationYear: 1,
+        artworkSeries: 1,
+        productDescription: 1,
+        collections: 1,
+        media: 1,
+        additionalInfo: 1,
+        commercialization: 1,
+        pricing: 1,
+        inventoryShipping: 1,
+        discipline: 1,
+        promotions: 1,
+        restriction: 1,
+      },
+    },
+  ]);
 
   res.status(200).send({ data: artworkList });
 });

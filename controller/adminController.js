@@ -235,6 +235,7 @@ const artistRegister = async (req, res) => {
 
     let additionalImages = [];
     let additionalVideos = [];
+    let documnets = [];
 
     if (fileData.data?.additionalImage) {
       fileData.data?.additionalImage.forEach((element) => {
@@ -248,16 +249,21 @@ const artistRegister = async (req, res) => {
       });
     }
 
+    if (fileData.data?.uploadDocs) {
+      fileData.data?.uploadDocs.forEach((element) => {
+        documnets.push(element.filename);
+      });
+    }
+
     let count = null;
     if (fileData.data === undefined) {
-      count = req.body.count;
+      count = Number(req.body.count);
     } else if (Object.keys(fileData.data).includes("profileImage")) {
       count = 4;
     } else {
       count = 7;
     }
 
-    let user = true;
     switch (count) {
       case 1:
         obj = {
@@ -265,13 +271,10 @@ const artistRegister = async (req, res) => {
             .toLowerCase()
             .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
             .trim(),
-          // artistId: req.body.artistId,
           phone: req.body.phone.replace(/[- )(]/g, "").trim(),
           email: req.body.email.toLowerCase(),
           gender: req.body.gender,
           notes: req?.body?.notes,
-          role: "user",
-          uesrId: generateRandomId(user),
         };
 
         if (req?.body?.language.length) {
@@ -333,8 +336,8 @@ const artistRegister = async (req, res) => {
           about: req.body.about.trim(),
         };
 
-        if (req?.body?.artistCategory.length) {
-          obj["aboutArtist"]["category"] = req?.body?.artistCategory;
+        if (req?.body?.discipline.length) {
+          obj["aboutArtist"]["discipline"] = req?.body?.discipline;
         }
 
         if (req.body.count > artist.pageCount) {
@@ -418,17 +421,8 @@ const artistRegister = async (req, res) => {
         break;
 
       case 7:
-        if (fileData.type !== "success") {
-          return res.status(fileData.status).send({
-            message:
-              fileData?.type === "fileNotFound"
-                ? "Please upload the documents"
-                : fileData.type,
-          });
-        }
-
         obj["document"] = {
-          documentPath: fileData.data.uploadDocs[0].filename,
+          documents: documnets,
           documentName: req.body.documentName,
         };
 
@@ -471,7 +465,10 @@ const artistRegister = async (req, res) => {
             },
           };
 
-          if (req.body.managerArtistLanguage.length) {
+          if (
+            req.body.managerArtistLanguage &&
+            req.body.managerArtistLanguage.length
+          ) {
             obj["managerDetails"]["language"] = Array.isArray(
               req.body.managerArtistLanguage
             )
@@ -482,9 +479,6 @@ const artistRegister = async (req, res) => {
           if (count > artist.pageCount) {
             obj["pageCount"] = count;
           }
-
-          obj["role"] = "artist";
-          obj["artistId"] = generateRandomId();
         }
         break;
     }
@@ -513,7 +507,7 @@ const artistRegister = async (req, res) => {
 
       Artist.updateOne(
         { _id: newArtist._id, isDeleted: false },
-        { $set: { isArtistRequestApproved: true } }
+        { $set: { isArtistRequestStatus: true } }
       ).then();
     }
 
@@ -773,7 +767,7 @@ const getAllArtists = async (req, res) => {
 
     const artists = await Artist.find({
       isDeleted: false,
-      pageCount: { $gt: 0 },
+      role: "artist",
     })
       .sort({ createdAt: -1 })
       .lean(true);
@@ -797,7 +791,6 @@ const getAllCompletedArtists = async (req, res) => {
     const getArtists = await Artist.find({
       isActivated: true,
       isDeleted: false,
-      // role: "artist",
     })
       .sort({ createdAt: -1 })
       .lean(true);
@@ -822,8 +815,7 @@ const getArtistRequestList = async (req, res) => {
     const artistlist = await Artist.find({
       isDeleted: false,
       isArtistRequest: true,
-      // isArtistRequestApproved: false,
-      pageCount: 0,
+      isArtistRequestStatus: "pending",
     })
       .sort({ createdAt: -1 })
       .lean(true);
@@ -893,14 +885,18 @@ const createNewUser = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const checkUser = await Artist.findOne({ _id: id }).lean(true);
-    if (checkUser.pageCount > 0)
-      return res
-        .status(400)
-        .send({ message: `Artist account already created` });
+    if (id !== "null") {
+      const checkUser = await Artist.findOne({ _id: id }).lean(true);
+      if (checkUser.pageCount > 0)
+        return res
+          .status(400)
+          .send({ message: `Artist Account already created` });
+    }
 
     const fileData = await fileUploadFunc(req, res);
     const isfileData = fileData.data ? true : false;
+
+    const isArtist = req.body?.isArtist === "true" ? true : false;
 
     let obj = {
       artistName: req.body.name
@@ -920,8 +916,8 @@ const createNewUser = async (req, res) => {
       zipCode: String(req.body.zipCode),
     };
 
+    let nUser = true;
     if (req.body.value === "new") {
-      let nUser = true;
       if (id === "null") {
         const isExitingUser = await Artist.countDocuments({
           email: req.body.email.toLowerCase(),
@@ -934,25 +930,22 @@ const createNewUser = async (req, res) => {
         }
 
         obj["userId"] = generateRandomId(nUser);
-        obj["pageCount"] = 0;
+        obj["pageCount"] = isArtist ? 1 : 0;
+        obj["role"] = isArtist ? "artist" : "user";
+        isArtist && (obj["artistId"] = generateRandomId());
+
         const user = await Artist.create(obj);
 
         return res
           .status(200)
           .send({ message: "User created successfully", id: user._id });
       } else {
-        // const isExitingUser = await Artist.countDocuments({
-        //   email: req.body.email.toLowerCase(),
-        // });
-
-        // if (isExitingUser !== 1) {
-        //   return res
-        //     .status(400)
-        //     .send({ message: "User with this email already exists" });
-        // }
-
         obj["userId"] = generateRandomId(nUser);
         obj["pageCount"] = 1;
+        obj["role"] = "artist";
+        obj["isArtistRequestStatus"] = "approved";
+        obj["artistId"] = generateRandomId();
+
         let condition = { $set: obj };
         Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
 
@@ -961,17 +954,13 @@ const createNewUser = async (req, res) => {
           .send({ message: "User created successfully", id: id });
       }
     } else {
-      const isExitingUser = await Artist.countDocuments({
-        email: req.body.email.toLowerCase(),
-      });
-
-      if (isExitingUser !== 1) {
-        return res
-          .status(400)
-          .send({ message: "User with this email already exists" });
-      }
       obj["pageCount"] = 1;
-      Artist.updateOne({ _id: id }, obj).then();
+      obj["role"] = "artist";
+      obj["isArtistRequestStatus"] = "approved";
+      obj["artistId"] = generateRandomId();
+
+      let condition = { $set: obj };
+      Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
 
       return res
         .status(200)
@@ -1150,6 +1139,71 @@ const changeArtistPassword = async (req, res) => {
   }
 };
 
+const ticketList = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    let { page, limit, search, sortTicketDate } = req.query;
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    const skip = (page - 1) * limit;
+
+    let filter = {};
+    if (search) {
+      filter["ticketId"] = { $regex: search, $options: "i" };
+    }
+    let sort = { createdAt: -1 };
+    if (sortTicketDate) {
+      sort["ticketDate"] = sortTicketDate === "asc" ? 1 : -1;
+    }
+    const totalItems = await Ticket.countDocuments(filter).lean(true);
+    const getData = await Ticket.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(true);
+
+    const totalPages = Math.ceil(totalItems / limit);
+
+    return res.json({
+      message: "All tickets retrieved successfully.",
+      data: getData,
+      pagination: {
+        totalItems,
+        currentPage: page,
+        totalPages,
+        limit,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const ticketDetail = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const ticketData = await Ticket.findById(id);
+
+    return res.status(201).json({
+      message: "Ticket details retrieved successfully",
+      data: ticketData,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -1175,4 +1229,6 @@ module.exports = {
   suspendArtist,
   unSuspendArtist,
   changeArtistPassword,
+  ticketList,
+  ticketDetail,
 };

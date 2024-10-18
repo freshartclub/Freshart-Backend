@@ -66,7 +66,11 @@ const fileFilter = (req, file, cb) => {
       return cb(null, true);
     }
   } else {
-    if (["image/jpeg", "image/jpg", "image/png"].includes(file.mimetype)) {
+    if (
+      ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(
+        file.mimetype
+      )
+    ) {
       return cb(null, true);
     }
   }

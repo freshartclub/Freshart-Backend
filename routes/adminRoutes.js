@@ -26,6 +26,8 @@ const {
   changeArtistPassword,
   unSuspendArtist,
   suspendedArtistList,
+  ticketList,
+  ticketDetail,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -104,8 +106,12 @@ router.patch(
 
 router.post("/add-artwork/:id?", validateAdminToken, createArtwork);
 
-router.post("/get-artist-by-id", validateAdminToken, getArtistById);
+router.get("/get-artist-by-id", validateAdminToken, getArtistById);
 
 router.get("/get-artwork-list", validateAdminToken, getArtworkList);
+
+router.get("/get-all-tickets", validateAdminToken, ticketList);
+
+router.get("/get-ticket/:id", validateAdminToken, ticketDetail);
 
 module.exports = router;

@@ -20,9 +20,9 @@ const artistSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isArtistRequestApproved: {
-      type: Boolean,
-      default: false,
+    isArtistRequestStatus: {
+      type: String,
+      enum: ["pending", "approved", "rejected", "ban"],
     },
     userId: {
       type: String,
@@ -112,7 +112,7 @@ const artistSchema = new mongoose.Schema(
       about: {
         type: String,
       },
-      category: {
+      discipline: {
         type: [Object],
       },
     },
@@ -129,7 +129,12 @@ const artistSchema = new mongoose.Schema(
       type: Object,
     },
     document: {
-      type: Object,
+      documentName: {
+        type: String,
+      },
+      documents: {
+        type: Array,
+      },
     },
     managerDetails: {
       type: Object,
@@ -144,7 +149,7 @@ const artistSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
-    passwordLinkToken: { type: String, default: null },
+    passwordLinkToken: { type: String },
   },
   {
     timestamps: true,
