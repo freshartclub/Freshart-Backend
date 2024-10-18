@@ -710,11 +710,6 @@ const activateArtist = async (req, res) => {
     });
 
     if (!artist) return res.status(400).send({ message: "Artist not found" });
-    if (artist.pageCount !== 7) {
-      return res
-        .status(400)
-        .send({ message: "Artist must complete full form" });
-    }
     if (artist.isActivated) {
       return res.status(400).send({ message: "Artist already activated" });
     }
