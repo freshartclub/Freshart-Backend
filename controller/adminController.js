@@ -712,12 +712,7 @@ const activateArtist = async (req, res) => {
     if (artist.isActivated) {
       return res.status(400).send({ message: "Artist already activated" });
     }
-    if (artist.pageCount < 7) {
-      return res
-        .status(400)
-        .send({ message: "Admin must complete the full form" });
-    }
-
+    
     const token = crypto.randomBytes(32).toString("hex");
 
     await Artist.updateOne(
