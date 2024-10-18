@@ -158,6 +158,11 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
 
   const artworkList = await ArtWork.aggregate([
     {
+      $match: {
+        isDeleted: false,
+      },
+    },
+    {
       $lookup: {
         from: "artists",
         localField: "owner",
@@ -183,6 +188,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         productDescription: 1,
         collections: 1,
         media: 1,
+        isDeleted: 1,
         additionalInfo: 1,
         commercialization: 1,
         pricing: 1,
@@ -190,6 +196,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         discipline: 1,
         promotions: 1,
         restriction: 1,
+        createdAt: 1,
       },
     },
   ]);
@@ -197,8 +204,23 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ data: artworkList });
 });
 
+const removeArtwork = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const { id } = req.params;
+  await ArtWork.updateOne({ _id: id }, { $set: { isDeleted: true } });
+
+  res.status(200).send({ message: "Artwork Removed Sucessfully" });
+});
+
 module.exports = {
   createArtwork,
   getArtworkList,
   getArtistById,
+  removeArtwork,
 };

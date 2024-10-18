@@ -34,6 +34,7 @@ const {
   createArtwork,
   getArtworkList,
   getArtistById,
+  removeArtwork,
 } = require("../controller/artworkController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
@@ -109,6 +110,8 @@ router.post("/add-artwork/:id?", validateAdminToken, createArtwork);
 router.get("/get-artist-by-id", validateAdminToken, getArtistById);
 
 router.get("/get-artwork-list", validateAdminToken, getArtworkList);
+
+router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 
 router.get("/get-all-tickets", validateAdminToken, ticketList);
 

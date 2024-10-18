@@ -89,7 +89,7 @@ const upload = multer({
   { name: "mainVideo", maxCount: 1 },
   { name: "mainImage", maxCount: 1 },
   { name: "additionalVideo", maxCount: 5 },
-  { name: "uploadDocs", maxCount: 1 },
+  { name: "uploadDocs", maxCount: 5 },
   { name: "insigniaImage", maxCount: 1 },
   { name: "avatar", maxCount: 1 },
   { name: "images", maxCount: 5 },
