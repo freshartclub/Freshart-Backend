@@ -447,16 +447,16 @@ const becomeArtist = async (req, res) => {
         isDeleted: false,
       }).lean(true);
 
-      if (user && user?.isArtistRequestApproved === "pending") {
+      if (user && user?.isArtistRequestStatus === "pending") {
         return res.status(400).send({
           message:
             "You have already requested to become Artist. Your requset is in process",
         });
-      } else if (user && user?.isArtistRequestApproved === "approved") {
+      } else if (user && user?.isArtistRequestStatus === "approved") {
         return res.status(400).send({
           message: "You are already an artist",
         });
-      } else if (user && user?.isArtistRequestApproved === "ban") {
+      } else if (user && user?.isArtistRequestStatus === "ban") {
         return res.status(400).send({
           message: "You cannot requset to become artist. Please contact admin",
         });
@@ -468,16 +468,16 @@ const becomeArtist = async (req, res) => {
         isDeleted: false,
       }).lean(true);
 
-      if (user && user.isArtistRequestApproved === "pending") {
+      if (user && user.isArtistRequestStatus === "pending") {
         return res.status(400).send({
           message:
             "You have already requested to become Artist. Your requset is in process",
         });
-      } else if (user && user.isArtistRequestApproved === "approved") {
+      } else if (user && user.isArtistRequestStatus === "approved") {
         return res.status(400).send({
           message: "You are already an artist",
         });
-      } else if (user && user.isArtistRequestApproved === "ban") {
+      } else if (user && user.isArtistRequestStatus === "ban") {
         return res.status(400).send({
           message: "You cannot requset to become artist. Please contact admin",
         });
@@ -513,7 +513,7 @@ const becomeArtist = async (req, res) => {
       phone: req.body.phone.replace(/[- )(]/g, "").trim(),
       email: req.body.email.toLowerCase(),
       isArtistRequest: true,
-      isArtistRequestApproved: "pending",
+      isArtistRequestStatus: "pending",
       pageCount: 0,
     };
 
