@@ -120,23 +120,44 @@ const sendVerifyEmailOTP = async (req, res) => {
         });
       }
 
-      const isExist = await Artist.countDocuments({
-        email: email.toLowerCase(),
-        userId: { $exists: false },
-        isDeleted: false,
-      });
-
-      if (isExist > 1) {
-        return res.status(400).send({ message: "Email already exist" });
-      }
+      const isExist = await Artist.find(
+        {
+          email: email.toLowerCase(),
+          isDeleted: false,
+        },
+        { userId: 1 }
+      ).lean(true);
 
       const otp = await generateRandomOTP();
+      let nUser = true;
       const mailVaribles = {
         "%email%": email,
         "%otp%": otp,
       };
 
-      let nUser = true;
+      if (isExist.length === 1 && isExist[0].userId === undefined) {
+        Artist.updateOne(
+          { email: email.toLowerCase(), isDeleted: false },
+          {
+            $set: {
+              OTP: otp,
+              userId: generateRandomId(nUser),
+              role: "user",
+              password: md5(password),
+              pageCount: 0,
+            },
+          }
+        ).then();
+
+        await sendMail("verify-email", mailVaribles, email.toLowerCase());
+        return res.status(200).send({
+          id: isExist[0]._id,
+          message: "OTP sent Successfully",
+        });
+      } else if (isExist.length > 1) {
+        return res.status(400).send({ message: "Email already exist" });
+      }
+
       const user = await Artist.create({
         email: email.toLowerCase(),
         password: md5(password),
@@ -209,7 +230,7 @@ const verifyEmailOTP = async (req, res) => {
 
       Artist.updateOne(
         { email: email, isDeleted: false },
-        { $set: { isEmailVerified: true }, $unset: { OTP: "" } }
+        { $unset: { OTP: "" } }
       ).then();
 
       return res.status(200).send({
