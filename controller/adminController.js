@@ -464,21 +464,22 @@ const artistRegister = async (req, res) => {
               extraInfo3: req.body.managerExtraInfo3,
             },
           };
+        }
 
-          if (
-            req.body.managerArtistLanguage &&
-            req.body.managerArtistLanguage.length
-          ) {
-            obj["managerDetails"]["language"] = Array.isArray(
-              req.body.managerArtistLanguage
-            )
-              ? req.body.managerArtistLanguage
-              : [req.body.managerArtistLanguage];
-          }
+        if (
+          req.body.managerArtistLanguage &&
+          req.body.managerArtistLanguage.length
+        ) {
+          obj["managerDetails"]["language"] = Array.isArray(
+            req.body.managerArtistLanguage
+          )
+            ? req.body.managerArtistLanguage
+            : [req.body.managerArtistLanguage];
+        }
 
-          if (count > artist.pageCount) {
-            obj["pageCount"] = count;
-          }
+        if (count > artist.pageCount) {
+          console.log(count);
+          obj["pageCount"] = count;
         }
         break;
     }
@@ -507,7 +508,7 @@ const artistRegister = async (req, res) => {
 
       Artist.updateOne(
         { _id: newArtist._id, isDeleted: false },
-        { $set: { isArtistRequestStatus: true } }
+        { $set: { isArtistRequestStatus: "approved" } }
       ).then();
     }
 
@@ -709,21 +710,37 @@ const activateArtist = async (req, res) => {
     });
 
     if (!artist) return res.status(400).send({ message: "Artist not found" });
+    if (artist.pageCount !== 7) {
+      return res
+        .status(400)
+        .send({ message: "Artist must complete full form" });
+    }
     if (artist.isActivated) {
       return res.status(400).send({ message: "Artist already activated" });
     }
-    
+
     const token = crypto.randomBytes(32).toString("hex");
 
-    await Artist.updateOne(
-      { _id: req.params.id },
-      {
-        $set: {
-          isActivated: true,
-          passwordLinkToken: token,
-        },
-      }
-    );
+    if (artist.userId !== undefined) {
+      await Artist.updateOne(
+        { _id: req.params.id },
+        {
+          $set: {
+            isActivated: true,
+          },
+        }
+      );
+    } else {
+      await Artist.updateOne(
+        { _id: req.params.id },
+        {
+          $set: {
+            isActivated: true,
+            passwordLinkToken: token,
+          },
+        }
+      );
+    }
 
     const link = `${process.env.FRONTEND_URL}/reset-password?id=${artist._id}&token=${token}`;
     const mailVaribles = {
@@ -733,7 +750,7 @@ const activateArtist = async (req, res) => {
       "%link%": link,
     };
 
-    if (!artist?.password) {
+    if (artist.userId === undefined) {
       await sendMail(
         "Become-an-artist-credentials",
         mailVaribles,
