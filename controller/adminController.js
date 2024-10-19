@@ -376,6 +376,7 @@ const artistRegister = async (req, res) => {
         break;
 
       case 5:
+        console.log(req.body);
         obj["invoice"] = {
           taxNumber: req.body.taxNumber.trim(),
           taxLegalName: req.body.taxLegalName
@@ -391,6 +392,15 @@ const artistRegister = async (req, res) => {
           taxPhone: req.body.taxPhone.replace(/[- )(]/g, "").trim(),
           taxBankIBAN: req.body.taxBankIBAN,
           taxBankName: req.body.taxBankName,
+        };
+
+        obj["commercilization"] = {
+          customOrder: req.body.CustomOrder,
+          publishingCatalog: req.body.PublishingCatalog,
+          artistFees: req.body.ArtistFees,
+          artistPlus: req.body.ArtistPlus,
+          minNumberOfArtwork: req.body.MinNumberOfArtwork,
+          maxNumberOfArtwork: req.body.MaxNumberOfArtwork,
         };
 
         if (req.body.count > artist.pageCount) {

@@ -125,6 +125,9 @@ const artistSchema = new mongoose.Schema(
     invoice: {
       type: Object,
     },
+    commercilization: {
+      type: Object,
+    },
     logistics: {
       type: Object,
     },
