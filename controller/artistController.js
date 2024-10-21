@@ -48,24 +48,24 @@ const login = async (req, res) => {
       return res.status(400).send({ message: "Invalid credentials" });
     }
 
-    if (user.isEmailVerified === false) {
-      const otp = await generateRandomOTP();
-      const mailVaribles = {
-        "%email%": email,
-        "%otp%": otp,
-      };
+    // if (user.isEmailVerified === false) {
+    //   const otp = await generateRandomOTP();
+    //   const mailVaribles = {
+    //     "%email%": email,
+    //     "%otp%": otp,
+    //   };
 
-      await sendMail("verify-email", mailVaribles, email.toLowerCase());
+    //   await sendMail("verify-email", mailVaribles, email.toLowerCase());
 
-      Artist.updateOne(
-        { _id: user._id, isDeleted: false },
-        { $set: { OTP: otp } }
-      ).then();
+    //   Artist.updateOne(
+    //     { _id: user._id, isDeleted: false },
+    //     { $set: { OTP: otp } }
+    //   ).then();
 
-      return res
-        .status(200)
-        .send({ message: "OTP sent successfully", id: user._id });
-    }
+    //   return res
+    //     .status(200)
+    //     .send({ message: "OTP sent successfully", id: user._id });
+    // }
 
     const userField = {
       _id: user._id,
@@ -684,6 +684,42 @@ const completeProfile = async (req, res) => {
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
+
+// const editArtistProfile = async (req, res) => {
+//   try {
+//     const { id } = req.params;
+//     const fileData = await fileUploadFunc(req, res);
+
+//     let obj = {
+//       avatar: fileData?.data?.avatar && fileData?.data.avatar[0].filename,
+//       artistName: req.body.artistName,
+//       artistSurname1: req.body.artistSurname2,
+//       artistSurname2: req.body.artistSurname2,
+//       gender: req.body.gender,
+//       dob: req.body.dob,
+//       address: {
+//         country: req.body.country,
+//         zipCode: String(req.body.zipCode),
+//         city: req.body.city,
+//         state: req.body.state,
+//       },
+//     };
+
+//     obj["aboutArtist"]["about"] = req.body.about;
+
+//     if (req?.body?.cvData.length) {
+//       obj["highlights"]["cv"] = req?.body?.cvData;
+//     }
+
+//     Artist.updateOne({ _id: id, isDeleted: false }, { $set: obj }).then();
+
+//     return res.status(200).send({ message: "Profile updated successfully" });
+//   } catch (error) {
+//     APIErrorLog.error("Error while edit the artist profile");
+//     APIErrorLog.error(error);
+//     return res.status(500).send({ message: "Something went wrong" });
+//   }
+// };
 
 // ------------ tickets-----------------
 

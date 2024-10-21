@@ -6,6 +6,11 @@ const ticketSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+    status: {
+      type: String,
+      enum: ["Created", "In progress", "Closed"],
+      default: "Created",
+    },
     ticketId: {
       type: String,
     },

@@ -5,6 +5,7 @@ const moment = require("moment");
 const Admin = require("../models/adminModel");
 const Insignia = require("../models/insigniasModel");
 const Artist = require("../models/artistModel");
+const Ticket = require("../models/ticketModel");
 const Category = require("../models/categoryModel");
 const {
   createLog,
@@ -1163,6 +1164,8 @@ const ticketList = async (req, res) => {
       isDeleted: false,
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    console.log("entered");
 
     let { page, limit, search, sortTicketDate } = req.query;
     page = parseInt(page) || 1;
