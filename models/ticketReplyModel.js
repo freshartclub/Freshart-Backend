@@ -4,7 +4,7 @@ const ticketSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Artist",
+      ref: "Ticket",
     },
     ticketType: {
       type: String,
@@ -39,4 +39,4 @@ const ticketSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("Ticket", ticketSchema);
+module.exports = mongoose.model("TicketReply", ticketSchema);

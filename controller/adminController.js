@@ -230,7 +230,10 @@ const artistRegister = async (req, res) => {
     if (req?.params?.id) {
       artist = await Artist.findOne(
         { _id: req.params.id },
-        { pageCount: 1 }
+        {
+          pageCount: 1,
+          artistId: 1,
+        }
       ).lean(true);
     }
 
@@ -360,7 +363,7 @@ const artistRegister = async (req, res) => {
         obj["profile"] = {
           mainImage: fileData.data?.profileImage
             ? fileData.data.profileImage[0].filename
-            : null,
+            : artist.mainImage,
           additionalImage: additionalImages,
           inProcessImage: fileData.data?.inProcessImage
             ? fileData.data.inProcessImage[0].filename
@@ -489,7 +492,6 @@ const artistRegister = async (req, res) => {
         }
 
         if (count > artist.pageCount) {
-          console.log(count);
           obj["pageCount"] = count;
         }
         break;
@@ -756,15 +758,7 @@ const activateArtist = async (req, res) => {
       "%link%": link,
     };
 
-    if (artist.userId === undefined) {
-      await sendMail(
-        "Become-an-artist-credentials",
-        mailVaribles,
-        artist.email
-      );
-    } else {
-      await sendMail("Become-an-artist-mail", mailVaribles, artist.email);
-    }
+    await sendMail("Become-an-artist-credentials", mailVaribles, artist.email);
 
     return res.status(200).send({ message: "Artist activated successfully" });
   } catch (error) {
@@ -934,6 +928,12 @@ const createNewUser = async (req, res) => {
       zipCode: String(req.body.zipCode),
     };
 
+    const mailVaribles = {
+      "%fullName%": obj.artistName,
+      "%email%": obj.email,
+      "%phone%": obj.phone,
+    };
+
     let nUser = true;
     if (req.body.value === "new") {
       if (id === "null") {
@@ -953,6 +953,7 @@ const createNewUser = async (req, res) => {
         isArtist && (obj["artistId"] = generateRandomId());
 
         const user = await Artist.create(obj);
+        await sendMail("create-user-mail", mailVaribles, user.email);
 
         return res
           .status(200)
@@ -1164,8 +1165,6 @@ const ticketList = async (req, res) => {
       isDeleted: false,
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
-
-    console.log("entered");
 
     let { page, limit, search, sortTicketDate } = req.query;
     page = parseInt(page) || 1;

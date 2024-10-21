@@ -143,7 +143,7 @@ const artistSchema = new mongoose.Schema(
       type: Object,
     },
     links: {
-      type: Object,
+      type: Array, // change it to array
     },
     OTP: {
       type: String,

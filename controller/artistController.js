@@ -506,6 +506,7 @@ const becomeArtist = async (req, res) => {
 
     let documnets = [];
     let documnet = {};
+    let links = [];
 
     documnet["discipline"] = req.body.discipline;
     if (req.body.style) {
@@ -519,10 +520,17 @@ const becomeArtist = async (req, res) => {
       }
     }
 
-    if (fileData.data.uploadDocs) {
+    if (fileData.data?.uploadDocs) {
       for (let i = 0; i < fileData.data.uploadDocs.length; i++) {
         documnets.push(fileData.data.uploadDocs[i].filename);
       }
+    }
+
+    if (req.body.socialMedia) {
+      links.push({
+        socialMedia: req.body.socialMedia,
+        website: req.body.website,
+      });
     }
 
     let obj = {
@@ -555,10 +563,7 @@ const becomeArtist = async (req, res) => {
       discipline: [documnet],
     };
 
-    obj["links"] = {
-      socialMedia: req.body.socialMedia,
-      website: req.body.website,
-    };
+    obj["links"] = links;
 
     obj["address"] = {
       city: req.body.city,
@@ -685,41 +690,66 @@ const completeProfile = async (req, res) => {
   }
 };
 
-// const editArtistProfile = async (req, res) => {
-//   try {
-//     const { id } = req.params;
-//     const fileData = await fileUploadFunc(req, res);
+const editArtistProfile = async (req, res) => {
+  try {
+    const artist = await Artist.findOne(
+      {
+        _id: req.user._id,
+        isDeleted: false,
+      },
+      { avatar: 1 }
+    ).lean(true);
+    const fileData = await fileUploadFunc(req, res);
 
-//     let obj = {
-//       avatar: fileData?.data?.avatar && fileData?.data.avatar[0].filename,
-//       artistName: req.body.artistName,
-//       artistSurname1: req.body.artistSurname2,
-//       artistSurname2: req.body.artistSurname2,
-//       gender: req.body.gender,
-//       dob: req.body.dob,
-//       address: {
-//         country: req.body.country,
-//         zipCode: String(req.body.zipCode),
-//         city: req.body.city,
-//         state: req.body.state,
-//       },
-//     };
+    console.log(req.body);
 
-//     obj["aboutArtist"]["about"] = req.body.about;
+    let obj = {
+      avatar: fileData?.data?.avatar
+        ? fileData?.data.avatar[0].filename
+        : artist?.avatar,
+      artistName: req.body.artistName,
+      artistSurname1: req.body.artistSurname2,
+      artistSurname2: req.body.artistSurname2,
+      gender: req.body.gender,
+      dob: req.body.dob,
+      aboutArtist: {
+        about: req.body.about,
+      },
+      highlights: {
+        cv: req?.body?.cvEntries,
+      },
+      address: {
+        country: req.body.country,
+        zipCode: String(req.body.zipCode),
+        city: req.body.city,
+        state: req.body.state,
+      },
+    };
 
-//     if (req?.body?.cvData.length) {
-//       obj["highlights"]["cv"] = req?.body?.cvData;
-//     }
+    // if (req?.body?.about) {
+    //   obj["aboutArtist"]["about"] = req.body.about;
+    // }
 
-//     Artist.updateOne({ _id: id, isDeleted: false }, { $set: obj }).then();
+    // if (req?.body?.cvEntries.length) {
+    //   obj["highlights"]["cv"] = req?.body?.cvEntries;
+    // }
 
-//     return res.status(200).send({ message: "Profile updated successfully" });
-//   } catch (error) {
-//     APIErrorLog.error("Error while edit the artist profile");
-//     APIErrorLog.error(error);
-//     return res.status(500).send({ message: "Something went wrong" });
-//   }
-// };
+    if (req?.body?.accounts) {
+      obj["links"] = req?.body?.accounts;
+    }
+
+    Artist.updateOne(
+      { _id: artist._id, isDeleted: false },
+      { $set: obj }
+    ).then();
+
+    return res.status(200).send({ message: "Profile updated successfully" });
+  } catch (error) {
+    APIErrorLog.error("Error while edit the artist profile");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
 
 // ------------ tickets-----------------
 
@@ -752,7 +782,7 @@ const createTicket = async (req, res) => {
     const ticketId = `Ticket# ${year}-CS${randomNumber}`;
 
     const payload = {
-      artist: req.user._id,
+      user: req.user._id,
       name,
       email,
       subject,
@@ -794,4 +824,5 @@ module.exports = {
   logOut,
   completeProfile,
   createTicket,
+  editArtistProfile,
 };

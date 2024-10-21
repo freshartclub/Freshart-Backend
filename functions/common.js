@@ -346,6 +346,58 @@ module.exports.fileUploadFunc = (request, response) => {
           });
         }
 
+        // const existingFiles = {};
+        // const newFilesData = {};
+
+        // // Check for existing files and categorize
+        // for (const field in request.files) {
+        //   existingFiles[field] = [];
+        //   newFilesData[field] = [];
+
+        //   for (const file of request.files[field]) {
+        //     const filePath = path.join(__dirname, `../public/uploads/${field}`, file.filename);
+        //     if (fs.existsSync(filePath)) {
+        //       // File exists, add to existingFiles
+        //       existingFiles[field].push({
+        //         filename: file.filename,
+        //         path: filePath,
+        //         size: file.size,
+        //       });
+        //     } else {
+        //       // File does not exist, add to newFilesData
+        //       newFilesData[field].push(file);
+        //     }
+        //   }
+        // }
+
+        // // Prepare the response
+        // const responseData = {
+        //   type: "success",
+        //   status: 200,
+        //   data: {},
+        // };
+
+        // // Include existing files in the response if any
+        // for (const field in existingFiles) {
+        //   if (existingFiles[field].length > 0) {
+        //     responseData.data[field] = existingFiles[field];
+        //   }
+        // }
+
+        // // Include newly uploaded files in the response if any
+        // for (const field in newFilesData) {
+        //   if (newFilesData[field].length > 0) {
+        //     responseData.data[field] = newFilesData[field];
+        //   }
+        // }
+
+        // // If there are no new files uploaded, you might want to notify about that
+        // if (Object.keys(newFilesData).length === 0) {
+        //   responseData.message = "No new files uploaded; all files already exist.";
+        // }
+
+        // return resolve(responseData);
+
         return resolve({
           type: "success",
           status: 200,
