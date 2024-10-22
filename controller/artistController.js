@@ -701,6 +701,7 @@ const editArtistProfile = async (req, res) => {
     ).lean(true);
     const fileData = await fileUploadFunc(req, res);
 
+    console.log(fileData.data);
     console.log(req.body);
 
     let obj = {

@@ -4,6 +4,10 @@ const ticketSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
+      ref: "Artist",
+    },
+    ticket: {
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Ticket",
     },
     ticketType: {
@@ -12,26 +16,8 @@ const ticketSchema = new mongoose.Schema(
     status: {
       type: String,
     },
-    ticketId: {
-      type: String,
-    },
-    name: {
-      type: String,
-    },
-    email: {
-      type: String,
-    },
-    subject: {
-      type: String,
-    },
-    region: {
-      type: String,
-    },
     message: {
       type: String,
-    },
-    ticketImg: {
-      type: Object,
     },
   },
   {

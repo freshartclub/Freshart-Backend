@@ -18,6 +18,7 @@ const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
+const TicketReply = require("../models/ticketReplyModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -1172,12 +1173,13 @@ const ticketList = async (req, res) => {
     const skip = (page - 1) * limit;
 
     let filter = {};
+    console.log(search);
     if (search) {
       filter["ticketId"] = { $regex: search, $options: "i" };
     }
     let sort = { createdAt: -1 };
     if (sortTicketDate) {
-      sort["ticketDate"] = sortTicketDate === "asc" ? 1 : -1;
+      sort["createdAt"] = sortTicketDate === "asc" ? 1 : -1;
     }
     const totalItems = await Ticket.countDocuments(filter).lean(true);
     const getData = await Ticket.find(filter)
@@ -1199,7 +1201,8 @@ const ticketList = async (req, res) => {
       },
     });
   } catch (error) {
-    return res.status(500).json({ message: "Server error" });
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
@@ -1220,6 +1223,46 @@ const ticketDetail = async (req, res) => {
     });
   } catch (error) {
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const replyTicket = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const { ticketType, status, message } = req.body;
+
+    const ticketData = await Ticket.countDocuments({ _id: id });
+    if (!ticketData) {
+      return res.status(400).send({ message: "Ticket not found" });
+    }
+
+    Ticket.updateOne(
+      { _id: id },
+      { $set: { status: status, ticketType: ticketType } }
+    ).then();
+
+    const reply = await TicketReply.create({
+      user: req.user._id,
+      ticket: id,
+      ticketType,
+      status,
+      message,
+    });
+
+    return res.status(201).json({
+      message: "Ticket replied successfully",
+      data: reply,
+    });
+  } catch (error) {
+    APIErrorLog.error("Error while replying the ticket");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
@@ -1250,4 +1293,5 @@ module.exports = {
   changeArtistPassword,
   ticketList,
   ticketDetail,
+  replyTicket,
 };
