@@ -767,34 +767,22 @@ const createTicket = async (req, res) => {
 
     const fileData = await fileUploadFunc(req, res);
 
-    if (fileData.type !== "success") {
-      return res.status(fileData.status).send({
-        message:
-          fileData?.type === "fileNotFound"
-            ? "Please upload the image"
-            : fileData.type,
-      });
-    }
-
-    const { name, email, subject, message, region } = req.body;
-    const ticketDate = new Date();
-    const year = ticketDate.getFullYear();
+    const { subject, message, region, ticketType } = req.body;
     const randomNumber = Math.floor(100 + Math.random() * 900);
+    const year = new Date().getFullYear();
     const ticketId = `Ticket# ${year}-CS${randomNumber}`;
 
     const payload = {
       user: req.user._id,
-      name,
-      email,
       subject,
       message,
       region,
-      ticketDate,
+      ticketType: ticketType,
       ticketId: ticketId,
-      ticketImg:
-        fileData.data.ticketImg && fileData.data.ticketImg.length > 0
-          ? fileData.data.ticketImg[0].filename
-          : null,
+      // ticketImg:
+      //   fileData.data.ticketImg && fileData.data.ticketImg.length > 0
+      //     ? fileData.data.ticketImg[0].filename
+      //     : null,
     };
 
     const ticketData = await Ticket.create(payload);

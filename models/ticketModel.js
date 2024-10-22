@@ -11,14 +11,9 @@ const ticketSchema = new mongoose.Schema(
     },
     status: {
       type: String,
+      default: "Created",
     },
     ticketId: {
-      type: String,
-    },
-    name: {
-      type: String,
-    },
-    email: {
       type: String,
     },
     subject: {

@@ -751,7 +751,10 @@ const activateArtist = async (req, res) => {
       );
     }
 
-    const link = `${process.env.FRONTEND_URL}/reset-password?id=${artist._id}&token=${token}`;
+    const url = "https://test.freshartclub.com";
+
+    // const link = `${process.env.FRONTEND_URL}/reset-password?id=${artist._id}&token=${token}`;
+    const link = `${url}/reset-password?id=${artist._id}&token=${token}`;
     const mailVaribles = {
       "%fullName%": artist.artistName,
       "%email%": artist.email,
@@ -1173,7 +1176,6 @@ const ticketList = async (req, res) => {
     const skip = (page - 1) * limit;
 
     let filter = {};
-    console.log(search);
     if (search) {
       filter["ticketId"] = { $regex: search, $options: "i" };
     }
@@ -1181,12 +1183,62 @@ const ticketList = async (req, res) => {
     if (sortTicketDate) {
       sort["createdAt"] = sortTicketDate === "asc" ? 1 : -1;
     }
-    const totalItems = await Ticket.countDocuments(filter).lean(true);
-    const getData = await Ticket.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .lean(true);
+
+    const pipeline = [
+      {
+        $match: {
+          ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
+        },
+      },
+      {
+        $sort: {
+          createdAt: sortTicketDate === "asc" ? 1 : -1,
+        },
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "user",
+          foreignField: "_id",
+          as: "artistInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$artistInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          ticketId: 1,
+          createdAt: 1,
+          name: "$artistInfo.artistName",
+          email: "$artistInfo.email",
+          avatar: "$artistInfo.avatar",
+          ticketType: 1,
+          status: 1,
+          subject: 1,
+          message: 1,
+          region: 1,
+          ticketImg: 1,
+        },
+      },
+    ];
+
+    const totalItems = await Ticket.countDocuments({
+      isDeleted: false,
+      ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
+    }).lean(true);
+
+    const getData = await Ticket.aggregate(pipeline);
 
     const totalPages = Math.ceil(totalItems / limit);
 
@@ -1266,6 +1318,59 @@ const replyTicket = async (req, res) => {
   }
 };
 
+const getTicketReplies = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const replies = await TicketReply.aggregate([
+      {
+        $match: { ticket: id },
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $unwind: {
+          path: "$user",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          ticket: 1,
+          createdAt: 1,
+          name: "$user.artistName",
+          email: "$user.email",
+          avatar: "$user.avatar",
+          ticketType: 1,
+          status: 1,
+          message: 1,
+        },
+      },
+    ]);
+
+    return res.status(201).json({
+      message: "Ticket replies retrieved successfully",
+      data: replies,
+    });
+  } catch (error) {
+    APIErrorLog.error("Error while replying the ticket");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -1294,4 +1399,5 @@ module.exports = {
   ticketList,
   ticketDetail,
   replyTicket,
+  getTicketReplies,
 };

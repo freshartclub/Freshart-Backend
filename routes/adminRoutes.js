@@ -29,6 +29,7 @@ const {
   ticketList,
   ticketDetail,
   replyTicket,
+  getTicketReplies,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -119,5 +120,7 @@ router.get("/get-all-tickets", validateAdminToken, ticketList);
 router.get("/get-ticket/:id", validateAdminToken, ticketDetail);
 
 router.post("/reply-ticket/:id", validateAdminToken, replyTicket);
+
+router.get("/get-ticket-replies/:id", validateAdminToken, getTicketReplies);
 
 module.exports = router;
