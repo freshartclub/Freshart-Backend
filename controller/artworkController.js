@@ -188,7 +188,6 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         productDescription: 1,
         collections: 1,
         media: 1,
-        isDeleted: 1,
         additionalInfo: 1,
         commercialization: 1,
         pricing: 1,
@@ -218,9 +217,18 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ message: "Artwork Removed Sucessfully" });
 });
 
+const getUserArtwork = catchAsyncError(async (req, res, next) => {
+  const artworks = await ArtWork.find({
+    owner: req.user._id,
+  }).lean(true);
+
+  res.status(200).send({ data: artworks });
+});
+
 module.exports = {
   createArtwork,
   getArtworkList,
   getArtistById,
   removeArtwork,
+  getUserArtwork,
 };

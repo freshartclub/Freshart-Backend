@@ -16,6 +16,7 @@ const {
   editArtistProfile,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
+const { getUserArtwork } = require("../controller/artworkController");
 
 router.post("/login", login);
 
@@ -42,5 +43,7 @@ router.post("/complete-profile/:id", validateToken, completeProfile);
 router.post("/create-ticket", validateToken, createTicket);
 
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
+
+router.get("/get-artist-artworks", validateToken, getUserArtwork);
 
 module.exports = router;

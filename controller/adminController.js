@@ -14,6 +14,7 @@ const {
   generateRandomOTP,
   generateRandomId,
 } = require("../functions/common");
+const objectId = require("mongoose").Types.ObjectId;
 const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
@@ -401,6 +402,8 @@ const artistRegister = async (req, res) => {
 
         obj["commercilization"] = {
           customOrder: req.body.CustomOrder,
+          artistLevel: req.body.artistLevel,
+          artProvider: req.body.artProvider,
           publishingCatalog: req.body.PublishingCatalog,
           artistFees: req.body.ArtistFees,
           artistPlus: req.body.ArtistPlus,
@@ -854,7 +857,7 @@ const getArtistPendingList = async (req, res) => {
 
     const artistlist = await Artist.find({
       isDeleted: false,
-      pageCount: { $gt: 0, $lt: 7 },
+      pageCount: { $gt: 0 },
     })
       .sort({ createdAt: -1 })
       .lean(true);
@@ -1031,11 +1034,25 @@ const serachUser = async (req, res) => {
       query.userId = { $regex: userId, $options: "i" };
     }
 
-    const users = await Artist.find({
-      isDeleted: false,
-      role: "user",
-      ...query,
-    }).lean(true);
+    const users = await Artist.find(
+      {
+        isDeleted: false,
+        role: "user",
+        ...query,
+      },
+      {
+        userId: 1,
+        email: 1,
+        artistName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        phone: 1,
+        address: 1,
+        artistId: 1,
+        userId: 1,
+        avatar: 1,
+      }
+    ).lean(true);
     return res.status(200).send({ data: users });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
@@ -1119,6 +1136,76 @@ const unSuspendArtist = async (req, res) => {
   }
 };
 
+const rejectArtistRequest = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const user = await Artist.findOne(
+      { _id: req.params.id },
+      { isArtistRequest: 1 }
+    ).lean(true);
+    if (!user) return res.status(400).send({ message: `User not found` });
+
+    if (user.isArtistRequest === false) {
+      return res
+        .status(400)
+        .send({ message: `Artsit request already rejected` });
+    }
+
+    Artist.updateOne(
+      { _id: req.params.id },
+      {
+        $set: { isArtistRequest: false },
+        $unset: { isArtistRequestStatus: "" },
+      }
+    ).then();
+
+    return res.status(200).send({ message: "Artist rejected successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const banArtistRequest = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const user = await Artist.findOne(
+      { _id: req.params.id },
+      { isArtistRequestStatus: 1, isArtistRequest: 1 }
+    ).lean(true);
+    if (!user) return res.status(400).send({ message: `User not found` });
+
+    if (
+      user.isArtistRequest === false &&
+      user.isArtistRequestStatus === "ban"
+    ) {
+      return res.status(400).send({ message: `Artsit requset already banned` });
+    }
+
+    Artist.updateOne(
+      { _id: req.params.id },
+      { $set: { isArtistRequest: false, isArtistRequestStatus: "ban" } }
+    ).then();
+
+    return res
+      .status(200)
+      .send({ message: "Artist request banned successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const changeArtistPassword = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
@@ -1130,10 +1217,13 @@ const changeArtistPassword = async (req, res) => {
     const { id } = req.params;
     const { newPassword, confirmPassword } = req.body;
 
-    const user = await Artist.countDocuments({
-      _id: id,
-      isDeleted: false,
-    }).lean(true);
+    const user = await Artist.findOne(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { email: 1, artistName: 1 }
+    ).lean(true);
     if (!user) {
       return res.status(400).send({ message: "Artist not found" });
     }
@@ -1149,10 +1239,18 @@ const changeArtistPassword = async (req, res) => {
       return res.status(400).send({ message: "Password does not match" });
     }
 
-    Artist.updateOne(
-      { _id: id, isDeleted: false },
-      { $set: { password: md5(newPassword) } }
-    ).then();
+    const mailVaribles = {
+      "%fullName%": user.artistName,
+      "%email%": user.email,
+    };
+
+    await Promise.all([
+      Artist.updateOne(
+        { _id: id, isDeleted: false },
+        { $set: { password: md5(newPassword) } }
+      ),
+      sendMail("change-password-admin", mailVaribles, user.email),
+    ]);
 
     return res.status(200).send({ message: "Password changed successfully" });
   } catch (error) {
@@ -1287,7 +1385,7 @@ const replyTicket = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
-    const { ticketType, status, message } = req.body;
+    const { ticketType, status, message, userType } = req.body;
 
     const ticketData = await Ticket.countDocuments({ _id: id });
     if (!ticketData) {
@@ -1300,7 +1398,8 @@ const replyTicket = async (req, res) => {
     ).then();
 
     const reply = await TicketReply.create({
-      user: req.user._id,
+      user: userType === "admin" ? null : req.user._id,
+      userType,
       ticket: id,
       ticketType,
       status,
@@ -1327,22 +1426,23 @@ const getTicketReplies = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
+
     const replies = await TicketReply.aggregate([
       {
-        $match: { ticket: id },
+        $match: { ticket: objectId(id) },
       },
       {
         $lookup: {
-          from: "artists",
+          from: "artists", // Lookup for users
           localField: "user",
           foreignField: "_id",
-          as: "user",
+          as: "ownerInfo",
         },
       },
       {
         $unwind: {
-          path: "$user",
-          preserveNullAndEmptyArrays: true,
+          path: "$ownerInfo",
+          preserveNullAndEmptyArrays: true, // Allow for null values if user is not found
         },
       },
       {
@@ -1350,9 +1450,19 @@ const getTicketReplies = async (req, res) => {
           _id: 1,
           ticket: 1,
           createdAt: 1,
-          name: "$user.artistName",
-          email: "$user.email",
-          avatar: "$user.avatar",
+          artistName: {
+            $cond: [
+              { $eq: ["$userType", "user"] }, // Check if userType is "user"
+              "$ownerInfo.artistName", // Get artistName if true
+              null, // Otherwise null
+            ],
+          },
+          email: {
+            $cond: [{ $eq: ["$userType", "user"] }, "$ownerInfo.email", null],
+          },
+          avatar: {
+            $cond: [{ $eq: ["$userType", "user"] }, "$ownerInfo.avatar", null],
+          },
           ticketType: 1,
           status: 1,
           message: 1,
@@ -1360,7 +1470,7 @@ const getTicketReplies = async (req, res) => {
       },
     ]);
 
-    return res.status(201).json({
+    return res.status(201).send({
       message: "Ticket replies retrieved successfully",
       data: replies,
     });
@@ -1395,6 +1505,8 @@ module.exports = {
   suspendedArtistList,
   suspendArtist,
   unSuspendArtist,
+  rejectArtistRequest,
+  banArtistRequest,
   changeArtistPassword,
   ticketList,
   ticketDetail,

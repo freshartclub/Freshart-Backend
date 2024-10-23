@@ -48,25 +48,6 @@ const login = async (req, res) => {
       return res.status(400).send({ message: "Invalid credentials" });
     }
 
-    // if (user.isEmailVerified === false) {
-    //   const otp = await generateRandomOTP();
-    //   const mailVaribles = {
-    //     "%email%": email,
-    //     "%otp%": otp,
-    //   };
-
-    //   await sendMail("verify-email", mailVaribles, email.toLowerCase());
-
-    //   Artist.updateOne(
-    //     { _id: user._id, isDeleted: false },
-    //     { $set: { OTP: otp } }
-    //   ).then();
-
-    //   return res
-    //     .status(200)
-    //     .send({ message: "OTP sent successfully", id: user._id });
-    // }
-
     const userField = {
       _id: user._id,
       role: user.role,
@@ -88,6 +69,7 @@ const login = async (req, res) => {
 
     return res.status(200).send({
       token,
+      user,
       message: "Artist login Successfully",
     });
   } catch (error) {
@@ -303,10 +285,10 @@ const sendForgotPasswordOTP = async (req, res) => {
 
     await sendMail("send-forgotpassword-otp", mailVaribles, user.email);
 
-    await Artist.updateOne(
+    Artist.updateOne(
       { _id: user._id, isDeleted: false },
       { $set: { OTP: otp } }
-    );
+    ).then();
 
     return res.status(200).send({
       id: user._id,
@@ -461,11 +443,13 @@ const becomeArtist = async (req, res) => {
     }
 
     if (id) {
-      const user = await Artist.findOne({
-        _id: id,
-        isArtistRequest: true,
-        isDeleted: false,
-      }).lean(true);
+      const user = await Artist.findOne(
+        {
+          _id: id,
+          isDeleted: false,
+        },
+        { isArtistRequest: 1, isArtistRequestStatus: 1 }
+      ).lean(true);
 
       if (user && user?.isArtistRequestStatus === "pending") {
         return res.status(400).send({
@@ -482,24 +466,26 @@ const becomeArtist = async (req, res) => {
         });
       }
     } else {
-      const user = await Artist.findOne({
-        email: req.body.email.toLowerCase(),
-        isArtistRequest: true,
-        isDeleted: false,
-      }).lean(true);
+      const user = await Artist.findOne(
+        {
+          email: req.body.email.toLowerCase(),
+          isDeleted: false,
+        },
+        { isArtistRequest: 1, isArtistRequestStatus: 1 }
+      ).lean(true);
 
-      if (user && user.isArtistRequestStatus === "pending") {
+      if (user && user?.isArtistRequestStatus === "pending") {
         return res.status(400).send({
           message:
             "You have already requested to become Artist. Your requset is in process",
         });
-      } else if (user && user.isArtistRequestStatus === "approved") {
+      } else if (user && user?.isArtistRequestStatus === "approved") {
         return res.status(400).send({
           message: "You are already an artist",
         });
-      } else if (user && user.isArtistRequestStatus === "ban") {
+      } else if (user && user?.isArtistRequestStatus === "ban") {
         return res.status(400).send({
-          message: "You cannot requset to become artist. Please contact admin",
+          message: "You cannot request to become artist. Please contact admin",
         });
       }
     }

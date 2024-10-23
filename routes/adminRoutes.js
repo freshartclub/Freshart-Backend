@@ -30,6 +30,8 @@ const {
   ticketDetail,
   replyTicket,
   getTicketReplies,
+  rejectArtistRequest,
+  banArtistRequest,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -91,7 +93,7 @@ router.get("/get-user/:id", validateAdminToken, getUserFromId);
 
 router.post("/create-new-user/:id?", validateAdminToken, createNewUser);
 
-router.post("/serach-user", validateAdminToken, serachUser);
+router.get("/get-user-by-id", validateAdminToken, serachUser);
 
 router.get("/get-all-users", validateAdminToken, getAllUsers);
 
@@ -114,6 +116,14 @@ router.get("/get-artist-by-id", validateAdminToken, getArtistById);
 router.get("/get-artwork-list", validateAdminToken, getArtworkList);
 
 router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
+
+router.patch(
+  "/reject-artist-request/:id",
+  validateAdminToken,
+  rejectArtistRequest
+);
+
+router.patch("/ban-artist-request/:id", validateAdminToken, banArtistRequest);
 
 router.get("/get-all-tickets", validateAdminToken, ticketList);
 

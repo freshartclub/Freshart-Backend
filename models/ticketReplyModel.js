@@ -2,6 +2,11 @@ const mongoose = require("mongoose");
 
 const ticketSchema = new mongoose.Schema(
   {
+    userType: {
+      type: String,
+      enum: ["admin", "user"],
+      default: "user",
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
