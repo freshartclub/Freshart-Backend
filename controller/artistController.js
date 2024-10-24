@@ -785,6 +785,59 @@ const createTicket = async (req, res) => {
   }
 };
 
+const ticketList = async (req, res) => {
+  try {
+    let { page, limit, search, sortTicketDate } = req.query;
+    page = parseInt(page) || 1;
+    limit = parseInt(limit) || 10;
+    const skip = (page - 1) * limit;
+
+    let filter = {};
+    if (search) {
+      filter["ticketId"] = { $regex: search, $options: "i" };
+    }
+    let sort = { createdAt: -1 };
+    if (sortTicketDate) {
+      sort["ticketDate"] = sortTicketDate === "asc" ? 1 : -1;
+    }
+    const totalItems = await Ticket.countDocuments(filter).lean(true);
+    const getData = await Ticket.find(filter)
+      .sort(sort)
+      .skip(skip)
+      .limit(limit)
+      .lean(true);
+
+    const totalPages = Math.ceil(totalItems / limit);
+    console.log("getData", getData);
+
+    return res.json({
+      message: "All tickets retrieved successfully.",
+      data: getData,
+      pagination: {
+        totalItems,
+        currentPage: page,
+        totalPages,
+        limit,
+      },
+    });
+  } catch (error) {
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const ticketDetail = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const ticketData = await Ticket.findById(id);
+    return res.status(201).json({
+      message: "Ticket details retrieved successfully",
+      data: ticketData,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
 // -------------------ticket----------------------------
 
 module.exports = {
@@ -800,5 +853,7 @@ module.exports = {
   logOut,
   completeProfile,
   createTicket,
+  ticketList,
+  ticketDetail,
   editArtistProfile,
 };

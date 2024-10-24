@@ -14,6 +14,8 @@ const {
   sendVerifyEmailOTP,
   verifyEmailOTP,
   editArtistProfile,
+  ticketList,
+  ticketDetail,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -44,6 +46,9 @@ router.patch("/logout", validateToken, logOut);
 router.post("/complete-profile/:id", validateToken, completeProfile);
 
 router.post("/create-ticket", validateToken, createTicket);
+
+router.get("/get-tickets", validateToken, ticketList);
+router.get("/ticket/:id", validateToken, ticketDetail);
 
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
 
