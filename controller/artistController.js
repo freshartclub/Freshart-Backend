@@ -688,7 +688,14 @@ const editArtistProfile = async (req, res) => {
     const fileData = await fileUploadFunc(req, res);
 
     console.log(fileData.data);
-    console.log(req.body);
+
+    const cvEntries = Array.isArray(req.body.cvEntries)
+      ? req.body.cvEntries.map((item) => JSON.parse(item))
+      : req.body.cvEntries;
+
+    const accounts = Array.isArray(req.body.accounts)
+      ? req.body.accounts.map((item) => JSON.parse(item))
+      : req.body.accounts;
 
     let obj = {
       avatar: fileData?.data?.avatar
@@ -703,7 +710,7 @@ const editArtistProfile = async (req, res) => {
         about: req.body.about,
       },
       highlights: {
-        cv: req?.body?.cvEntries,
+        cv: cvEntries,
       },
       address: {
         country: req.body.country,
@@ -713,17 +720,11 @@ const editArtistProfile = async (req, res) => {
       },
     };
 
-    // if (req?.body?.about) {
-    //   obj["aboutArtist"]["about"] = req.body.about;
-    // }
-
-    // if (req?.body?.cvEntries.length) {
-    //   obj["highlights"]["cv"] = req?.body?.cvEntries;
-    // }
-
     if (req?.body?.accounts) {
-      obj["links"] = req?.body?.accounts;
+      obj["links"] = accounts;
     }
+
+    console.log(obj);
 
     Artist.updateOne(
       { _id: artist._id, isDeleted: false },

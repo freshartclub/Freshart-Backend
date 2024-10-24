@@ -16,7 +16,10 @@ const {
   editArtistProfile,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
-const { getUserArtwork } = require("../controller/artworkController");
+const {
+  getUserArtwork,
+  artistCreateArtwork,
+} = require("../controller/artworkController");
 
 router.post("/login", login);
 
@@ -45,5 +48,7 @@ router.post("/create-ticket", validateToken, createTicket);
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
 
 router.get("/get-artist-artworks", validateToken, getUserArtwork);
+
+router.post("/add-artwork", validateToken, artistCreateArtwork);
 
 module.exports = router;

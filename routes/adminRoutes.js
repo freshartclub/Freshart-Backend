@@ -35,10 +35,10 @@ const {
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
-  createArtwork,
   getArtworkList,
   getArtistById,
   removeArtwork,
+  adminCreateArtwork,
 } = require("../controller/artworkController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
@@ -109,7 +109,7 @@ router.patch(
   changeArtistPassword
 );
 
-router.post("/add-artwork/:id?", validateAdminToken, createArtwork);
+router.post("/add-artwork/:id?", validateAdminToken, adminCreateArtwork);
 
 router.get("/get-artist-by-id", validateAdminToken, getArtistById);
 
