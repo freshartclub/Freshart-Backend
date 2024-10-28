@@ -784,12 +784,35 @@ const getAllArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artists = await Artist.find({
-      isDeleted: false,
-      role: "artist",
-    })
-      .sort({ createdAt: -1 })
-      .lean(true);
+    const artists = await Artist.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          role: "artist",
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          avatar: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          isActivated: 1,
+          userId: 1,
+          artistId: 1,
+          city: "$address.city",
+          country: "$address.country",
+          state: "$address.state",
+          status: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
 
     return res.status(200).send({ data: artists });
   } catch (error) {
@@ -807,10 +830,25 @@ const getAllCompletedArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const getArtists = await Artist.find({
-      isActivated: true,
-      isDeleted: false,
-    })
+    const getArtists = await Artist.find(
+      {
+        isActivated: true,
+        isDeleted: false,
+      },
+      {
+        artistName: 1,
+        avatar: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        email: 1,
+        phone: 1,
+        createdAt: 1,
+        isActivated: 1,
+        userId: 1,
+        artistId: 1,
+        status: 1,
+      }
+    )
       .sort({ createdAt: -1 })
       .lean(true);
 
@@ -831,15 +869,37 @@ const getArtistRequestList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artistlist = await Artist.find({
-      isDeleted: false,
-      isArtistRequest: true,
-      isArtistRequestStatus: "pending",
-    })
-      .sort({ createdAt: -1 })
-      .lean(true);
+    const artists = await Artist.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          isArtistRequest: true,
+          isArtistRequestStatus: "pending",
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          avatar: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          isActivated: 1,
+          userId: 1,
+          artistId: 1,
+          city: "$address.city",
+          country: "$address.country",
+          state: "$address.state",
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
 
-    res.status(200).send({ data: artistlist });
+    res.status(200).send({ data: artists });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -855,12 +915,34 @@ const getArtistPendingList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artistlist = await Artist.find({
-      isDeleted: false,
-      pageCount: { $gt: 0 },
-    })
-      .sort({ createdAt: -1 })
-      .lean(true);
+    const artistlist = await Artist.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          isActivated: false,
+          pageCount: { $gt: 0 },
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          isActivated: 1,
+          userId: 1,
+          artistId: 1,
+          city: "$address.city",
+          country: "$address.country",
+          state: "$address.state",
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
 
     res.status(200).send({ data: artistlist });
   } catch (error) {
@@ -1007,9 +1089,33 @@ const suspendedArtistList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const suspendedList = await Artist.find({
-      isDeleted: true,
-    }).lean(true);
+    const suspendedList = await Artist.aggregate([
+      {
+        $match: {
+          isDeleted: true,
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          avatar: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          isActivated: 1,
+          userId: 1,
+          artistId: 1,
+          city: "$address.city",
+          country: "$address.country",
+          state: "$address.state",
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
 
     return res.status(200).send({ data: suspendedList });
   } catch (error) {

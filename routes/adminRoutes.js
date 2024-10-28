@@ -40,6 +40,10 @@ const {
   removeArtwork,
   adminCreateArtwork,
 } = require("../controller/artworkController");
+const {
+  addIncident,
+  getAllIncident,
+} = require("../controller/incidentController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -132,5 +136,9 @@ router.get("/get-ticket/:id", validateAdminToken, ticketDetail);
 router.post("/reply-ticket/:id", validateAdminToken, replyTicket);
 
 router.get("/get-ticket-replies/:id", validateAdminToken, getTicketReplies);
+
+router.post("/add-incident", validateAdminToken, addIncident);
+
+router.get("/get-all-incidents", validateAdminToken, getAllIncident);
 
 module.exports = router;
