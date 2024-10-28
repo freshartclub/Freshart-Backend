@@ -604,6 +604,7 @@ const logOut = async (req, res) => {
       { _id: decodeToken.user._id },
       { $pull: { tokens: token } }
     );
+
     return res.status(200).send({ message: "Logout successfully" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
@@ -665,9 +666,15 @@ const completeProfile = async (req, res) => {
       },
     };
 
-    Artist.updateOne({ _id: id, isDeleted: false }, { $set: obj }).then();
+    // Artist.updateOne({ _id: id, isDeleted: false }, { $set: obj }).then();
+    const artist = await Artist.findOneAndUpdate(
+      { _id: id, isDeleted: false },
+      { $set: obj }
+    ).lean(true);
 
-    return res.status(200).send({ message: "Profile updated successfully" });
+    return res
+      .status(200)
+      .send({ message: "Profile updated successfully", data: artist });
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
@@ -766,10 +773,10 @@ const createTicket = async (req, res) => {
       region,
       ticketType: ticketType,
       ticketId: ticketId,
-      // ticketImg:
-      //   fileData.data.ticketImg && fileData.data.ticketImg.length > 0
-      //     ? fileData.data.ticketImg[0].filename
-      //     : null,
+      ticketImg:
+        fileData.data.ticketImg && fileData.data.ticketImg.length > 0
+          ? fileData.data.ticketImg[0].filename
+          : null,
     };
 
     const ticketData = await Ticket.create(payload);
@@ -808,7 +815,6 @@ const ticketList = async (req, res) => {
       .lean(true);
 
     const totalPages = Math.ceil(totalItems / limit);
-    console.log("getData", getData);
 
     return res.json({
       message: "All tickets retrieved successfully.",
@@ -828,13 +834,86 @@ const ticketList = async (req, res) => {
 const ticketDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    const ticketData = await Ticket.findById(id);
+    const ticketData = await Ticket.findOne({ _id: id }).lean(true);
+
     return res.status(201).json({
       message: "Ticket details retrieved successfully",
       data: ticketData,
     });
   } catch (error) {
     console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getUserTickets = async (req, res) => {
+  try {
+    const tickets = await Ticket.find({ user: req.user._id }).lean(true);
+    return res.status(201).json({
+      message: "Tickets retrieved successfully",
+      data: tickets,
+    });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const replyTicketUser = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { ticketType, status, message, userType } = req.body;
+
+    const ticketData = await Ticket.countDocuments({ _id: id });
+    if (!ticketData) {
+      return res.status(400).send({ message: "Ticket not found" });
+    }
+
+    Ticket.updateOne(
+      { _id: id },
+      { $set: { status: status, ticketType: ticketType } }
+    ).then();
+
+    const reply = await TicketReply.create({
+      user: userType === "admin" ? null : req.user._id,
+      userType,
+      ticket: id,
+      ticketType,
+      status,
+      message,
+    });
+
+    return res.status(201).json({
+      message: "Ticket replied successfully",
+      data: reply,
+    });
+  } catch (error) {
+    APIErrorLog.error("Error while replying the ticket");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getActivedArtists = async (req, res) => {
+  try {
+    const artists = await Artist.find(
+      {
+        isActivated: true,
+        isDeleted: false,
+      },
+      {
+        artistName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        aboutArtist: 1,
+        profile: 1,
+      }
+    ).lean(true);
+
+    return res.status(200).send({
+      artists: artists,
+    });
+  } catch (error) {
     return res.status(500).json({ message: "Server error" });
   }
 };
@@ -856,4 +935,7 @@ module.exports = {
   ticketList,
   ticketDetail,
   editArtistProfile,
+  getActivedArtists,
+  getUserTickets,
+  replyTicketUser,
 };

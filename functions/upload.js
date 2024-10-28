@@ -5,6 +5,8 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (file?.fieldname === "uploadDocs") {
       cb(null, "./public/uploads/documents");
+    } else if (file?.fieldname === "ticketImg") {
+      cb(null, "./public/uploads/tickets");
     } else {
       if (
         ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
@@ -36,6 +38,7 @@ const storage = multer.diskStorage({
         "backImage",
         "insigniaImage",
         "avatar",
+        "ticketImg",
       ].includes(file?.fieldname)
     ) {
       data = mongoose.Types.ObjectId();
@@ -50,7 +53,6 @@ const fileFilter = (req, file, cb) => {
       file.originalname.lastIndexOf(".") + 1,
       file.originalname.length
     );
-
     if (
       ["docx", "xlsx"].includes(fileExtension) ||
       file.mimetype === "application/pdf"
@@ -95,6 +97,7 @@ const upload = multer({
   { name: "images", maxCount: 5 },
   { name: "otherVideo", maxCount: 1 },
   { name: "backImage", maxCount: 1 },
+  { name: "ticketImg", maxCount: 1 },
 ]);
 
 module.exports = upload;

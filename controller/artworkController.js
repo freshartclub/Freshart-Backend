@@ -126,7 +126,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
-  if (fileData.data?.images) {
+  if (fileData.data?.detailsPhotos) {
     fileData.data?.images.forEach((element) => {
       images.push(element.filename);
     });
