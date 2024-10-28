@@ -1374,19 +1374,20 @@ const ticketList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { page, limit, search, sortTicketDate } = req.query;
-    page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
-    const skip = (page - 1) * limit;
+    let { search } = req.query;
+
+    // page = parseInt(page) || 1;
+    // limit = parseInt(limit) || 10;
+    // const skip = (page - 1) * limit;
 
     let filter = {};
     if (search) {
       filter["ticketId"] = { $regex: search, $options: "i" };
     }
-    let sort = { createdAt: -1 };
-    if (sortTicketDate) {
-      sort["createdAt"] = sortTicketDate === "asc" ? 1 : -1;
-    }
+    // let sort = { createdAt: -1 };
+    // if (sortTicketDate) {
+    //   sort["createdAt"] = sortTicketDate === "asc" ? 1 : -1;
+    // }
 
     const pipeline = [
       {
@@ -1396,14 +1397,8 @@ const ticketList = async (req, res) => {
       },
       {
         $sort: {
-          createdAt: sortTicketDate === "asc" ? 1 : -1,
+          createdAt: -1,
         },
-      },
-      {
-        $skip: skip,
-      },
-      {
-        $limit: limit,
       },
       {
         $lookup: {
@@ -1424,7 +1419,9 @@ const ticketList = async (req, res) => {
           _id: 1,
           ticketId: 1,
           createdAt: 1,
-          name: "$artistInfo.artistName",
+          artistName: "$artistInfo.artistName",
+          artistSurname1: "$artistInfo.artistSurname1",
+          artistSurname2: "$artistInfo.artistSurname2",
           email: "$artistInfo.email",
           avatar: "$artistInfo.avatar",
           ticketType: 1,
@@ -1437,24 +1434,24 @@ const ticketList = async (req, res) => {
       },
     ];
 
-    const totalItems = await Ticket.countDocuments({
-      isDeleted: false,
-      ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
-    }).lean(true);
+    // const totalItems = await Ticket.countDocuments({
+    //   isDeleted: false,
+    //   ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
+    // }).lean(true);
 
     const getData = await Ticket.aggregate(pipeline);
 
-    const totalPages = Math.ceil(totalItems / limit);
+    // const totalPages = Math.ceil(totalItems / limit);
 
     return res.json({
       message: "All tickets retrieved successfully.",
       data: getData,
-      pagination: {
-        totalItems,
-        currentPage: page,
-        totalPages,
-        limit,
-      },
+      // pagination: {
+      //   totalItems,
+      //   currentPage: page,
+      //   totalPages,
+      //   limit,
+      // },
     });
   } catch (error) {
     APIErrorLog.error(error);
