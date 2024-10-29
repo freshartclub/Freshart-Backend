@@ -126,9 +126,16 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
-  if (fileData.data?.detailsPhotos) {
+  if (fileData.data?.images) {
     fileData.data?.images.forEach((element) => {
       images.push(element.filename);
+    });
+  }
+
+  let videos = [];
+  if (fileData.data?.otherVideo) {
+    fileData.data?.otherVideo.forEach((element) => {
+      videos.push(element.filename);
     });
   }
 
@@ -149,9 +156,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       fileData.data?.inProcessImage[0].filename,
     mainImage: fileData.data?.mainImage && fileData.data?.mainImage[0].filename,
     mainVideo: fileData.data?.mainVideo && fileData.data?.mainVideo[0].filename,
-    otherVideo:
-      fileData.data?.inProcessImage &&
-      fileData.data?.inProcessImage[0].otherVideo,
+    otherVideo: videos,
   };
 
   obj["additionalInfo"] = {
@@ -294,7 +299,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         artworkSeries: 1,
         productDescription: 1,
         artworkTechnic: "$additionalInfo.artworkTechnic",
-        upworkOffer:"$commercialization.upworkOffer",
+        upworkOffer: "$commercialization.upworkOffer",
         createdAt: 1,
       },
     },
