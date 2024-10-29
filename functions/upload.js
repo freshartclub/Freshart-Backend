@@ -5,8 +5,6 @@ const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (file?.fieldname === "uploadDocs") {
       cb(null, "./public/uploads/documents");
-    } else if (file?.fieldname === "ticketImg") {
-      cb(null, "./public/uploads/tickets");
     } else {
       if (
         ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
