@@ -332,6 +332,7 @@ const getUserArtwork = catchAsyncError(async (req, res, next) => {
     owner: req.user._id,
   })
     .populate("owner", "artistName artistSurname1 artistSurname2")
+    .sort({ createdAt: -1 })
     .lean(true);
 
   res.status(200).send({ data: artworks });

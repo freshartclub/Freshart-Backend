@@ -888,12 +888,15 @@ const getArtistRequestList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    let { s } = req.query;
+
     const artists = await Artist.aggregate([
       {
         $match: {
           isDeleted: false,
           isArtistRequest: true,
           isArtistRequestStatus: "pending",
+          artistName: { $regex: s, $options: "i" },
         },
       },
       {
@@ -1098,12 +1101,10 @@ const createNewUser = async (req, res) => {
         condition
       ).then();
 
-      return res
-        .status(200)
-        .send({
-          message: "User created successfully",
-          id: id === "null" ? req.body._id : id,
-        });
+      return res.status(200).send({
+        message: "User created successfully",
+        id: id === "null" ? req.body._id : id,
+      });
     }
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
@@ -1411,25 +1412,36 @@ const ticketList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { search } = req.query;
+    let { search, status, days } = req.query;
+    if (status === "All") {
+      status = "";
+    }
+
+    if (days === "All") {
+      days = "";
+    }
 
     // page = parseInt(page) || 1;
     // limit = parseInt(limit) || 10;
     // const skip = (page - 1) * limit;
 
     let filter = {};
-    if (search) {
-      filter["ticketId"] = { $regex: search, $options: "i" };
+    if (days) {
+      const daysMatch = days.match(/^(\d+)\s+day(s)?$/);
+      if (daysMatch) {
+        const daysNumber = parseInt(daysMatch[1], 10);
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - daysNumber);
+        filter["createdAt"] = { $gte: dateLimit };
+      }
     }
-    // let sort = { createdAt: -1 };
-    // if (sortTicketDate) {
-    //   sort["createdAt"] = sortTicketDate === "asc" ? 1 : -1;
-    // }
 
     const pipeline = [
       {
         $match: {
           ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
+          ...(status ? { status: { $regex: status, $options: "i" } } : {}),
+          ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
         },
       },
       {
