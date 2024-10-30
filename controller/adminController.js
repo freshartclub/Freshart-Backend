@@ -1093,11 +1093,17 @@ const createNewUser = async (req, res) => {
       obj["artistId"] = generateRandomId();
 
       let condition = { $set: obj };
-      Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
+      Artist.updateOne(
+        { _id: id === "null" ? req.body._id : id, isDeleted: false },
+        condition
+      ).then();
 
       return res
         .status(200)
-        .send({ message: "User created successfully", id: id });
+        .send({
+          message: "User created successfully",
+          id: id === "null" ? req.body._id : id,
+        });
     }
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
