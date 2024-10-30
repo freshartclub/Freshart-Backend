@@ -761,7 +761,6 @@ const createTicket = async (req, res) => {
     }
 
     const fileData = await fileUploadFunc(req, res);
-    console.log(fileData.data);
 
     const { subject, message, region, ticketType } = req.body;
     const randomNumber = Math.floor(100 + Math.random() * 900);
@@ -776,7 +775,7 @@ const createTicket = async (req, res) => {
       ticketType: ticketType,
       ticketId: ticketId,
       ticketImg:
-        fileData.data.ticketImg && fileData.data.ticketImg.length > 0
+        fileData.data && fileData.data?.ticketImg?.length > 0
           ? fileData.data.ticketImg[0].filename
           : null,
     };
