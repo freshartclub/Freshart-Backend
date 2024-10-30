@@ -227,7 +227,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   let artwork = null;
 
   if (id) {
-    artwork = ArtWork.updateOne({ _id: id }, condition).then();
+    ArtWork.updateOne({ _id: id }, condition).then();
   } else {
     artwork = await ArtWork.create(obj);
   }
