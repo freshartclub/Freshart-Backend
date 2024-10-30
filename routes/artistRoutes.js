@@ -24,6 +24,8 @@ const validateToken = require("../middleware/validateTokenHandler");
 const {
   getUserArtwork,
   artistCreateArtwork,
+  getArtworkById,
+  removeArtwork,
 } = require("../controller/artworkController");
 
 router.post("/login", login);
@@ -60,8 +62,12 @@ router.patch("/edit-artist-profile", validateToken, editArtistProfile);
 
 router.get("/get-artist-artworks", validateToken, getUserArtwork);
 
-router.post("/add-artwork", validateToken, artistCreateArtwork);
+router.post("/add-artwork/:id?", validateToken, artistCreateArtwork);
 
 router.get("/get-all-artists", validateToken, getActivedArtists);
+
+router.get("/get-artwork/:id", validateToken, getArtworkById);
+
+router.patch("/delete-artwork/:id", validateToken, removeArtwork);
 
 module.exports = router;

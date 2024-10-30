@@ -120,6 +120,8 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   ).lean(true);
   if (!artist) return res.status(400).send({ message: `Artist not found` });
 
+  const { id } = req?.params;
+
   if (!artist.isActivated) {
     return res.status(400).send({ message: `Artist not activated` });
   }
@@ -218,7 +220,17 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     discountAcceptation: req.body.discountAcceptation,
   };
 
-  const artwork = await ArtWork.create(obj);
+  let condition = {
+    $set: obj,
+  };
+
+  let artwork = null;
+
+  if (id) {
+    artwork = ArtWork.updateOne({ _id: id }, condition).then();
+  } else {
+    artwork = await ArtWork.create(obj);
+  }
 
   res.status(200).send({ message: "Artwork Added Sucessfully", artwork });
 });
@@ -309,13 +321,6 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
 });
 
 const removeArtwork = catchAsyncError(async (req, res, next) => {
-  const admin = await Admin.countDocuments({
-    _id: req.user._id,
-    isDeleted: false,
-  }).lean(true);
-
-  if (!admin) return res.status(400).send({ message: `Admin not found` });
-
   const { id } = req.params;
   await ArtWork.updateOne({ _id: id }, { $set: { isDeleted: true } });
 
@@ -332,11 +337,18 @@ const getUserArtwork = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ data: artworks });
 });
 
+const getArtworkById = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const artwork = await ArtWork.findOne({ _id: id }).lean(true);
+  res.status(200).send({ data: artwork });
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
   getArtworkList,
   getArtistById,
   removeArtwork,
+  getArtworkById,
   getUserArtwork,
 };
