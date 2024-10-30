@@ -9,6 +9,7 @@ const {
 const { sendMail } = require("../functions/mailer");
 const APIErrorLog = createLog("API_error_log");
 const Ticket = require("../models/ticketModel");
+const TicketReply = require("../models/ticketReplyModel");
 const md5 = require("md5");
 
 const isStrongPassword = (password) => {
@@ -760,6 +761,7 @@ const createTicket = async (req, res) => {
     }
 
     const fileData = await fileUploadFunc(req, res);
+    console.log(fileData.data);
 
     const { subject, message, region, ticketType } = req.body;
     const randomNumber = Math.floor(100 + Math.random() * 900);
@@ -834,11 +836,15 @@ const ticketList = async (req, res) => {
 const ticketDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    const ticketData = await Ticket.findOne({ _id: id }).lean(true);
+    const [ticketData, replyData] = await Promise.all([
+      Ticket.findOne({ _id: id }).lean(true),
+      TicketReply.find({ ticket: id }).lean(true),
+    ]);
 
     return res.status(201).json({
       message: "Ticket details retrieved successfully",
       data: ticketData,
+      reply: replyData,
     });
   } catch (error) {
     console.error(error);
