@@ -784,11 +784,17 @@ const getAllArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    let { s } = req.query;
+
     const artists = await Artist.aggregate([
       {
         $match: {
           isDeleted: false,
           role: "artist",
+          $or: [
+            { artistId: { $regex: s, $options: "i" } },
+            { artistName: { $regex: s, $options: "i" } },
+          ],
         },
       },
       {

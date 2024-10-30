@@ -325,7 +325,9 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
 const getUserArtwork = catchAsyncError(async (req, res, next) => {
   const artworks = await ArtWork.find({
     owner: req.user._id,
-  }).lean(true);
+  })
+    .populate("owner", "artistName artistSurname1 artistSurname2")
+    .lean(true);
 
   res.status(200).send({ data: artworks });
 });
