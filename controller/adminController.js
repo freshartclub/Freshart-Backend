@@ -836,10 +836,23 @@ const getAllCompletedArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    let { s } = req.query;
+    let filter = {};
+
+    if (s) {
+      filter = {
+        $or: [
+          { artistId: { $regex: s, $options: "i" } },
+          { artistName: { $regex: s, $options: "i" } },
+        ],
+      };
+    }
+
     const getArtists = await Artist.find(
       {
         isActivated: true,
         isDeleted: false,
+        ...filter,
       },
       {
         artistName: 1,
@@ -921,12 +934,18 @@ const getArtistPendingList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    let { s } = req.query;
+
     const artistlist = await Artist.aggregate([
       {
         $match: {
           isDeleted: false,
           isActivated: false,
           pageCount: { $gt: 0 },
+          $or: [
+            { artistId: { $regex: s, $options: "i" } },
+            { artistName: { $regex: s, $options: "i" } },
+          ],
         },
       },
       {
@@ -1095,10 +1114,16 @@ const suspendedArtistList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    let { s } = req.query;
+
     const suspendedList = await Artist.aggregate([
       {
         $match: {
           isDeleted: true,
+          $or: [
+            { artistId: { $regex: s, $options: "i" } },
+            { artistName: { $regex: s, $options: "i" } },
+          ],
         },
       },
       {
