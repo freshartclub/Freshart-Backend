@@ -1616,6 +1616,7 @@ const getTicketReplies = async (req, res) => {
             $cond: [{ $eq: ["$userType", "user"] }, "$ownerInfo.avatar", null],
           },
           ticketType: 1,
+          userType: 1,
           status: 1,
           message: 1,
         },
