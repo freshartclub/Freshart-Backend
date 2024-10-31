@@ -9,7 +9,6 @@ const {
 const { sendMail } = require("../functions/mailer");
 const APIErrorLog = createLog("API_error_log");
 const Ticket = require("../models/ticketModel");
-const TicketReply = require("../models/ticketReplyModel");
 const md5 = require("md5");
 
 const isStrongPassword = (password) => {
@@ -775,7 +774,7 @@ const createTicket = async (req, res) => {
       ticketType: ticketType,
       ticketId: ticketId,
       ticketImg:
-        fileData.data && fileData.data?.ticketImg?.length > 0
+        fileData.data.ticketImg && fileData.data.ticketImg.length > 0
           ? fileData.data.ticketImg[0].filename
           : null,
     };
@@ -835,15 +834,11 @@ const ticketList = async (req, res) => {
 const ticketDetail = async (req, res) => {
   try {
     const { id } = req.params;
-    const [ticketData, replyData] = await Promise.all([
-      Ticket.findOne({ _id: id }).lean(true),
-      TicketReply.find({ ticket: id }).lean(true),
-    ]);
+    const ticketData = await Ticket.findOne({ _id: id }).lean(true);
 
     return res.status(201).json({
       message: "Ticket details retrieved successfully",
       data: ticketData,
-      reply: replyData,
     });
   } catch (error) {
     console.error(error);
