@@ -2,7 +2,7 @@ const mongoose = require("mongoose");
 const md5 = require("md5");
 const humanize = require("string-humanize");
 const Admin = require("../models/adminModel");
-const Category = require("../models/categoryModel");
+const Discipline = require("../models/disciplineModel");
 const MailTemplate = require("../models/mailTemplates");
 const moment = require("moment");
 mongoose.set("strictQuery", true);
@@ -15,9 +15,9 @@ const connectDb = async () => {
     );
     console.log("Database connected: ", connection.host, connection.name);
 
-    const [checkAdmin, checkCategory] = await Promise.all([
+    const [checkAdmin, checkdiscipline] = await Promise.all([
       Admin.countDocuments(),
-      Category.countDocuments(),
+      Discipline.countDocuments(),
     ]);
 
     if (!checkAdmin) {
@@ -36,23 +36,23 @@ const connectDb = async () => {
       });
     }
 
-    if (!checkCategory) {
-      await Category.insertMany([
+    if (!checkdiscipline) {
+      await Discipline.insertMany([
         {
-          categoryName: "Paintings",
-          categorySpanishName: "Pintura",
+          disciplineName: "Paintings",
+          disciplineSpanishName: "Pintura",
         },
         {
-          categoryName: "Drawings",
-          categorySpanishName: "Dibujo",
+          disciplineName: "Drawings",
+          disciplineSpanishName: "Dibujo",
         },
         {
-          categoryName: "Photografy",
-          categorySpanishName: "Fotografia",
+          disciplineName: "Photografy",
+          disciplineSpanishName: "Fotografia",
         },
         {
-          categoryName: "Sculpture",
-          categorySpanishName: "Escultura",
+          disciplineName: "Sculpture",
+          disciplineSpanishName: "Escultura",
         },
       ]);
     }

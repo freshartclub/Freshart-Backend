@@ -14,7 +14,6 @@ const {
   sendVerifyEmailOTP,
   verifyEmailOTP,
   editArtistProfile,
-  ticketList,
   ticketDetail,
   getActivedArtists,
   getUserTickets,

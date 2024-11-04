@@ -6,7 +6,7 @@ const Admin = require("../models/adminModel");
 const Insignia = require("../models/insigniasModel");
 const Artist = require("../models/artistModel");
 const Ticket = require("../models/ticketModel");
-const Category = require("../models/categoryModel");
+const Discipline = require("../models/disciplineModel");
 const {
   createLog,
   getListArtworks,
@@ -542,6 +542,51 @@ const artistRegister = async (req, res) => {
   }
 };
 
+const addDiscipline = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const fileData = await fileUploadFunc(req, res);
+
+    const isExistingDiscipline = await Discipline.countDocuments({
+      disciplineName: req.body.name,
+      isDeleted: false,
+    });
+
+    if (isExistingDiscipline) {
+      return res
+        .status(400)
+        .send({ message: "Discipline with this name already exist." });
+    }
+
+    const obj = {
+      disciplineImage: fileData.data.disciplineImage[0].filename,
+      disciplineName: req.body.name,
+      disciplineSpanishName: req.body.spanishName,
+      disciplineDescription: req.body.description,
+    };
+
+    const newDiscipline = await Discipline.create(obj);
+
+    return res.status(200).send({
+      id: newDiscipline._id,
+      message: "Discipline added successfully",
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const listArtworkStyle = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
@@ -584,14 +629,9 @@ const listDiscipline = async (req, res) => {
 
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const data = await Category.find(
-      { isDeleted: false },
-      {
-        categoryName: 1,
-        categorySpanishName: 1,
-        description: 1,
-      }
-    ).lean(true);
+    const data = await Discipline.find({ isDeleted: false })
+      .sort({ createdAt: -1 })
+      .lean(true);
 
     if (data.length) {
       for (let elem of data) {
@@ -1205,6 +1245,47 @@ const serachUser = async (req, res) => {
   }
 };
 
+const serachUserByQueryInput = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    let { s } = req.query;
+
+    const artists = await Artist.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          $or: [
+            { artistId: { $regex: s, $options: "i" } },
+            { artistName: { $regex: s, $options: "i" } },
+            { artistEmail: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          userId: 1,
+          avatar: 1,
+          email: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).send({ data: artists });
+  } catch (error) {
+    APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const getAllUsers = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
@@ -1399,6 +1480,38 @@ const changeArtistPassword = async (req, res) => {
     return res.status(200).send({ message: "Password changed successfully" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addTicket = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+    const { id, ticketType, status, urgency, priority, subject, message } =
+      req.body;
+
+    const randomNumber = Math.floor(100000 + Math.random() * 900000);
+    const year = new Date().getFullYear();
+    const ticketId = `TI# ${year}-CS${randomNumber}`;
+
+    await Ticket.create({
+      user: id,
+      ticketId,
+      ticketType,
+      status,
+      urgency,
+      priority,
+      subject,
+      message,
+    });
+
+    return res.status(200).send({ message: "Ticket added successfully" });
+  } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -1641,6 +1754,7 @@ module.exports = {
   logOut,
   testAdmin,
   artistRegister,
+  addDiscipline,
   listArtworkStyle,
   listDiscipline,
   createInsignias,
@@ -1654,6 +1768,7 @@ module.exports = {
   getUserFromId,
   createNewUser,
   serachUser,
+  serachUserByQueryInput,
   getAllUsers,
   suspendedArtistList,
   suspendArtist,
@@ -1661,6 +1776,7 @@ module.exports = {
   rejectArtistRequest,
   banArtistRequest,
   changeArtistPassword,
+  addTicket,
   ticketList,
   ticketDetail,
   replyTicket,

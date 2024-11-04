@@ -141,6 +141,40 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     });
   }
 
+  let styleArr = [];
+  let colorsArr = [];
+  let emotionsArr = [];
+
+  if (req.body.emotions) {
+    const emotions = Array.isArray(req.body.emotions)
+      ? req.body.emotions.map((item) => JSON.parse(item))
+      : req.body.emotions;
+
+    emotions.forEach((element) => {
+      emotionsArr.push(element.value);
+    });
+  }
+
+  if (req.body.artworkStyleType) {
+    const styleType = Array.isArray(req.body.artworkStyleType)
+      ? req.body.artworkStyleType.map((item) => JSON.parse(item))
+      : req.body.artworkStyleType;
+
+    styleType.forEach((element) => {
+      styleArr.push(element.value);
+    });
+  }
+
+  if (req.body.colors) {
+    const colors = Array.isArray(req.body.colors)
+      ? req.body.colors.map((item) => JSON.parse(item))
+      : req.body.colors;
+
+    colors.forEach((element) => {
+      colorsArr.push(element.value);
+    });
+  }
+
   let obj = {
     artworkName: req.body.artworkName,
     artworkCreationYear: req.body.artworkCreationYear,
@@ -175,11 +209,11 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     framed: req.body.framed,
     framedDescription: req.body.framedDescription,
     frameHeight: req.body.frameHeight,
-    frameLength: req.body.frameLenght,
+    frameLength: req.body.frameLength,
     frameWidth: req.body.frameWidth,
-    artworkStyle: req.body.artworkStyle,
-    emotions: req.body.emotions,
-    colors: req.body.colors,
+    artworkStyle: styleArr,
+    emotions: emotionsArr,
+    colors: colorsArr,
     offensive: req.body.offensive,
   };
 
@@ -226,13 +260,15 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   let artwork = null;
 
-  if (id) {
+  if (id !== "null") {
     ArtWork.updateOne({ _id: id }, condition).then();
+    return res.status(200).send({ message: "Artwork Editted Sucessfully" });
   } else {
     artwork = await ArtWork.create(obj);
+    return res
+      .status(200)
+      .send({ message: "Artwork Added Sucessfully", artwork });
   }
-
-  res.status(200).send({ message: "Artwork Added Sucessfully", artwork });
 });
 
 const getArtistById = catchAsyncError(async (req, res, next) => {
@@ -340,7 +376,10 @@ const getUserArtwork = catchAsyncError(async (req, res, next) => {
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  const artwork = await ArtWork.findOne({ _id: id }).lean(true);
+  const artwork = await ArtWork.findOne({ _id: id })
+    .populate("owner", "artistName artistSurname1 artistSurname2")
+    .lean(true);
+
   res.status(200).send({ data: artwork });
 });
 

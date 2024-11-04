@@ -24,6 +24,7 @@ const storage = multer.diskStorage({
     let data = req?.user?._id;
     if (
       [
+        "disciplineImage",
         "profileImage",
         "additionalImage",
         "images",
@@ -83,6 +84,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
 }).fields([
+  { name: "disciplineImage", maxCount: 1 },
   { name: "profileImage", maxCount: 1 },
   { name: "additionalImage", maxCount: 5 },
   { name: "inProcessImage", maxCount: 1 },

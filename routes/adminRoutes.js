@@ -32,6 +32,9 @@ const {
   getTicketReplies,
   rejectArtistRequest,
   banArtistRequest,
+  serachUserByQueryInput,
+  addTicket,
+  addDiscipline,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -64,6 +67,8 @@ router.get(
   validateAdminToken,
   listArtworkStyle
 );
+
+router.post("/add-discipline", validateAdminToken, addDiscipline);
 
 router.get("/list-discipline", validateAdminToken, listDiscipline);
 
@@ -99,6 +104,12 @@ router.post("/create-new-user/:id?", validateAdminToken, createNewUser);
 
 router.get("/get-user-by-id", validateAdminToken, serachUser);
 
+router.get(
+  "/get-user-by-query-input",
+  validateAdminToken,
+  serachUserByQueryInput
+);
+
 router.get("/get-all-users", validateAdminToken, getAllUsers);
 
 router.get("/suspended-list", validateAdminToken, suspendedArtistList);
@@ -128,6 +139,8 @@ router.patch(
 );
 
 router.patch("/ban-artist-request/:id", validateAdminToken, banArtistRequest);
+
+router.post("/add-ticket", validateAdminToken, addTicket);
 
 router.get("/get-all-tickets", validateAdminToken, ticketList);
 

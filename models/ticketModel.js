@@ -19,6 +19,12 @@ const ticketSchema = new mongoose.Schema(
     subject: {
       type: String,
     },
+    urgency: {
+      type: String,
+    },
+    priority: {
+      type: String,
+    },
     region: {
       type: String,
     },

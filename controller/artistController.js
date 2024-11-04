@@ -695,8 +695,6 @@ const editArtistProfile = async (req, res) => {
     ).lean(true);
     const fileData = await fileUploadFunc(req, res);
 
-    console.log(fileData.data);
-
     const cvEntries = Array.isArray(req.body.cvEntries)
       ? req.body.cvEntries.map((item) => JSON.parse(item))
       : req.body.cvEntries;
@@ -763,9 +761,10 @@ const createTicket = async (req, res) => {
     const fileData = await fileUploadFunc(req, res);
 
     const { subject, message, region, ticketType } = req.body;
-    const randomNumber = Math.floor(100 + Math.random() * 900);
+
+    const randomNumber = Math.floor(100000 + Math.random() * 900000);
     const year = new Date().getFullYear();
-    const ticketId = `Ticket# ${year}-CS${randomNumber}`;
+    const ticketId = `TI# ${year}-CS${randomNumber}`;
 
     const payload = {
       user: req.user._id,
@@ -775,7 +774,7 @@ const createTicket = async (req, res) => {
       ticketType: ticketType,
       ticketId: ticketId,
       ticketImg:
-        fileData.data.ticketImg && fileData.data.ticketImg.length > 0
+        fileData.data?.ticketImg && fileData.data?.ticketImg?.length > 0
           ? fileData.data.ticketImg[0].filename
           : null,
     };
@@ -790,45 +789,6 @@ const createTicket = async (req, res) => {
     APIErrorLog.error("Error while posting the ticket");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
-  }
-};
-
-const ticketList = async (req, res) => {
-  try {
-    let { page, limit, search, sortTicketDate } = req.query;
-    page = parseInt(page) || 1;
-    limit = parseInt(limit) || 10;
-    const skip = (page - 1) * limit;
-
-    let filter = {};
-    if (search) {
-      filter["ticketId"] = { $regex: search, $options: "i" };
-    }
-    let sort = { createdAt: -1 };
-    if (sortTicketDate) {
-      sort["ticketDate"] = sortTicketDate === "asc" ? 1 : -1;
-    }
-    const totalItems = await Ticket.countDocuments(filter).lean(true);
-    const getData = await Ticket.find(filter)
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .lean(true);
-
-    const totalPages = Math.ceil(totalItems / limit);
-
-    return res.json({
-      message: "All tickets retrieved successfully.",
-      data: getData,
-      pagination: {
-        totalItems,
-        currentPage: page,
-        totalPages,
-        limit,
-      },
-    });
-  } catch (error) {
-    return res.status(500).json({ message: "Server error" });
   }
 };
 
@@ -938,7 +898,6 @@ module.exports = {
   logOut,
   completeProfile,
   createTicket,
-  ticketList,
   ticketDetail,
   editArtistProfile,
   getActivedArtists,
