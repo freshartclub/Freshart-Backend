@@ -6,8 +6,6 @@ const {
   validateOTP,
   testAdmin,
   artistRegister,
-  listArtworkStyle,
-  listDiscipline,
   createInsignias,
   getRegisterArtist,
   getInsignias,
@@ -36,6 +34,9 @@ const {
   addTicket,
   addDiscipline,
   addStyles,
+  addTechnic,
+  addMediaSupport,
+  addTheme,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -63,17 +64,15 @@ router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
 
 router.post("/artist-register/:id?", validateAdminToken, artistRegister);
 
-router.get(
-  "/list-artwork-style/:response",
-  validateAdminToken,
-  listArtworkStyle
-);
-
 router.post("/add-discipline", validateAdminToken, addDiscipline);
 
 router.post("/add-style", validateAdminToken, addStyles);
 
-router.get("/list-discipline", validateAdminToken, listDiscipline);
+router.post("/add-technic", validateAdminToken, addTechnic);
+
+router.post("/add-media", validateAdminToken, addMediaSupport);
+
+router.post("/add-theme", validateAdminToken, addTheme);
 
 router.post("/create-insignias", validateAdminToken, createInsignias);
 

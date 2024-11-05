@@ -21,6 +21,9 @@ const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
 const TicketReply = require("../models/ticketReplyModel");
 const Style = require("../models/styleModel");
+const Technic = require("../models/technicModel");
+const Theme = require("../models/themeModel");
+const MediaSupport = require("../models/mediaSupportModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -576,10 +579,9 @@ const addDiscipline = async (req, res) => {
       disciplineDescription: req.body.description,
     };
 
-    const newDiscipline = await Discipline.create(obj);
+    await Discipline.create(obj);
 
     return res.status(200).send({
-      id: newDiscipline._id,
       message: "Discipline added successfully",
     });
   } catch (error) {
@@ -601,25 +603,24 @@ const addStyles = async (req, res) => {
       });
     }
 
-    const isExistingDiscipline = await Style.countDocuments({
-      styleName: req.body.styleTitle,
+    const isExisting = await Style.countDocuments({
+      styleName: req.body.name,
       isDeleted: false,
     });
 
-    if (isExistingDiscipline) {
+    if (isExisting) {
       return res
         .status(400)
         .send({ message: "Style with this name already exist." });
     }
 
-    const style = await Style.create({
-      styleName: req.body.styleTitle,
-      spanishStyleName: req.body.spanishStyleName,
-      discipline: req.body.styleDiscipline,
+    await Style.create({
+      styleName: req.body.name,
+      spanishStyleName: req.body.spanishName,
+      discipline: req.body.discipline,
     });
 
     return res.status(200).send({
-      id: style._id,
       message: "Style added successfully",
     });
   } catch (error) {
@@ -628,7 +629,7 @@ const addStyles = async (req, res) => {
   }
 };
 
-const listArtworkStyle = async (req, res) => {
+const addTechnic = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
       _id: req.user._id,
@@ -641,53 +642,104 @@ const listArtworkStyle = async (req, res) => {
       });
     }
 
-    const data = await getListArtworks(req.params.response);
+    const isExisting = await Technic.countDocuments({
+      technicName: req.body.name,
+      isDeleted: false,
+    });
 
-    if (data.length) {
-      for (let elem of data) {
-        elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
-      }
+    if (isExisting) {
+      return res
+        .status(400)
+        .send({ message: "Technic with this name already exist." });
     }
 
+    await Technic.create({
+      technicName: req.body.name,
+      spanishTechnicName: req.body.spanishName,
+      discipline: req.body.discipline,
+    });
+
     return res.status(200).send({
-      data: data,
-      message: data.length ? "success" : "No record found",
+      message: "Technic added successfully",
     });
   } catch (error) {
-    APIErrorLog.error("Error while registered the artist by admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
-const listDiscipline = async (req, res) => {
+const addTheme = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
       _id: req.user._id,
       isDeleted: false,
     }).lean(true);
 
-    if (!admin) return res.status(400).send({ message: `Admin not found` });
-
-    const data = await Discipline.find({ isDeleted: false })
-      .sort({ createdAt: -1 })
-      .lean(true);
-
-    if (data.length) {
-      for (let elem of data) {
-        elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
-      }
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
     }
 
+    const isExisting = await Theme.countDocuments({
+      themeName: req.body.name,
+      isDeleted: false,
+    });
+
+    if (isExisting) {
+      return res
+        .status(400)
+        .send({ message: "Theme with this name already exist." });
+    }
+
+    await Theme.create({
+      themeName: req.body.name,
+      spanishThemeName: req.body.spanishName,
+      discipline: req.body.discipline,
+    });
+
+    return res.status(200).send({ message: "Theme added successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addMediaSupport = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const isExisting = await MediaSupport.countDocuments({
+      mediaName: req.body.name,
+      isDeleted: false,
+    });
+
+    if (isExisting) {
+      return res
+        .status(400)
+        .send({ message: "Media with this name already exist." });
+    }
+
+    await MediaSupport.create({
+      mediaName: req.body.name,
+      spanishMediaName: req.body.spanishName,
+      discipline: req.body.discipline,
+    });
+
     return res.status(200).send({
-      data: data,
-      message: "Discipline List successfully received",
+      message: "Media added successfully",
     });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the discipline");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1797,8 +1849,9 @@ module.exports = {
   artistRegister,
   addDiscipline,
   addStyles,
-  listArtworkStyle,
-  listDiscipline,
+  addTechnic,
+  addMediaSupport,
+  addTheme,
   createInsignias,
   getRegisterArtist,
   getInsignias,

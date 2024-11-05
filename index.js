@@ -11,32 +11,31 @@ const app = express();
 app.use(cors());
 
 const session = require("express-session");
-
 const port = process.env.PORT || 3000;
 
 app.use(
-	session({
-		resave: false,
-		saveUninitialized: true,
-		secret: process.env.SESSION_SECRET,
-		cookie: {
-			maxAge: 30 * 24 * 60 * 60 * 1000,
-		},
-	})
+  session({
+    resave: false,
+    saveUninitialized: true,
+    secret: process.env.SESSION_SECRET,
+    cookie: {
+      maxAge: 30 * 24 * 60 * 60 * 1000,
+    },
+  })
 );
 
 const dir = [
-	"./logs",
-	"./public/uploads/users",
-	"./public/uploads/artist",
-	"./public/uploads/art",
-	"./public/uploads/documents",
-	"./public/uploads/videos",
+  "./logs",
+  "./public/uploads/users",
+  "./public/uploads/artist",
+  "./public/uploads/art",
+  "./public/uploads/documents",
+  "./public/uploads/videos",
 ];
 for (let data of dir) {
-	if (!fs.existsSync(data)) {
-		fs.mkdirSync(data, { recursive: true });
-	}
+  if (!fs.existsSync(data)) {
+    fs.mkdirSync(data, { recursive: true });
+  }
 }
 
 // const limiter = rateLimit({
@@ -50,10 +49,12 @@ app.use(express.json({ limit: "30mb" }));
 app.use(express.urlencoded({ extended: true, limit: "30mb" }));
 const directory = path.join(__dirname, "public");
 app.use(express.static(directory));
+
 app.use("/health", (req, res) => res.send(`Welcome to the server`));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/artist", require("./routes/artistRoutes"));
+app.use("/api/general", require("./routes/generalRoutes"));
 
 app.listen(port, () => {
-	console.log(`Server running on port ${port}`);
+  console.log(`Server running on port ${port}`);
 });

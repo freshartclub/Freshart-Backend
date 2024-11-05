@@ -355,7 +355,9 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  res.status(200).send({ data: artworkList });
+  res
+    .status(200)
+    .send({ data: artworkList, url: "http://91.108.113.224:5000" });
 });
 
 const removeArtwork = catchAsyncError(async (req, res, next) => {
@@ -373,7 +375,7 @@ const getUserArtwork = catchAsyncError(async (req, res, next) => {
     .sort({ createdAt: -1 })
     .lean(true);
 
-  res.status(200).send({ data: artworks });
+  res.status(200).send({ data: artworks, url: "http://91.108.113.224:5000" });
 });
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
@@ -382,7 +384,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
     .populate("owner", "artistName artistSurname1 artistSurname2")
     .lean(true);
 
-  res.status(200).send({ data: artwork });
+  res.status(200).send({ data: artwork, url: "http://91.108.113.224:5000" });
 });
 
 module.exports = {

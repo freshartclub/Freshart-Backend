@@ -1,7 +1,7 @@
 const ArtworkMediaStyle = require("../models/artWorkMediaModel");
-const ArtworkMediaTheme = require("../models/artWorkMediaThemeModel");
-const ArtworkMediaTechnic = require("../models/artWorkMediaTechnicModel");
-const ArtworkMediaSupport = require("../models/artWorkMediaSupportModel");
+const Theme = require("../models/themeModel");
+const Technic = require("../models/technicModel");
+const MediaSupport = require("../models/mediaSupportModel");
 const multer = require("multer");
 
 const upload = require("../functions/upload");
@@ -137,7 +137,7 @@ module.exports.getListArtworks = async (response) => {
         break;
 
       case "theme":
-        data = await ArtworkMediaTheme.aggregate([
+        data = await Theme.aggregate([
           {
             $match: {
               isDeleted: false,
@@ -192,7 +192,7 @@ module.exports.getListArtworks = async (response) => {
         break;
 
       case "technic":
-        data = await ArtworkMediaTechnic.aggregate([
+        data = await Technic.aggregate([
           {
             $match: {
               isDeleted: false,
@@ -247,7 +247,7 @@ module.exports.getListArtworks = async (response) => {
         break;
 
       case "support":
-        data = await ArtworkMediaSupport.aggregate([
+        data = await MediaSupport.aggregate([
           {
             $match: {
               isDeleted: false,
