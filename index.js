@@ -32,6 +32,7 @@ const dir = [
   "./public/uploads/documents",
   "./public/uploads/videos",
 ];
+
 for (let data of dir) {
   if (!fs.existsSync(data)) {
     fs.mkdirSync(data, { recursive: true });
