@@ -35,6 +35,7 @@ const {
   serachUserByQueryInput,
   addTicket,
   addDiscipline,
+  addStyles,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -69,6 +70,8 @@ router.get(
 );
 
 router.post("/add-discipline", validateAdminToken, addDiscipline);
+
+router.post("/add-style", validateAdminToken, addStyles);
 
 router.get("/list-discipline", validateAdminToken, listDiscipline);
 

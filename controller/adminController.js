@@ -20,6 +20,7 @@ const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const crypto = require("crypto");
 const TicketReply = require("../models/ticketReplyModel");
+const Style = require("../models/styleModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -580,6 +581,46 @@ const addDiscipline = async (req, res) => {
     return res.status(200).send({
       id: newDiscipline._id,
       message: "Discipline added successfully",
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addStyles = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const isExistingDiscipline = await Style.countDocuments({
+      styleName: req.body.styleTitle,
+      isDeleted: false,
+    });
+
+    if (isExistingDiscipline) {
+      return res
+        .status(400)
+        .send({ message: "Style with this name already exist." });
+    }
+
+    const style = await Style.create({
+      styleName: req.body.styleTitle,
+      spanishStyleName: req.body.spanishStyleName,
+      discipline: req.body.styleDiscipline,
+    });
+
+    return res.status(200).send({
+      id: style._id,
+      message: "Style added successfully",
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -1755,6 +1796,7 @@ module.exports = {
   testAdmin,
   artistRegister,
   addDiscipline,
+  addStyles,
   listArtworkStyle,
   listDiscipline,
   createInsignias,

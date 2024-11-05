@@ -160,6 +160,8 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       ? req.body.artworkStyleType.map((item) => JSON.parse(item))
       : req.body.artworkStyleType;
 
+    console.log(styleType);
+
     styleType.forEach((element) => {
       styleArr.push(element.value);
     });
