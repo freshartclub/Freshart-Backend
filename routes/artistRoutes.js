@@ -18,6 +18,7 @@ const {
   getActivedArtists,
   getUserTickets,
   replyTicketUser,
+  getArtistDetailById,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -44,6 +45,8 @@ router.post("/reset-password", resetPassword);
 router.post("/resend-otp", resendOTP);
 
 router.get("/get-artist", validateToken, getArtistDetails);
+
+router.get("/get-artist-detail/:id", validateToken, getArtistDetailById);
 
 router.patch("/logout", validateToken, logOut);
 

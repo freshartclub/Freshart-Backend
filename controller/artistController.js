@@ -1,4 +1,5 @@
 const Artist = require("../models/artistModel");
+const Artwork = require("../models/artWorksModel");
 const jwt = require("jsonwebtoken");
 const {
   createLog,
@@ -627,10 +628,47 @@ const getArtistDetails = async (req, res) => {
     }
 
     res.status(200).send({
-      artist: req.user,
+      artist: artist,
+      url: "http://91.108.113.224:5000",
       message: `welcome ${artist.artistName ? artist.artistName : "Back"}`,
     });
-  } catch {
+  } catch (error) {
+    APIErrorLog.error("Error while login the admin");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getArtistDetailById = async (req, res) => {
+  try {
+    const artist = await Artist.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const artistArtworks = await Artwork.find(
+      {
+        owner: req.params.id,
+        isDeleted: false,
+      },
+      {
+        artworkName: 1,
+        discipline: 1,
+        media: 1,
+      }
+    );
+
+    res.status(200).send({
+      artist: artist,
+      artworks: artistArtworks,
+      url: "http://91.108.113.224:5000",
+    });
+  } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
     // error response
@@ -878,6 +916,7 @@ const getActivedArtists = async (req, res) => {
 
     return res.status(200).send({
       artists: artists,
+      url: "http://91.108.113.224:5000",
     });
   } catch (error) {
     return res.status(500).json({ message: "Server error" });
@@ -895,6 +934,7 @@ module.exports = {
   resetPassword,
   resendOTP,
   getArtistDetails,
+  getArtistDetailById,
   logOut,
   completeProfile,
   createTicket,

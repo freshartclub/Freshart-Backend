@@ -559,17 +559,29 @@ const addDiscipline = async (req, res) => {
       });
     }
 
+    const { id } = req.query;
     const fileData = await fileUploadFunc(req, res);
 
-    const isExistingDiscipline = await Discipline.countDocuments({
-      disciplineName: req.body.name,
-      isDeleted: false,
-    });
+    if (id !== undefined) {
+      const isExisting = await Discipline.countDocuments({
+        _id: id,
+        isDeleted: false,
+      });
 
-    if (isExistingDiscipline) {
-      return res
-        .status(400)
-        .send({ message: "Discipline with this name already exist." });
+      if (isExisting && isExisting !== 1) {
+        return res.status(400).send({ message: "Discipline not found" });
+      }
+    } else {
+      const isExisting = await Discipline.countDocuments({
+        disciplineName: req.body.name,
+        isDeleted: false,
+      });
+
+      if (isExisting) {
+        return res
+          .status(400)
+          .send({ message: "Discipline with this name already exist." });
+      }
     }
 
     const obj = {
@@ -579,11 +591,42 @@ const addDiscipline = async (req, res) => {
       disciplineDescription: req.body.description,
     };
 
-    await Discipline.create(obj);
+    let condition = {
+      $set: obj,
+    };
 
-    return res.status(200).send({
-      message: "Discipline added successfully",
-    });
+    if (id === undefined) {
+      await Discipline.create(obj);
+      res.status(200).send({ message: "Discipline added successfully" });
+    } else {
+      Discipline.updateOne({ _id: id }, condition).then();
+      res.status(200).send({ message: "Discipline updated successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getDisciplineById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const discipline = await Discipline.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    }).lean(true);
+
+    res.status(200).send({ data: discipline });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1848,6 +1891,7 @@ module.exports = {
   testAdmin,
   artistRegister,
   addDiscipline,
+  getDisciplineById,
   addStyles,
   addTechnic,
   addMediaSupport,

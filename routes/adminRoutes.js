@@ -37,6 +37,7 @@ const {
   addTechnic,
   addMediaSupport,
   addTheme,
+  getDisciplineById,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -65,6 +66,8 @@ router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
 router.post("/artist-register/:id?", validateAdminToken, artistRegister);
 
 router.post("/add-discipline", validateAdminToken, addDiscipline);
+
+router.get("/get-discipline/:id", validateAdminToken, getDisciplineById);
 
 router.post("/add-style", validateAdminToken, addStyles);
 
