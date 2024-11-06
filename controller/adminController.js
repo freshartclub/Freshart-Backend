@@ -468,8 +468,6 @@ const artistRegister = async (req, res) => {
               .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
               .trim(),
             artistContactTo: req.body.managerArtistContactTo,
-            // .replace(/[- )(]/g, "")
-            // .trim(),
             artistPhone: req.body.managerArtistPhone
               .replace(/[- )(]/g, "")
               .trim(),
@@ -486,17 +484,20 @@ const artistRegister = async (req, res) => {
               extraInfo3: req.body.managerExtraInfo3,
             },
           };
-        }
 
-        if (
-          req.body.managerArtistLanguage &&
-          req.body.managerArtistLanguage.length
-        ) {
-          obj["managerDetails"]["language"] = Array.isArray(
-            req.body.managerArtistLanguage
-          )
-            ? req.body.managerArtistLanguage
-            : [req.body.managerArtistLanguage];
+          if (
+            req.body.managerArtistLanguage &&
+            req.body.managerArtistLanguage.length
+          ) {
+            obj["managerDetails"]["language"] = Array.isArray(
+              req.body.managerArtistLanguage
+            )
+              ? req.body.managerArtistLanguage
+              : [req.body.managerArtistLanguage];
+          }
+        } else {
+          obj["isManagerDetails"] = false;
+          obj["managerDetails"] = null;
         }
 
         if (count > artist.pageCount) {
