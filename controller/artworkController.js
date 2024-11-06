@@ -36,6 +36,12 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     owner: id,
   };
 
+  console.log(fileData.data);
+  console.log(images);
+  console.log(req.body);
+
+  // return res.status(404).send({ message: "Done" });
+
   obj["media"] = {
     backImage: fileData.data?.backImage && fileData.data?.backImage[0].filename,
     images: images,
@@ -45,8 +51,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     mainImage: fileData.data?.mainImage && fileData.data?.mainImage[0].filename,
     mainVideo: fileData.data?.mainVideo && fileData.data?.mainVideo[0].filename,
     otherVideo:
-      fileData.data?.inProcessImage &&
-      fileData.data?.inProcessImage[0].otherVideo,
+      fileData.data?.otherVideo && fileData.data?.otherVideo[0].filename,
   };
 
   obj["additionalInfo"] = {
@@ -110,7 +115,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.create(obj);
 
-  res.status(200).send({ message: "Artwork Added Sucessfully", artwork });
+  res.status(200).send({ message: "Artwork Added Sucessfully", data: artwork });
 });
 
 const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
@@ -150,9 +155,14 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       ? req.body.emotions.map((item) => JSON.parse(item))
       : req.body.emotions;
 
-    emotions.forEach((element) => {
-      emotionsArr.push(element.value);
-    });
+    if (typeof emotions === "string") {
+      const obj = JSON.parse(emotions);
+      emotionsArr.push(obj.value);
+    } else {
+      emotions.forEach((element) => {
+        emotionsArr.push(element.value);
+      });
+    }
   }
 
   if (req.body.artworkStyleType) {
@@ -160,11 +170,14 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       ? req.body.artworkStyleType.map((item) => JSON.parse(item))
       : req.body.artworkStyleType;
 
-    console.log(styleType);
-
-    styleType.forEach((element) => {
-      styleArr.push(element.value);
-    });
+    if (typeof styleType === "string") {
+      const obj = JSON.parse(styleType);
+      styleArr.push(obj.value);
+    } else {
+      styleType.forEach((element) => {
+        styleArr.push(element.value);
+      });
+    }
   }
 
   if (req.body.colors) {
@@ -172,9 +185,14 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       ? req.body.colors.map((item) => JSON.parse(item))
       : req.body.colors;
 
-    colors.forEach((element) => {
-      colorsArr.push(element.value);
-    });
+    if (typeof colors === "string") {
+      const obj = JSON.parse(colors);
+      colorsArr.push(obj.value);
+    } else {
+      colors.forEach((element) => {
+        colorsArr.push(element.value);
+      });
+    }
   }
 
   let obj = {
@@ -203,7 +221,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkOrientation: req.body.artworkOrientation,
     material: req.body.material,
     weight: req.body.weight,
-    length: req.body.lenght,
+    length: req.body.length,
     height: req.body.height,
     width: req.body.width,
     hangingAvailable: req.body.hangingAvailable,
@@ -380,11 +398,41 @@ const getUserArtwork = catchAsyncError(async (req, res, next) => {
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  const artwork = await ArtWork.findOne({ _id: id })
-    .populate("owner", "artistName artistSurname1 artistSurname2")
-    .lean(true);
 
-  res.status(200).send({ data: artwork, url: "http://91.108.113.224:5000" });
+  let artwork = null;
+  let artworks = [];
+
+  if (req.user?.roles && req.user?.roles === "superAdmin") {
+    artwork = await ArtWork.findOne({ _id: id })
+      .populate("owner", {
+        artistName: 1,
+        artistId: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+      })
+      .lean(true);
+  } else {
+    artwork = await ArtWork.findOne({ _id: id })
+      .populate("owner", {
+        artistName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        address: 1,
+        aboutArtist: 1,
+        profile: 1,
+      })
+      .lean(true);
+
+    artworks = await ArtWork.find({ owner: artwork.owner._id })
+      .sort({ createdAt: -1 })
+      .lean(true);
+  }
+
+  res.status(200).send({
+    data: artwork,
+    artworks: artworks,
+    url: "http://91.108.113.224:5000",
+  });
 });
 
 module.exports = {

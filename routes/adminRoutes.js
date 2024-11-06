@@ -38,6 +38,10 @@ const {
   addMediaSupport,
   addTheme,
   getDisciplineById,
+  getStyleById,
+  getTechnicById,
+  getMediaById,
+  getThemeById,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -45,6 +49,7 @@ const {
   getArtistById,
   removeArtwork,
   adminCreateArtwork,
+  getArtworkById,
 } = require("../controller/artworkController");
 const {
   addIncident,
@@ -65,17 +70,29 @@ router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
 
 router.post("/artist-register/:id?", validateAdminToken, artistRegister);
 
+// -------------- Discipline Routes ------------------------
+
 router.post("/add-discipline", validateAdminToken, addDiscipline);
 
 router.get("/get-discipline/:id", validateAdminToken, getDisciplineById);
 
 router.post("/add-style", validateAdminToken, addStyles);
 
+router.get("/get-style/:id", validateAdminToken, getStyleById);
+
 router.post("/add-technic", validateAdminToken, addTechnic);
+
+router.get("/get-technic/:id", validateAdminToken, getTechnicById);
 
 router.post("/add-media", validateAdminToken, addMediaSupport);
 
+router.get("/get-media/:id", validateAdminToken, getMediaById);
+
 router.post("/add-theme", validateAdminToken, addTheme);
+
+router.get("/get-theme/:id", validateAdminToken, getThemeById);
+
+// ------------------ Discipline Routes ---------------------
 
 router.post("/create-insignias", validateAdminToken, createInsignias);
 
@@ -129,13 +146,7 @@ router.patch(
   changeArtistPassword
 );
 
-router.post("/add-artwork/:id?", validateAdminToken, adminCreateArtwork);
-
 router.get("/get-artist-by-id", validateAdminToken, getArtistById);
-
-router.get("/get-artwork-list", validateAdminToken, getArtworkList);
-
-router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 
 router.patch(
   "/reject-artist-request/:id",
@@ -158,5 +169,15 @@ router.get("/get-ticket-replies/:id", validateAdminToken, getTicketReplies);
 router.post("/add-incident", validateAdminToken, addIncident);
 
 router.get("/get-all-incidents", validateAdminToken, getAllIncident);
+
+// ------------------- Artwork Routes ------------------------
+
+router.post("/add-artwork/:id?", validateAdminToken, adminCreateArtwork);
+
+router.get("/get-artwork-list", validateAdminToken, getArtworkList);
+
+router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
+
+router.get("/get-artwork/:id", validateAdminToken, getArtworkById);
 
 module.exports = router;

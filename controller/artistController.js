@@ -12,6 +12,7 @@ const APIErrorLog = createLog("API_error_log");
 const TicketReply = require("../models/ticketReplyModel");
 const Ticket = require("../models/ticketModel");
 const md5 = require("md5");
+const objectId = require("mongoose").Types.ObjectId;
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -651,17 +652,33 @@ const getArtistDetailById = async (req, res) => {
       return res.status(400).send({ message: "Artist not found" });
     }
 
-    const artistArtworks = await Artwork.find(
+    const artistArtworks = await Artwork.aggregate([
       {
-        owner: req.params.id,
-        isDeleted: false,
+        $match: {
+          isDeleted: false,
+          owner: objectId(req.params.id),
+        },
       },
       {
-        artworkName: 1,
-        discipline: 1,
-        media: 1,
-      }
-    );
+        $project: {
+          _id: 1,
+          artworkName: 1,
+          discipline: 1,
+          media: 1,
+          additionalInfo: {
+            length: "$additionalInfo.length",
+            height: "$additionalInfo.height",
+            width: "$additionalInfo.width",
+            frameHeight: "$additionalInfo.frameHeight",
+            frameLength: "$additionalInfo.frameLength",
+            frameWidth: "$additionalInfo.frameWidth",
+          },
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
 
     res.status(200).send({
       artist: artist,

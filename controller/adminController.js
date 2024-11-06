@@ -647,26 +647,74 @@ const addStyles = async (req, res) => {
       });
     }
 
-    const isExisting = await Style.countDocuments({
-      styleName: req.body.name,
-      isDeleted: false,
-    });
+    const { id } = req.query;
 
-    if (isExisting) {
-      return res
-        .status(400)
-        .send({ message: "Style with this name already exist." });
+    if (id !== undefined) {
+      const isExisting = await Style.countDocuments({
+        _id: id,
+        isDeleted: false,
+      });
+
+      if (isExisting !== 1) {
+        return res.status(400).send({ message: "Style not found" });
+      }
+    } else {
+      const isExisting = await Style.countDocuments({
+        styleName: req.body.name,
+        isDeleted: false,
+      });
+
+      if (isExisting) {
+        return res
+          .status(400)
+          .send({ message: "Style with this name already exist." });
+      }
     }
 
-    await Style.create({
+    const obj = {
       styleName: req.body.name,
       spanishStyleName: req.body.spanishName,
       discipline: req.body.discipline,
-    });
+    };
 
-    return res.status(200).send({
-      message: "Style added successfully",
-    });
+    let condition = {
+      $set: obj,
+    };
+
+    if (id === undefined) {
+      await Style.create(obj);
+      res.status(200).send({ message: "Style added successfully" });
+    } else {
+      Style.updateOne({ _id: id }, condition).then();
+      res.status(200).send({ message: "Style updated successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getStyleById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const style = await Style.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    })
+      .populate("discipline", { disciplineName: 1 })
+      .lean(true);
+
+    res.status(200).send({ data: style });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -686,26 +734,74 @@ const addTechnic = async (req, res) => {
       });
     }
 
-    const isExisting = await Technic.countDocuments({
-      technicName: req.body.name,
-      isDeleted: false,
-    });
+    const { id } = req.query;
 
-    if (isExisting) {
-      return res
-        .status(400)
-        .send({ message: "Technic with this name already exist." });
+    if (id !== undefined) {
+      const isExisting = await Technic.countDocuments({
+        _id: id,
+        isDeleted: false,
+      });
+
+      if (isExisting !== 1) {
+        return res.status(400).send({ message: "Technic not found" });
+      }
+    } else {
+      const isExisting = await Technic.countDocuments({
+        technicName: req.body.name,
+        isDeleted: false,
+      });
+
+      if (isExisting) {
+        return res
+          .status(400)
+          .send({ message: "Technic with this name already exist." });
+      }
     }
 
-    await Technic.create({
+    const obj = {
       technicName: req.body.name,
       spanishTechnicName: req.body.spanishName,
       discipline: req.body.discipline,
-    });
+    };
 
-    return res.status(200).send({
-      message: "Technic added successfully",
-    });
+    let condition = {
+      $set: obj,
+    };
+
+    if (id === undefined) {
+      await Technic.create(obj);
+      res.status(200).send({ message: "Technic added successfully" });
+    } else {
+      Technic.updateOne({ _id: id }, condition).then();
+      res.status(200).send({ message: "Technic updated successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getTechnicById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const technic = await Technic.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    })
+      .populate("discipline", { disciplineName: 1 })
+      .lean(true);
+
+    res.status(200).send({ data: technic });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -725,24 +821,77 @@ const addTheme = async (req, res) => {
       });
     }
 
-    const isExisting = await Theme.countDocuments({
-      themeName: req.body.name,
-      isDeleted: false,
-    });
+    const { id } = req.query;
 
-    if (isExisting) {
-      return res
-        .status(400)
-        .send({ message: "Theme with this name already exist." });
+    console.log(id);
+    console.log(req.body);
+
+    if (id !== undefined) {
+      const isExisting = await Theme.countDocuments({
+        _id: id,
+        isDeleted: false,
+      });
+
+      if (isExisting !== 1) {
+        return res.status(400).send({ message: "Theme not found" });
+      }
+    } else {
+      const isExisting = await Theme.countDocuments({
+        themeName: req.body.name,
+        isDeleted: false,
+      });
+
+      if (isExisting) {
+        return res
+          .status(400)
+          .send({ message: "Theme with this name already exist." });
+      }
     }
 
-    await Theme.create({
+    const obj = {
       themeName: req.body.name,
       spanishThemeName: req.body.spanishName,
       discipline: req.body.discipline,
-    });
+    };
 
-    return res.status(200).send({ message: "Theme added successfully" });
+    let condition = {
+      $set: obj,
+    };
+
+    if (id === undefined) {
+      await Theme.create(obj);
+      res.status(200).send({ message: "Theme added successfully" });
+    } else {
+      Theme.updateOne({ _id: id }, condition).then();
+      res.status(200).send({ message: "Theme updated successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getThemeById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const theme = await Theme.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    })
+      .populate("discipline", { disciplineName: 1 })
+      .lean(true);
+
+    res.status(200).send({ data: theme });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -762,26 +911,74 @@ const addMediaSupport = async (req, res) => {
       });
     }
 
-    const isExisting = await MediaSupport.countDocuments({
-      mediaName: req.body.name,
-      isDeleted: false,
-    });
+    const { id } = req.query;
 
-    if (isExisting) {
-      return res
-        .status(400)
-        .send({ message: "Media with this name already exist." });
+    if (id !== undefined) {
+      const isExisting = await MediaSupport.countDocuments({
+        _id: id,
+        isDeleted: false,
+      });
+
+      if (isExisting && isExisting !== 1) {
+        return res.status(400).send({ message: "Media not found" });
+      }
+    } else {
+      const isExisting = await MediaSupport.countDocuments({
+        mediaName: req.body.name,
+        isDeleted: false,
+      });
+
+      if (isExisting) {
+        return res
+          .status(400)
+          .send({ message: "Media with this name already exist." });
+      }
     }
 
-    await MediaSupport.create({
+    const obj = {
       mediaName: req.body.name,
       spanishMediaName: req.body.spanishName,
       discipline: req.body.discipline,
-    });
+    };
 
-    return res.status(200).send({
-      message: "Media added successfully",
-    });
+    let condition = {
+      $set: obj,
+    };
+
+    if (id === undefined) {
+      await MediaSupport.create(obj);
+      res.status(200).send({ message: "Media added successfully" });
+    } else {
+      MediaSupport.updateOne({ _id: id }, condition).then();
+      res.status(200).send({ message: "Media updated successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getMediaById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({
+        message: `Admin not found`,
+      });
+    }
+
+    const media = await MediaSupport.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    })
+      .populate("discipline", { disciplineName: 1 })
+      .lean(true);
+
+    res.status(200).send({ data: media });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1894,9 +2091,13 @@ module.exports = {
   addDiscipline,
   getDisciplineById,
   addStyles,
+  getStyleById,
   addTechnic,
+  getTechnicById,
   addMediaSupport,
+  getMediaById,
   addTheme,
+  getThemeById,
   createInsignias,
   getRegisterArtist,
   getInsignias,
