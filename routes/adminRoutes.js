@@ -50,6 +50,7 @@ const {
   removeArtwork,
   adminCreateArtwork,
   getArtworkById,
+  publishArtwork,
 } = require("../controller/artworkController");
 const {
   addIncident,
@@ -179,5 +180,7 @@ router.get("/get-artwork-list", validateAdminToken, getArtworkList);
 router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 
 router.get("/get-artwork/:id", validateAdminToken, getArtworkById);
+
+router.patch("/publish-artwork/:id", validateAdminToken, publishArtwork);
 
 module.exports = router;

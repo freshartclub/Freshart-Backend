@@ -26,6 +26,7 @@ const {
   artistCreateArtwork,
   getArtworkById,
   removeArtwork,
+  publishArtwork,
 } = require("../controller/artworkController");
 
 router.post("/login", login);
@@ -71,5 +72,7 @@ router.get("/get-all-artists", validateToken, getActivedArtists);
 router.get("/get-artwork/:id", validateToken, getArtworkById);
 
 router.patch("/delete-artwork/:id", validateToken, removeArtwork);
+
+router.patch("/publish-artwork/:id", validateToken, publishArtwork);
 
 module.exports = router;

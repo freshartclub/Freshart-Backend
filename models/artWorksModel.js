@@ -8,8 +8,11 @@ const artWorkSchema = new mongoose.Schema(
     },
     isApproved: {
       type: String,
-      enum: ["pending", "approved"],
       default: "pending",
+    },
+    status: {
+      type: String,
+      default: "draft",
     },
     owner: {
       type: mongoose.Schema.Types.ObjectId,

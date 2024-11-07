@@ -6,6 +6,8 @@ const { fileUploadFunc } = require("../functions/common");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
+  const { artworkId } = req.query;
+
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
@@ -27,6 +29,8 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     });
   }
 
+  console.log(req.body);
+
   let obj = {
     artworkName: req.body.artworkName,
     artworkCreationYear: req.body.artworkCreationYear,
@@ -35,12 +39,6 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     collectionList: req.body.collectionList,
     owner: id,
   };
-
-  console.log(fileData.data);
-  console.log(images);
-  console.log(req.body);
-
-  // return res.status(404).send({ message: "Done" });
 
   obj["media"] = {
     backImage: fileData.data?.backImage && fileData.data?.backImage[0].filename,
@@ -70,9 +68,16 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     frameHeight: req.body.frameHeight,
     frameLength: req.body.frameLenght,
     frameWidth: req.body.frameWidth,
-    artworkStyle: req.body.artworkStyle,
-    emotions: req.body.emotions,
-    colors: req.body.colors,
+    artworkStyle:
+      typeof req.body.artworkStyle === "string"
+        ? [req.body.artworkStyle]
+        : req.body.artworkStyle,
+    emotions:
+      typeof req.body.emotions === "string"
+        ? [req.body.emotions]
+        : req.body.emotions,
+    colors:
+      typeof req.body.colors === "string" ? [req.body.colors] : req.body.colors,
     offensive: req.body.offensive,
   };
 
@@ -100,7 +105,10 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["discipline"] = {
     artworkDiscipline: req.body.artworkDiscipline,
-    artworkTags: req.body.artworkTags,
+    artworkTags:
+      typeof req.body.artworkTags === "string"
+        ? [req.body.artworkTags]
+        : req.body.artworkTags,
   };
 
   obj["promotions"] = {
@@ -113,9 +121,22 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     discountAcceptation: req.body.discountAcceptation,
   };
 
-  const artwork = await ArtWork.create(obj);
+  let condition = {
+    $set: obj,
+  };
 
-  res.status(200).send({ message: "Artwork Added Sucessfully", data: artwork });
+  if (artworkId) {
+    ArtWork.updateOne({ _id: artworkId }, condition).then();
+    return res.status(200).send({
+      message: "Artwork Editted Sucessfully",
+      data: { _id: artworkId },
+    });
+  } else {
+    const artwork = await ArtWork.create(obj);
+    res
+      .status(200)
+      .send({ message: "Artwork Added Sucessfully", data: artwork });
+  }
 });
 
 const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
@@ -281,7 +302,9 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   let artwork = null;
 
   if (id !== "null") {
+    console.log(id);
     ArtWork.updateOne({ _id: id }, condition).then();
+    console.log(artwork);
     return res.status(200).send({ message: "Artwork Editted Sucessfully" });
   } else {
     artwork = await ArtWork.create(obj);
@@ -289,6 +312,22 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       .status(200)
       .send({ message: "Artwork Added Sucessfully", artwork });
   }
+});
+
+const publishArtwork = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+
+  const artwork = await ArtWork.findOne({ _id: id }, { status: 1 }).lean(true);
+
+  if (artwork.status === "published") {
+    return res.status(400).send({ message: "Artwork Already Published" });
+  }
+
+  ArtWork.updateOne({ _id: id }, { status: "published" }).then();
+
+  return res
+    .status(200)
+    .send({ message: "Artwork Published Sucessfully", data: artwork._id });
 });
 
 const getArtistById = catchAsyncError(async (req, res, next) => {
@@ -362,6 +401,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         artistSurname2: "$ownerInfo.artistSurname2",
         isDeleted: 1,
         isApproved: 1,
+        status: 1,
         artworkName: 1,
         artworkCreationYear: 1,
         artworkSeries: 1,
@@ -443,4 +483,5 @@ module.exports = {
   removeArtwork,
   getArtworkById,
   getUserArtwork,
+  publishArtwork,
 };
