@@ -29,8 +29,6 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  console.log(req.body);
-
   let obj = {
     artworkName: req.body.artworkName,
     artworkCreationYear: req.body.artworkCreationYear,
@@ -170,6 +168,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   let styleArr = [];
   let colorsArr = [];
   let emotionsArr = [];
+  let tagsArr = [];
 
   if (req.body.emotions) {
     const emotions = Array.isArray(req.body.emotions)
@@ -182,6 +181,21 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     } else {
       emotions.forEach((element) => {
         emotionsArr.push(element.value);
+      });
+    }
+  }
+
+  if (req.body.artworkTags) {
+    const artworkTags = Array.isArray(req.body.artworkTags)
+      ? req.body.artworkTags.map((item) => JSON.parse(item))
+      : req.body.artworkTags;
+
+    if (typeof artworkTags === "string") {
+      const obj = JSON.parse(artworkTags);
+      tagsArr.push(obj.value);
+    } else {
+      artworkTags.forEach((element) => {
+        tagsArr.push(element.value);
       });
     }
   }
@@ -302,9 +316,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   let artwork = null;
 
   if (id !== "null") {
-    console.log(id);
     ArtWork.updateOne({ _id: id }, condition).then();
-    console.log(artwork);
     return res.status(200).send({ message: "Artwork Editted Sucessfully" });
   } else {
     artwork = await ArtWork.create(obj);

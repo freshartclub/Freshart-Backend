@@ -22,7 +22,7 @@ const artWorkSchema = new mongoose.Schema(
     artworkCreationYear: { type: String },
     artworkSeries: { type: String },
     productDescription: { type: String },
-    collections: { type: String },
+    collectionList: { type: String },
     media: { type: Object },
     additionalInfo: { type: Object },
     commercialization: { type: Object },

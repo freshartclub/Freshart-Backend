@@ -71,30 +71,6 @@ router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
 
 router.post("/artist-register/:id?", validateAdminToken, artistRegister);
 
-// -------------- Discipline Routes ------------------------
-
-router.post("/add-discipline", validateAdminToken, addDiscipline);
-
-router.get("/get-discipline/:id", validateAdminToken, getDisciplineById);
-
-router.post("/add-style", validateAdminToken, addStyles);
-
-router.get("/get-style/:id", validateAdminToken, getStyleById);
-
-router.post("/add-technic", validateAdminToken, addTechnic);
-
-router.get("/get-technic/:id", validateAdminToken, getTechnicById);
-
-router.post("/add-media", validateAdminToken, addMediaSupport);
-
-router.get("/get-media/:id", validateAdminToken, getMediaById);
-
-router.post("/add-theme", validateAdminToken, addTheme);
-
-router.get("/get-theme/:id", validateAdminToken, getThemeById);
-
-// ------------------ Discipline Routes ---------------------
-
 router.post("/create-insignias", validateAdminToken, createInsignias);
 
 router.get("/get-insignias", validateAdminToken, getInsignias);
