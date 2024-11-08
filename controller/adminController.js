@@ -346,6 +346,10 @@ const artistRegister = async (req, res) => {
           about: req.body.about.trim(),
         };
 
+        if (req.body?.insignia?.length) {
+          obj["insignia"] = req.body.insignia;
+        }
+
         if (req?.body?.discipline.length) {
           obj["aboutArtist"]["discipline"] = req?.body?.discipline;
         }
@@ -996,8 +1000,9 @@ const createInsignias = async (req, res) => {
       return res.status(400).send({ message: `Admin not found` });
     }
 
-    const fileData = await fileUploadFunc(req, res);
+    const { id } = req.query;
 
+    const fileData = await fileUploadFunc(req, res);
     if (fileData.type !== "success") {
       return res.status(fileData.status).send({
         message:
@@ -1007,23 +1012,50 @@ const createInsignias = async (req, res) => {
       });
     }
 
+    if (id !== undefined) {
+      const isExisting = await Insignia.countDocuments({
+        _id: id,
+        isDeleted: false,
+      });
+
+      if (isExisting && isExisting !== 1) {
+        return res.status(400).send({ message: "Insignia not found" });
+      }
+    } else {
+      const isExisting = await Insignia.countDocuments({
+        credentialName: req.body.credentialName,
+        isDeleted: false,
+      });
+
+      if (isExisting) {
+        return res
+          .status(400)
+          .send({ message: "Discipline with this name already exist." });
+      }
+    }
+
     const obj = {
-      areaName: req.body.credentialName.trim(),
-      group: req.body.credentialGroup.trim(),
-      priority: req.body.credentialPriority.trim(),
+      credentialName: req.body.credentialName.trim(),
+      credentialGroup: req.body.credentialGroup.trim(),
+      credentialPriority: req.body.credentialPriority.trim(),
       isActive: JSON.parse(req.body.isActive),
     };
 
-    obj["uploadImage"] = fileData.data.insigniaImage[0]?.filename;
+    obj["insigniaImage"] = fileData.data.insigniaImage[0]?.filename;
 
-    await Insignia.create(obj);
-    return res.status(200).send({
-      message: "Insignia created successfully",
-    });
+    let condition = {
+      $set: obj,
+    };
+
+    if (id === undefined) {
+      await Insignia.create(obj);
+      res.status(200).send({ message: "Insignia created successfully" });
+    } else {
+      Insignia.updateOne({ _id: id }, condition).then();
+      res.status(200).send({ message: "Insignia updated successfully" });
+    }
   } catch (error) {
-    APIErrorLog.error("Error while created the insignia by admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1067,7 +1099,38 @@ const getInsignias = async (req, res) => {
 
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const data = await Insignia.find({ isDeleted: false }).lean(true);
+    let { s } = req.query;
+
+    if (s == "undefined") {
+      s = "";
+    } else if (typeof s === "undefined") {
+      s = "";
+    }
+
+    const data = await Insignia.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          credentialName: s ? { $regex: s, $options: "i" } : { $ne: null },
+        },
+      },
+      {
+        $project: {
+          credentialName: 1,
+          credentialGroup: 1,
+          credentialPriority: 1,
+          isActive: 1,
+          insigniaImage: 1,
+          _id: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    console.log(data);
 
     if (data.length) {
       for (let elem of data) {
@@ -1080,6 +1143,71 @@ const getInsignias = async (req, res) => {
       .send({ data: data, message: "Insignia List received successfully" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getInsigniaById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const data = await Insignia.findOne({
+      _id: req.params.id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (data.length) {
+      for (let elem of data) {
+        elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
+      }
+    }
+
+    return res
+      .status(200)
+      .send({ data: data, message: "Insignia received successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const deleteInsignia = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const found = await Insignia.findOne(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { isDeleted: 1 }
+    ).lean(true);
+
+    if (!found) {
+      return res.status(400).send({ message: "Insignia not found" });
+    }
+
+    if (found.isDeleted) {
+      return res.status(400).send({ message: "Insignia already deleted" });
+    }
+
+    Insignia.updateOne({ _id: id }, { $set: { isDeleted: true } }).then();
+    return res.status(200).send({ message: "Insignia deleted successfully" });
+  } catch (error) {
     APIErrorLog.error(error);
     // error response
     return res.status(500).send({ message: "Something went wrong" });
@@ -2099,6 +2227,8 @@ module.exports = {
   addTheme,
   getThemeById,
   createInsignias,
+  getInsigniaById,
+  deleteInsignia,
   getRegisterArtist,
   getInsignias,
   activateArtist,

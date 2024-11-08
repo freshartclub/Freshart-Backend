@@ -32,16 +32,8 @@ const {
   banArtistRequest,
   serachUserByQueryInput,
   addTicket,
-  addDiscipline,
-  addStyles,
-  addTechnic,
-  addMediaSupport,
-  addTheme,
-  getDisciplineById,
-  getStyleById,
-  getTechnicById,
-  getMediaById,
-  getThemeById,
+  getInsigniaById,
+  deleteInsignia,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -71,9 +63,13 @@ router.get("/get-register-artist/:id", validateAdminToken, getRegisterArtist);
 
 router.post("/artist-register/:id?", validateAdminToken, artistRegister);
 
-router.post("/create-insignias", validateAdminToken, createInsignias);
+router.post("/add-insignia", validateAdminToken, createInsignias);
 
-router.get("/get-insignias", validateAdminToken, getInsignias);
+router.get("/get-insignia/:id", validateAdminToken, getInsigniaById);
+
+router.patch("/delete-insignia/:id", validateAdminToken, deleteInsignia);
+
+router.get("/get-all-insignia", validateAdminToken, getInsignias);
 
 router.post("/activate-artist/:id", validateAdminToken, activateArtist);
 

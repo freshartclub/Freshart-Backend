@@ -73,6 +73,12 @@ const artistSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    insignia: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Insignia",
+      },
+    ],
     address: {
       residentialAddress: {
         type: String,
