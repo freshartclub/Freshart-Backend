@@ -628,7 +628,7 @@ const getDisciplineById = async (req, res) => {
 
     const discipline = await Discipline.findOne({
       _id: req.params.id,
-      isDeleted: false,
+      // isDeleted: false,
     }).lean(true);
 
     res.status(200).send({ data: discipline });
@@ -713,7 +713,7 @@ const getStyleById = async (req, res) => {
 
     const style = await Style.findOne({
       _id: req.params.id,
-      isDeleted: false,
+      // isDeleted: false,
     })
       .populate("discipline", { disciplineName: 1 })
       .lean(true);
@@ -800,7 +800,7 @@ const getTechnicById = async (req, res) => {
 
     const technic = await Technic.findOne({
       _id: req.params.id,
-      isDeleted: false,
+      // isDeleted: false,
     })
       .populate("discipline", { disciplineName: 1 })
       .lean(true);
@@ -890,7 +890,7 @@ const getThemeById = async (req, res) => {
 
     const theme = await Theme.findOne({
       _id: req.params.id,
-      isDeleted: false,
+      // isDeleted: false,
     })
       .populate("discipline", { disciplineName: 1 })
       .lean(true);
@@ -977,7 +977,7 @@ const getMediaById = async (req, res) => {
 
     const media = await MediaSupport.findOne({
       _id: req.params.id,
-      isDeleted: false,
+      // isDeleted: false,
     })
       .populate("discipline", { disciplineName: 1 })
       .lean(true);
@@ -1015,7 +1015,7 @@ const createInsignias = async (req, res) => {
     if (id !== undefined) {
       const isExisting = await Insignia.countDocuments({
         _id: id,
-        isDeleted: false,
+        // isDeleted: false,
       });
 
       if (isExisting && isExisting !== 1) {
@@ -1024,7 +1024,7 @@ const createInsignias = async (req, res) => {
     } else {
       const isExisting = await Insignia.countDocuments({
         credentialName: req.body.credentialName,
-        isDeleted: false,
+        // isDeleted: false,
       });
 
       if (isExisting) {
@@ -1039,6 +1039,7 @@ const createInsignias = async (req, res) => {
       credentialGroup: req.body.credentialGroup.trim(),
       credentialPriority: req.body.credentialPriority.trim(),
       isActive: JSON.parse(req.body.isActive),
+      isDeleted: JSON.parse(req.body.isActive) ? false : true,
     };
 
     obj["insigniaImage"] = fileData.data.insigniaImage[0]?.filename;
@@ -1110,7 +1111,7 @@ const getInsignias = async (req, res) => {
     const data = await Insignia.aggregate([
       {
         $match: {
-          isDeleted: false,
+          // isDeleted: false,
           credentialName: s ? { $regex: s, $options: "i" } : { $ne: null },
         },
       },
@@ -1120,6 +1121,7 @@ const getInsignias = async (req, res) => {
           credentialGroup: 1,
           credentialPriority: 1,
           isActive: 1,
+          isDeleted: 1,
           insigniaImage: 1,
           _id: 1,
           createdAt: 1,
@@ -1129,8 +1131,6 @@ const getInsignias = async (req, res) => {
         $sort: { createdAt: -1 },
       },
     ]);
-
-    console.log(data);
 
     if (data.length) {
       for (let elem of data) {
@@ -1160,7 +1160,7 @@ const getInsigniaById = async (req, res) => {
 
     const data = await Insignia.findOne({
       _id: req.params.id,
-      isDeleted: false,
+      // isDeleted: false,
     }).lean(true);
 
     if (data.length) {
@@ -1192,7 +1192,7 @@ const deleteInsignia = async (req, res) => {
     const found = await Insignia.findOne(
       {
         _id: id,
-        isDeleted: false,
+        // isDeleted: false,
       },
       { isDeleted: 1 }
     ).lean(true);
@@ -1205,7 +1205,10 @@ const deleteInsignia = async (req, res) => {
       return res.status(400).send({ message: "Insignia already deleted" });
     }
 
-    Insignia.updateOne({ _id: id }, { $set: { isDeleted: true } }).then();
+    Insignia.updateOne(
+      { _id: id },
+      { $set: { isDeleted: true, isActive: false } }
+    ).then();
     return res.status(200).send({ message: "Insignia deleted successfully" });
   } catch (error) {
     APIErrorLog.error(error);

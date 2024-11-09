@@ -28,6 +28,7 @@ const {
   removeArtwork,
   publishArtwork,
 } = require("../controller/artworkController");
+const { getAllIncident } = require("../controller/incidentController");
 
 router.post("/login", login);
 
@@ -74,5 +75,7 @@ router.get("/get-artwork/:id", validateToken, getArtworkById);
 router.patch("/delete-artwork/:id", validateToken, removeArtwork);
 
 router.patch("/publish-artwork/:id", validateToken, publishArtwork);
+
+router.get("/get-all-incidents", validateToken, getAllIncident);
 
 module.exports = router;

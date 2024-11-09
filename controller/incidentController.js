@@ -29,14 +29,16 @@ const addIncident = catchAsyncError(async (req, res, next) => {
 });
 
 const getAllIncident = catchAsyncError(async (req, res, next) => {
-  const admin = await Admin.countDocuments({
-    _id: req.user._id,
-    isDeleted: false,
-  }).lean(true);
+  if (req.user?.roles && req.user?.roles === "superAdmin") {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
 
-  if (!admin) return res.status(400).send({ message: `Admin not found` });
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+  }
 
-  const incidents = await Incident.find({}).lean(true);
+  const incidents = await Incident.find({ isDeleted: false }).lean(true);
 
   res
     .status(200)

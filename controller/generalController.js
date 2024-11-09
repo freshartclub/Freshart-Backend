@@ -19,7 +19,6 @@ const listArtworkStyle = async (req, res) => {
     const data = await Style.aggregate([
       {
         $match: {
-          isDeleted: false,
           styleName: { $regex: s, $options: "i" },
         },
       },
@@ -34,6 +33,7 @@ const listArtworkStyle = async (req, res) => {
       {
         $project: {
           styleName: 1,
+          isDeleted: 1,
           createdAt: 1,
           spanishStyleName: 1,
           discipline: {
@@ -83,7 +83,6 @@ const listDiscipline = async (req, res) => {
     const data = await Discipline.aggregate([
       {
         $match: {
-          isDeleted: false,
           disciplineName: { $regex: s, $options: "i" },
         },
       },
@@ -91,6 +90,7 @@ const listDiscipline = async (req, res) => {
         $project: {
           disciplineName: 1,
           createdAt: 1,
+          isDeleted: 1,
           disciplineImage: 1,
           disciplineSpanishName: 1,
           disciplineDescription: 1,
@@ -130,7 +130,7 @@ const listTechnic = async (req, res) => {
     const data = await Technic.aggregate([
       {
         $match: {
-          isDeleted: false,
+          // isDeleted: false,
           technicName: { $regex: s, $options: "i" },
         },
       },
@@ -146,6 +146,7 @@ const listTechnic = async (req, res) => {
         $project: {
           technicName: 1,
           createdAt: 1,
+          isDeleted: 1,
           spanishTechnicName: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
@@ -194,7 +195,7 @@ const listTheme = async (req, res) => {
     const data = await Theme.aggregate([
       {
         $match: {
-          isDeleted: false,
+          // isDeleted: false,
           themeName: { $regex: s, $options: "i" },
         },
       },
@@ -210,6 +211,7 @@ const listTheme = async (req, res) => {
         $project: {
           themeName: 1,
           createdAt: 1,
+          isDeleted: 1,
           spanishThemeName: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
@@ -258,7 +260,6 @@ const listMediaSupport = async (req, res) => {
     const data = await MediaSupport.aggregate([
       {
         $match: {
-          isDeleted: false,
           mediaName: { $regex: s, $options: "i" },
         },
       },
@@ -275,6 +276,7 @@ const listMediaSupport = async (req, res) => {
           mediaName: 1,
           createdAt: 1,
           spanishMediaName: 1,
+          isDeleted: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
             $map: {
