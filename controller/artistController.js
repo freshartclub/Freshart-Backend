@@ -996,12 +996,12 @@ const addRemoveToWishlist = async (req, res) => {
           { _id: req.user._id },
           { $pull: { wishlist: id } }
         ).then();
-        return res.status(400).send({ message: "Removed from wishlist" });
+        return res.status(200).send({ message: "Unliked" });
       }
     }
 
     Artist.updateOne({ _id: req.user._id }, { $push: { wishlist: id } }).then();
-    return res.status(200).send({ message: "Added to cart successfully" });
+    return res.status(200).send({ message: "Artwork Liked" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });

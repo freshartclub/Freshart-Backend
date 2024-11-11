@@ -296,7 +296,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["discipline"] = {
     artworkDiscipline: req.body.artworkDiscipline,
-    artworkTags: req.body.artworkTags,
+    artworkTags: tagsArr,
   };
 
   obj["promotions"] = {

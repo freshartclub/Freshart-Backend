@@ -48,6 +48,11 @@ const {
   addIncident,
   getAllIncident,
 } = require("../controller/incidentController");
+const {
+  addCatalog,
+  getCatalog,
+  getCatalogById,
+} = require("../controller/catalogController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -154,5 +159,11 @@ router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 router.get("/get-artwork/:id", validateAdminToken, getArtworkById);
 
 router.patch("/publish-artwork/:id", validateAdminToken, publishArtwork);
+
+router.post("/add-catalog", validateAdminToken, addCatalog);
+
+router.get("/get-all-catalog", validateAdminToken, getCatalog);
+
+router.get("/get-catalog-by-id/:id", validateAdminToken, getCatalogById);
 
 module.exports = router;
