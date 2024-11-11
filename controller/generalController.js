@@ -12,7 +12,9 @@ const listArtworkStyle = async (req, res) => {
   try {
     let { s } = req.query;
 
-    if (typeof s === "undefined") {
+    if (s == "undefined") {
+      s = "";
+    } else if (typeof s === "undefined") {
       s = "";
     }
 
@@ -123,7 +125,9 @@ const listTechnic = async (req, res) => {
   try {
     let { s } = req.query;
 
-    if (typeof s === "undefined") {
+    if (s == "undefined") {
+      s = "";
+    } else if (typeof s === "undefined") {
       s = "";
     }
 
@@ -188,7 +192,9 @@ const listTheme = async (req, res) => {
   try {
     let { s } = req.query;
 
-    if (typeof s === "undefined") {
+    if (s == "undefined") {
+      s = "";
+    } else if (typeof s === "undefined") {
       s = "";
     }
 
@@ -253,7 +259,9 @@ const listMediaSupport = async (req, res) => {
   try {
     let { s } = req.query;
 
-    if (typeof s === "undefined") {
+    if (s == "undefined") {
+      s = "";
+    } else if (typeof s === "undefined") {
       s = "";
     }
 

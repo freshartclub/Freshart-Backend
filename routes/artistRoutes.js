@@ -19,6 +19,10 @@ const {
   getUserTickets,
   replyTicketUser,
   getArtistDetailById,
+  addRemoveToCart,
+  addRemoveToWishlist,
+  getWishlistItems,
+  getCartItems,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -77,5 +81,13 @@ router.patch("/delete-artwork/:id", validateToken, removeArtwork);
 router.patch("/publish-artwork/:id", validateToken, publishArtwork);
 
 router.get("/get-all-incidents", validateToken, getAllIncident);
+
+router.patch("/item-to-cart/:id", validateToken, addRemoveToCart);
+
+router.patch("/item-to-wishlist/:id", validateToken, addRemoveToWishlist);
+
+router.get("/get-wishlist", validateToken, getWishlistItems);
+
+router.get("/get-cart", validateToken, getCartItems);
 
 module.exports = router;

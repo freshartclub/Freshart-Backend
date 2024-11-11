@@ -24,6 +24,7 @@ const Style = require("../models/styleModel");
 const Technic = require("../models/technicModel");
 const Theme = require("../models/themeModel");
 const MediaSupport = require("../models/mediaSupportModel");
+const { console } = require("inspector");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -568,18 +569,13 @@ const addDiscipline = async (req, res) => {
     const fileData = await fileUploadFunc(req, res);
 
     if (id !== undefined) {
-      const isExisting = await Discipline.countDocuments({
-        _id: id,
-        isDeleted: false,
-      });
-
+      const isExisting = await Discipline.countDocuments({ _id: id });
       if (isExisting && isExisting !== 1) {
         return res.status(400).send({ message: "Discipline not found" });
       }
     } else {
       const isExisting = await Discipline.countDocuments({
         disciplineName: req.body.name,
-        isDeleted: false,
       });
 
       if (isExisting) {
@@ -594,6 +590,7 @@ const addDiscipline = async (req, res) => {
       disciplineName: req.body.name,
       disciplineSpanishName: req.body.spanishName,
       disciplineDescription: req.body.description,
+      isDeleted: req.body.isDeleted,
     };
 
     let condition = {
@@ -656,7 +653,6 @@ const addStyles = async (req, res) => {
     if (id !== undefined) {
       const isExisting = await Style.countDocuments({
         _id: id,
-        isDeleted: false,
       });
 
       if (isExisting !== 1) {
@@ -665,7 +661,6 @@ const addStyles = async (req, res) => {
     } else {
       const isExisting = await Style.countDocuments({
         styleName: req.body.name,
-        isDeleted: false,
       });
 
       if (isExisting) {
@@ -679,6 +674,7 @@ const addStyles = async (req, res) => {
       styleName: req.body.name,
       spanishStyleName: req.body.spanishName,
       discipline: req.body.discipline,
+      isDeleted: req.body.isDeleted,
     };
 
     let condition = {
@@ -743,7 +739,6 @@ const addTechnic = async (req, res) => {
     if (id !== undefined) {
       const isExisting = await Technic.countDocuments({
         _id: id,
-        isDeleted: false,
       });
 
       if (isExisting !== 1) {
@@ -752,7 +747,6 @@ const addTechnic = async (req, res) => {
     } else {
       const isExisting = await Technic.countDocuments({
         technicName: req.body.name,
-        isDeleted: false,
       });
 
       if (isExisting) {
@@ -766,6 +760,7 @@ const addTechnic = async (req, res) => {
       technicName: req.body.name,
       spanishTechnicName: req.body.spanishName,
       discipline: req.body.discipline,
+      isDeleted: req.body.isDeleted,
     };
 
     let condition = {
@@ -827,13 +822,9 @@ const addTheme = async (req, res) => {
 
     const { id } = req.query;
 
-    console.log(id);
-    console.log(req.body);
-
     if (id !== undefined) {
       const isExisting = await Theme.countDocuments({
         _id: id,
-        isDeleted: false,
       });
 
       if (isExisting !== 1) {
@@ -842,7 +833,6 @@ const addTheme = async (req, res) => {
     } else {
       const isExisting = await Theme.countDocuments({
         themeName: req.body.name,
-        isDeleted: false,
       });
 
       if (isExisting) {
@@ -856,6 +846,7 @@ const addTheme = async (req, res) => {
       themeName: req.body.name,
       spanishThemeName: req.body.spanishName,
       discipline: req.body.discipline,
+      isDeleted: req.body.isDeleted,
     };
 
     let condition = {
@@ -920,7 +911,6 @@ const addMediaSupport = async (req, res) => {
     if (id !== undefined) {
       const isExisting = await MediaSupport.countDocuments({
         _id: id,
-        isDeleted: false,
       });
 
       if (isExisting && isExisting !== 1) {
@@ -929,7 +919,6 @@ const addMediaSupport = async (req, res) => {
     } else {
       const isExisting = await MediaSupport.countDocuments({
         mediaName: req.body.name,
-        isDeleted: false,
       });
 
       if (isExisting) {
@@ -943,6 +932,7 @@ const addMediaSupport = async (req, res) => {
       mediaName: req.body.name,
       spanishMediaName: req.body.spanishName,
       discipline: req.body.discipline,
+      isDeleted: req.body.isDeleted,
     };
 
     let condition = {

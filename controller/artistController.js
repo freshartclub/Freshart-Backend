@@ -622,7 +622,9 @@ const getArtistDetails = async (req, res) => {
     const artist = await Artist.findOne({
       _id: req.user._id,
       isDeleted: false,
-    }).lean(true);
+    })
+      .populate("insignia", "credentialName insigniaImage")
+      .lean(true);
 
     if (!artist) {
       return res.status(400).send({ message: "Artist/User not found" });
@@ -646,7 +648,9 @@ const getArtistDetailById = async (req, res) => {
     const artist = await Artist.findOne({
       _id: req.params.id,
       isDeleted: false,
-    }).lean(true);
+    })
+      .populate("insignia", "credentialName insigniaImage")
+      .lean(true);
 
     if (!artist) {
       return res.status(400).send({ message: "Artist not found" });
@@ -659,6 +663,7 @@ const getArtistDetailById = async (req, res) => {
           owner: objectId(req.params.id),
         },
       },
+
       {
         $project: {
           _id: 1,
@@ -939,7 +944,116 @@ const getActivedArtists = async (req, res) => {
     return res.status(500).json({ message: "Server error" });
   }
 };
+
 // -------------------ticket----------------------------
+
+const addRemoveToCart = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const artist = await Artist.findOne(
+      { _id: req.user._id },
+      { cart: 1 }
+    ).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    if (artist.cart) {
+      const isExist = artist.cart.find((item) => item.toString() == id);
+      if (isExist) {
+        Artist.updateOne({ _id: req.user._id }, { $pull: { cart: id } }).then();
+        return res.status(200).send({ message: "Removed from cart" });
+      }
+    }
+
+    Artist.updateOne({ _id: req.user._id }, { $push: { cart: id } }).then();
+    return res.status(200).send({ message: "Added to cart successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addRemoveToWishlist = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const artist = await Artist.findOne(
+      { _id: req.user._id },
+      { wishlist: 1 }
+    ).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    if (artist.wishlist) {
+      const isExist = artist.wishlist.find((item) => item.toString() == id);
+      if (isExist) {
+        Artist.updateOne(
+          { _id: req.user._id },
+          { $pull: { wishlist: id } }
+        ).then();
+        return res.status(400).send({ message: "Removed from wishlist" });
+      }
+    }
+
+    Artist.updateOne({ _id: req.user._id }, { $push: { wishlist: id } }).then();
+    return res.status(200).send({ message: "Added to cart successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getCartItems = async (req, res) => {
+  try {
+    const artist = await Artist.countDocuments({ _id: req.user._id }).lean(
+      true
+    );
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const cartItems = await Artist.findOne({ _id: req.user._id }, { cart: 1 })
+      .populate("cart", "artworkName pricing media")
+      .lean(true);
+
+    return res
+      .status(200)
+      .send({ data: cartItems, url: "http://91.108.113.224:5000" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getWishlistItems = async (req, res) => {
+  try {
+    const artist = await Artist.countDocuments({ _id: req.user._id }).lean(
+      true
+    );
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const wishlistItems = await Artist.findOne(
+      { _id: req.user._id },
+      { wishlist: 1 }
+    )
+      .populate("wishlist", "artworkName pricing media")
+      .lean(true);
+
+    return res
+      .status(200)
+      .send({ data: wishlistItems, url: "http://91.108.113.224:5000" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
 
 module.exports = {
   login,
@@ -960,4 +1074,8 @@ module.exports = {
   getActivedArtists,
   getUserTickets,
   replyTicketUser,
+  addRemoveToCart,
+  addRemoveToWishlist,
+  getCartItems,
+  getWishlistItems,
 };
