@@ -34,6 +34,9 @@ const {
   addTicket,
   getInsigniaById,
   deleteInsignia,
+  addFAQ,
+  getFAQList,
+  getFAQById,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -165,5 +168,11 @@ router.post("/add-catalog", validateAdminToken, addCatalog);
 router.get("/get-all-catalog", validateAdminToken, getCatalog);
 
 router.get("/get-catalog-by-id/:id", validateAdminToken, getCatalogById);
+
+router.post("/add-faq", validateAdminToken, addFAQ);
+
+router.get("/get-all-faq", validateAdminToken, getFAQList);
+
+router.get("/get-faq-by-id/:id", validateAdminToken, getFAQById);
 
 module.exports = router;

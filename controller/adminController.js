@@ -2217,7 +2217,7 @@ const addFAQ = async (req, res) => {
     let arr = [];
     if (fileData?.data?.faqImg) {
       fileData.data.faqImg.forEach((item) => {
-        arr.push(item);
+        arr.push(item.filename);
       });
     }
 
@@ -2257,13 +2257,17 @@ const getFAQList = async (req, res) => {
       return res.status(400).send({ message: `Admin not found` });
     }
 
-    let { s } = req.query;
+    let { s, grp } = req.query;
+    if (grp === "All") {
+      grp = "";
+    }
 
     const faqList = await FAQ.aggregate([
       {
         $match: {
           isDeleted: false,
-          faqGrp: { $regex: s, $options: "i" },
+          faqGrp: { $regex: grp, $options: "i" },
+          faqQues: { $regex: s, $options: "i" },
         },
       },
       {
@@ -2357,4 +2361,7 @@ module.exports = {
   ticketDetail,
   replyTicket,
   getTicketReplies,
+  addFAQ,
+  getFAQList,
+  getFAQById,
 };
