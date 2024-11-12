@@ -24,7 +24,7 @@ const Style = require("../models/styleModel");
 const Technic = require("../models/technicModel");
 const Theme = require("../models/themeModel");
 const MediaSupport = require("../models/mediaSupportModel");
-const { console } = require("inspector");
+const FAQ = require("../models/faqModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -628,7 +628,9 @@ const getDisciplineById = async (req, res) => {
       // isDeleted: false,
     }).lean(true);
 
-    res.status(200).send({ data: discipline });
+    res
+      .status(200)
+      .send({ data: discipline, url: "http://91.108.113.224:5000" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2196,7 +2198,117 @@ const getTicketReplies = async (req, res) => {
       data: replies,
     });
   } catch (error) {
-    APIErrorLog.error("Error while replying the ticket");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addFAQ = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.query;
+    const fileData = await fileUploadFunc(req, res);
+
+    let arr = [];
+    if (fileData?.data?.faqImg) {
+      fileData.data.faqImg.forEach((item) => {
+        arr.push(item);
+      });
+    }
+
+    const obj = {
+      faqGrp: req.body.faqGrp,
+      faqQues: req.body.faqQues,
+      faqAns: req.body.faqAns,
+      tags: req.body.tags,
+      faqImg: arr,
+    };
+
+    const condition = {
+      $set: obj,
+    };
+
+    if (id === undefined) {
+      await FAQ.create(obj);
+      return res.status(201).send({ message: "FAQ added successfully" });
+    } else {
+      FAQ.updateOne({ _id: id }, condition).then();
+      return res.status(201).send({ message: "FAQ updated successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getFAQList = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({ message: `Admin not found` });
+    }
+
+    let { s } = req.query;
+
+    const faqList = await FAQ.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          faqGrp: { $regex: s, $options: "i" },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          faqGrp: 1,
+          faqQues: 1,
+          faqAns: 1,
+          tags: 1,
+          faqImg: 1,
+          createdAt: 1,
+        },
+      },
+    ]);
+
+    res
+      .status(201)
+      .send({ message: "FAQ list retrieved successfully", data: faqList });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getFAQById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const faq = await FAQ.findOne({ _id: id }).lean(true);
+
+    if (!faq) {
+      return res.status(400).send({ message: "FAQ not found" });
+    }
+
+    return res.status(201).send({
+      message: "FAQ retrieved successfully",
+      data: faq,
+      url: "http://91.108.113.224:5000",
+    });
+  } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }

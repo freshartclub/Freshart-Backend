@@ -7,7 +7,7 @@ const faqSchema = new mongoose.Schema(
       default: false,
     },
     faqImg: {
-      type: String,
+      type: Array,
     },
     faqGrp: {
       type: String,
@@ -15,7 +15,7 @@ const faqSchema = new mongoose.Schema(
     faqQues: {
       type: String,
     },
-    faqDesc: {
+    faqAns: {
       type: String,
     },
     tags: {

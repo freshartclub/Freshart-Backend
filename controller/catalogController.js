@@ -97,7 +97,6 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
 
   const catalog = await Catalog.findOne({
     _id: req.params.id,
-    isDeleted: false,
   }).lean(true);
 
   res.status(200).send({ data: catalog, url: "http://91.108.113.224:5000" });
