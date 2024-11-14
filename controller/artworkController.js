@@ -350,11 +350,16 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
 
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  const { artistId } = req.query;
+  const { nameEmail } = req.query;
   const query = {};
 
-  if (artistId) {
-    query.artistId = { $regex: artistId, $options: "i" };
+  if (nameEmail) {
+    query.$or = [
+      { artistName: { $regex: nameEmail, $options: "i" } },
+      { artistSurname1: { $regex: nameEmail, $options: "i" } },
+      { artistSurname2: { $regex: nameEmail, $options: "i" } },
+      { email: { $regex: nameEmail, $options: "i" } },
+    ];
   }
 
   const artists = await Artist.find(

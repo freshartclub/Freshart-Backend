@@ -240,6 +240,7 @@ const artistRegister = async (req, res) => {
         {
           pageCount: 1,
           artistId: 1,
+          profile: 1,
         }
       ).lean(true);
     }
@@ -347,6 +348,10 @@ const artistRegister = async (req, res) => {
           about: req.body.about.trim(),
         };
 
+        if (req?.body?.link?.length) {
+          obj["links"] = req?.body?.link;
+        }
+
         if (req.body?.insignia?.length) {
           obj["insignia"] = req.body.insignia;
         }
@@ -374,14 +379,14 @@ const artistRegister = async (req, res) => {
         obj["profile"] = {
           mainImage: fileData.data?.profileImage
             ? fileData.data.profileImage[0].filename
-            : artist.mainImage,
+            : artist?.profile?.mainImage,
           additionalImage: additionalImages,
           inProcessImage: fileData.data?.inProcessImage
             ? fileData.data.inProcessImage[0].filename
-            : null,
+            : artist?.profile?.inProcessImage,
           mainVideo: fileData.data?.mainVideo
             ? fileData.data.mainVideo[0].filename
-            : null,
+            : artist?.profile?.mainVideo,
           additionalVideo: additionalVideos,
         };
 

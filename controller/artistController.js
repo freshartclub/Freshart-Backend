@@ -515,10 +515,10 @@ const becomeArtist = async (req, res) => {
       }
     }
 
-    if (req.body.socialMedia) {
+    if (req.body?.socialMedia) {
       links.push({
-        socialMedia: req.body.socialMedia,
-        website: req.body.website,
+        name: req.body.socialMedia,
+        link: req.body.website,
       });
     }
 
@@ -751,46 +751,98 @@ const editArtistProfile = async (req, res) => {
         _id: req.user._id,
         isDeleted: false,
       },
-      { avatar: 1 }
+      { profile: 1 }
     ).lean(true);
+
     const fileData = await fileUploadFunc(req, res);
 
-    const cvEntries = Array.isArray(req.body.cvEntries)
-      ? req.body.cvEntries.map((item) => JSON.parse(item))
-      : req.body.cvEntries;
+    let cvArr = [];
+    let accountArr = [];
+    let additionalImages = [];
+    let additionalVideos = [];
 
-    const accounts = Array.isArray(req.body.accounts)
-      ? req.body.accounts.map((item) => JSON.parse(item))
-      : req.body.accounts;
+    if (fileData.data?.additionalImage) {
+      fileData.data?.additionalImage.forEach((element) => {
+        additionalImages.push(element.filename);
+      });
+    }
+
+    if (fileData.data?.additionalVideo) {
+      fileData.data?.additionalVideo.forEach((element) => {
+        additionalVideos.push(element.filename);
+      });
+    }
+
+    if (req.body.cvEntries) {
+      const cvEntries = Array.isArray(req.body.cvEntries)
+        ? req.body.cvEntries.map((item) => JSON.parse(item))
+        : req.body.cvEntries;
+
+      if (typeof cvEntries === "string") {
+        const obj = JSON.parse(cvEntries);
+        cvArr.push(obj);
+      } else {
+        cvEntries.forEach((element) => {
+          cvArr.push(element);
+        });
+      }
+    }
+
+    if (req.body.accounts) {
+      const accounts = Array.isArray(req.body.accounts)
+        ? req.body.accounts.map((item) => JSON.parse(item))
+        : req.body.accounts;
+
+      if (typeof accounts === "string") {
+        const obj = JSON.parse(accounts);
+        accountArr.push(obj);
+      } else {
+        accounts.forEach((element) => {
+          accountArr.push(element);
+        });
+      }
+    }
 
     let obj = {
-      avatar: fileData?.data?.avatar
-        ? fileData?.data.avatar[0].filename
+      avatar: fileData?.data?.mainImage
+        ? fileData?.data?.mainImage[0].filename
         : artist?.avatar,
       artistName: req.body.artistName,
       artistSurname1: req.body.artistSurname2,
       artistSurname2: req.body.artistSurname2,
+      nickName: req.body.nickName,
       gender: req.body.gender,
+      language: req.body.language,
+      phone: req.body.phoneNumber,
       dob: req.body.dob,
       aboutArtist: {
         about: req.body.about,
       },
       highlights: {
-        cv: cvEntries,
+        cv: cvArr,
+      },
+      profile: {
+        mainImage: fileData?.data?.profileImage
+          ? fileData?.data?.profileImage[0].filename
+          : artist?.profile?.profileImage,
+        additionalImage: additionalImages,
+        inProcessImage: fileData.data?.inProcessImage
+          ? fileData.data.inProcessImage[0].filename
+          : artist?.profile?.inProcessImage,
+        mainVideo: fileData.data?.mainVideo
+          ? fileData.data.mainVideo[0].filename
+          : artist?.profile?.mainVideo,
+        additionalVideo: additionalVideos,
       },
       address: {
         country: req.body.country,
-        zipCode: String(req.body.zipCode),
+        zipCode: req.body.zip,
         city: req.body.city,
-        state: req.body.state,
+        state: req.body.stateRegion,
+        residentialAddress: req.body.address,
       },
     };
-
-    if (req?.body?.accounts) {
-      obj["links"] = accounts;
-    }
-
-    console.log(obj);
+    obj["links"] = accountArr;
 
     Artist.updateOne(
       { _id: artist._id, isDeleted: false },
