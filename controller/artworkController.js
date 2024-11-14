@@ -335,7 +335,7 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Artwork Already Published" });
   }
 
-  ArtWork.updateOne({ _id: id }, { status: "published" }).then();
+  ArtWork.updateOne({ _id: id }, { status: "pending" }).then();
 
   return res
     .status(200)
