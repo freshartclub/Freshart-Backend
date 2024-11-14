@@ -1012,7 +1012,6 @@ const createInsignias = async (req, res) => {
     if (id !== undefined) {
       const isExisting = await Insignia.countDocuments({
         _id: id,
-        // isDeleted: false,
       });
 
       if (isExisting && isExisting !== 1) {
@@ -1035,7 +1034,7 @@ const createInsignias = async (req, res) => {
       credentialName: req.body.credentialName.trim(),
       credentialGroup: req.body.credentialGroup.trim(),
       credentialPriority: req.body.credentialPriority.trim(),
-      isActive: JSON.parse(req.body.isActive),
+      isActive: JSON.parse(req.body.isActive) ? true : false,
       isDeleted: JSON.parse(req.body.isActive) ? false : true,
     };
 
@@ -1954,8 +1953,16 @@ const addTicket = async (req, res) => {
       isDeleted: false,
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
-    const { id, ticketType, status, urgency, priority, subject, message } =
-      req.body;
+    const {
+      id,
+      ticketType,
+      status,
+      impact,
+      urgency,
+      priority,
+      subject,
+      message,
+    } = req.body;
 
     const randomNumber = Math.floor(100000 + Math.random() * 900000);
     const year = new Date().getFullYear();
@@ -1967,6 +1974,7 @@ const addTicket = async (req, res) => {
       ticketType,
       status,
       urgency,
+      impact,
       priority,
       subject,
       message,

@@ -25,6 +25,9 @@ const ticketSchema = new mongoose.Schema(
     priority: {
       type: String,
     },
+    impact: {
+      type: String,
+    },
     region: {
       type: String,
     },

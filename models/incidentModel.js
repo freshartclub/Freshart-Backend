@@ -23,9 +23,6 @@ const incidentSchema = new mongoose.Schema(
     note: {
       type: String,
     },
-    date: {
-      type: Date,
-    },
     initTime: {
       type: Date,
     },

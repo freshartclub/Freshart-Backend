@@ -16,7 +16,6 @@ const addIncident = catchAsyncError(async (req, res, next) => {
     description: req.body.description,
     title: req.body.title,
     severity: req.body.severity,
-    date: req.body.date,
     status: req.body.status,
     note: req.body.note,
     initTime: req.body.initTime,
