@@ -79,14 +79,23 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     offensive: req.body.offensive,
   };
 
-  obj["commercialization"] = {
-    purchaseCatalog: req.body.purchaseCatalog,
-    artistbaseFees: req.body.artistbaseFees,
-    downwardOffer: req.body.downwardOffer,
-    upworkOffer: req.body.upworkOffer,
-    acceptOfferPrice: req.body.acceptOfferPrice,
-    priceRequest: req.body.priceRequest,
-  };
+  if (req?.body?.purchaseOptions === "subscription") {
+    obj["commercialization"] = {
+      purchaseOptions: req.body.purchaseOptions,
+      purchaseOption: req.body.purchaseOption,
+      purchaseCatalog: req.body.purchaseCatalog,
+    };
+  } else {
+    obj["commercialization"] = {
+      purchaseOptions: req.body.purchaseOptions,
+      purchaseCatalog: req.body.purchaseCatalog,
+      artistbaseFees: req.body.artistbaseFees,
+      downwardOffer: req.body.downwardOffer,
+      upworkOffer: req.body.upworkOffer,
+      acceptOfferPrice: req.body.acceptOfferPrice,
+      priceRequest: req.body.priceRequest,
+    };
+  }
 
   obj["pricing"] = {
     basePrice: req.body.basePrice,
@@ -432,7 +441,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
 
   res
     .status(200)
-    .send({ data: artworkList, url: "http://91.108.113.224:5000" });
+    .send({ data: artworkList, url: "https://dev.freshartclub.com/images" });
 });
 
 const removeArtwork = catchAsyncError(async (req, res, next) => {
@@ -450,7 +459,9 @@ const getUserArtwork = catchAsyncError(async (req, res, next) => {
     .sort({ createdAt: -1 })
     .lean(true);
 
-  res.status(200).send({ data: artworks, url: "http://91.108.113.224:5000" });
+  res
+    .status(200)
+    .send({ data: artworks, url: "https://dev.freshartclub.com/images" });
 });
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
@@ -488,7 +499,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
   res.status(200).send({
     data: artwork,
     artworks: artworks,
-    url: "http://91.108.113.224:5000",
+    url: "https://dev.freshartclub.com/images",
   });
 });
 

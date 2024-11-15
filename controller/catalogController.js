@@ -82,7 +82,9 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  res.status(200).send({ data: catalog, url: "http://91.108.113.224:5000" });
+  res
+    .status(200)
+    .send({ data: catalog, url: "https://dev.freshartclub.com/images" });
 });
 
 const getCatalogById = catchAsyncError(async (req, res, next) => {
@@ -99,7 +101,9 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
     _id: req.params.id,
   }).lean(true);
 
-  res.status(200).send({ data: catalog, url: "http://91.108.113.224:5000" });
+  res
+    .status(200)
+    .send({ data: catalog, url: "https://dev.freshartclub.com/images" });
 });
 
 module.exports = { addCatalog, getCatalog, getCatalogById };

@@ -23,6 +23,7 @@ const {
   addRemoveToWishlist,
   getWishlistItems,
   getCartItems,
+  ticketFeedback,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -65,6 +66,8 @@ router.get("/get-user-tickets", validateToken, getUserTickets);
 router.post("/reply-ticket/:id", validateToken, replyTicketUser);
 
 router.get("/ticket/:id", validateToken, ticketDetail);
+
+router.patch("/ticket-feedback/:id", validateToken, ticketFeedback);
 
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
 

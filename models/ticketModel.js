@@ -37,6 +37,14 @@ const ticketSchema = new mongoose.Schema(
     ticketImg: {
       type: Object,
     },
+    ticketFeedback: {
+      isLiked: {
+        type: String,
+      },
+      message: {
+        type: String,
+      },
+    },
   },
   {
     timestamps: true,

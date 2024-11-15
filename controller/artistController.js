@@ -632,7 +632,7 @@ const getArtistDetails = async (req, res) => {
 
     res.status(200).send({
       artist: artist,
-      url: "http://91.108.113.224:5000",
+      url: "https://dev.freshartclub.com/images",
       message: `welcome ${artist.artistName ? artist.artistName : "Back"}`,
     });
   } catch (error) {
@@ -688,7 +688,7 @@ const getArtistDetailById = async (req, res) => {
     res.status(200).send({
       artist: artist,
       artworks: artistArtworks,
-      url: "http://91.108.113.224:5000",
+      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
@@ -972,6 +972,37 @@ const replyTicketUser = async (req, res) => {
   }
 };
 
+const ticketFeedback = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { message, isLiked } = req.body;
+
+    const ticketData = await Ticket.countDocuments({ _id: id });
+    if (!ticketData) {
+      return res.status(400).send({ message: "Ticket not found" });
+    }
+
+    Ticket.updateOne(
+      { _id: id },
+      {
+        $set: {
+          ticketFeedback: {
+            isLiked,
+            message,
+          },
+        },
+      }
+    ).then();
+
+    return res.status(201).json({
+      message: "Ticket feedback given successfully",
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const getActivedArtists = async (req, res) => {
   try {
     const artists = await Artist.find(
@@ -990,7 +1021,7 @@ const getActivedArtists = async (req, res) => {
 
     return res.status(200).send({
       artists: artists,
-      url: "http://91.108.113.224:5000",
+      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     return res.status(500).json({ message: "Server error" });
@@ -1075,7 +1106,7 @@ const getCartItems = async (req, res) => {
 
     return res
       .status(200)
-      .send({ data: cartItems, url: "http://91.108.113.224:5000" });
+      .send({ data: cartItems, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1098,9 +1129,10 @@ const getWishlistItems = async (req, res) => {
       .populate("wishlist", "artworkName pricing media")
       .lean(true);
 
-    return res
-      .status(200)
-      .send({ data: wishlistItems, url: "http://91.108.113.224:5000" });
+    return res.status(200).send({
+      data: wishlistItems,
+      url: "https://dev.freshartclub.com/images",
+    });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1122,6 +1154,7 @@ module.exports = {
   completeProfile,
   createTicket,
   ticketDetail,
+  ticketFeedback,
   editArtistProfile,
   getActivedArtists,
   getUserTickets,

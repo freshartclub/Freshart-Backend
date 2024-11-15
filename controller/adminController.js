@@ -630,12 +630,11 @@ const getDisciplineById = async (req, res) => {
 
     const discipline = await Discipline.findOne({
       _id: req.params.id,
-      // isDeleted: false,
     }).lean(true);
 
     res
       .status(200)
-      .send({ data: discipline, url: "http://91.108.113.224:5000" });
+      .send({ data: discipline, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1076,7 +1075,11 @@ const getRegisterArtist = async (req, res) => {
     if (data) {
       return res
         .status(200)
-        .send({ data: data, message: "Artist data received successfully" });
+        .send({
+          data: data,
+          message: "Artist data received successfully",
+          url: "https://dev.freshartclub.com/images",
+        });
     }
     return res.status(400).send({ message: "Artist not found" });
   } catch (error) {
@@ -1134,9 +1137,11 @@ const getInsignias = async (req, res) => {
       }
     }
 
-    return res
-      .status(200)
-      .send({ data: data, message: "Insignia List received successfully" });
+    return res.status(200).send({
+      data: data,
+      message: "Insignia List received successfully",
+      url: "https://dev.freshartclub.com/images",
+    });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1165,9 +1170,11 @@ const getInsigniaById = async (req, res) => {
       }
     }
 
-    return res
-      .status(200)
-      .send({ data: data, message: "Insignia received successfully" });
+    return res.status(200).send({
+      data: data,
+      message: "Insignia received successfully",
+      url: "https://dev.freshartclub.com/images",
+    });
   } catch (error) {
     APIErrorLog.error(error);
     // error response
@@ -2323,7 +2330,7 @@ const getFAQById = async (req, res) => {
     return res.status(201).send({
       message: "FAQ retrieved successfully",
       data: faq,
-      url: "http://91.108.113.224:5000",
+      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     APIErrorLog.error(error);
