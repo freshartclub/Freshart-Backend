@@ -1579,8 +1579,11 @@ const createNewUser = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    let checkUser = null;
     if (id !== "null") {
-      const checkUser = await Artist.findOne({ _id: id }).lean(true);
+      const checkUser = await Artist.findOne({ _id: id }, { profile: 1 }).lean(
+        true
+      );
       if (checkUser.pageCount > 0)
         return res
           .status(400)
@@ -1646,6 +1649,11 @@ const createNewUser = async (req, res) => {
         obj["role"] = "artist";
         obj["isArtistRequestStatus"] = "approved";
         obj["artistId"] = generateRandomId();
+        obj["profile"] = {
+          mainImage: isfileData
+            ? fileData.data.avatar[0].filename
+            : checkUser.profile.mainImage,
+        };
 
         let condition = { $set: obj };
         Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
