@@ -111,6 +111,7 @@ const listDiscipline = async (req, res) => {
 
     return res.status(200).send({
       data: data,
+      url: "https://dev.freshartclub.com/images",
       message: "Discipline List successfully received",
     });
   } catch (error) {

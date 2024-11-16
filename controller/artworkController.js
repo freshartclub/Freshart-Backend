@@ -14,12 +14,17 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   }).lean(true);
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  const artist = await Artist.findOne({ _id: id });
+  const artist = await Artist.findOne({ _id: id }, { isActivated: 1 }).lean(
+    true
+  );
   if (!artist) return res.status(400).send({ message: `Artist not found` });
-
   if (!artist.isActivated) {
     return res.status(400).send({ message: `Artist not activated` });
   }
+
+  const artwork = await ArtWork.findOne({ _id: artworkId }, { media: 1 }).lean(
+    true
+  );
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
@@ -28,6 +33,30 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       images.push(element.filename);
     });
   }
+
+  if (req?.body?.existingImages !== undefined) {
+    if (typeof req?.body?.existingImages === "string") {
+      images.push(req?.body?.existingImages);
+    } else {
+      for (let i = 0; i < req?.body?.existingImages.length; i++) {
+        images.push(req?.body?.existingImages[i]);
+      }
+    }
+  }
+
+  const newImageArr =
+    images?.map((element) => {
+      if (
+        typeof element === "string" &&
+        element.includes("https://dev.freshartclub.com/images/users")
+      ) {
+        return element.replace(
+          "https://dev.freshartclub.com/images/users/",
+          ""
+        );
+      }
+      return element;
+    }) || [];
 
   let obj = {
     artworkName: req.body.artworkName,
@@ -39,15 +68,22 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   };
 
   obj["media"] = {
-    backImage: fileData.data?.backImage && fileData.data?.backImage[0].filename,
-    images: images,
-    inProcessImage:
-      fileData.data?.inProcessImage &&
-      fileData.data?.inProcessImage[0].filename,
-    mainImage: fileData.data?.mainImage && fileData.data?.mainImage[0].filename,
-    mainVideo: fileData.data?.mainVideo && fileData.data?.mainVideo[0].filename,
-    otherVideo:
-      fileData.data?.otherVideo && fileData.data?.otherVideo[0].filename,
+    backImage: fileData.data?.backImage
+      ? fileData.data?.backImage[0].filename
+      : artwork?.media?.backImage,
+    images: newImageArr,
+    inProcessImage: fileData.data?.inProcessImage
+      ? fileData.data?.inProcessImage[0].filename
+      : artwork?.media?.inProcessImage,
+    mainImage: fileData.data?.mainImage
+      ? fileData.data?.mainImage[0].filename
+      : artwork?.media?.mainImage,
+    mainVideo: fileData.data?.mainVideo
+      ? fileData.data?.mainVideo[0].filename
+      : artwork?.media?.mainVideo,
+    otherVideo: fileData.data?.otherVideo
+      ? fileData.data?.otherVideo[0].filename
+      : artwork?.media?.otherVideo,
   };
 
   obj["additionalInfo"] = {
@@ -161,8 +197,9 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
-  if (fileData.data?.additionalImage) {
-    fileData.data?.additionalImage.forEach((element) => {
+  if (fileData.data?.images) {
+    console.log(fileData.data?.images);
+    fileData.data?.images.forEach((element) => {
       images.push(element.filename);
     });
   }
@@ -428,6 +465,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         isDeleted: 1,
         isApproved: 1,
         status: 1,
+        media: 1,
         artworkName: 1,
         artworkCreationYear: 1,
         artworkSeries: 1,

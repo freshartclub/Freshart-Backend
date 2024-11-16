@@ -27,8 +27,7 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const obj = {
-    catalogImg: fileData?.data?.catalogImg[0].filename,
+  let obj = {
     catalogName: req.body.catalogName,
     catalogDesc: req.body.catalogDesc,
     artworkList: req.body.artworkList,
@@ -37,6 +36,10 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
     subPlan: req.body.subPlan,
     exclusiveCatalog: req.body.exclusiveCatalog,
   };
+
+  if (fileData.data !== undefined) {
+    obj["catalogImg"] = fileData.data.catalogImg[0].filename;
+  }
 
   const condition = { $set: obj };
 

@@ -249,28 +249,100 @@ const artistRegister = async (req, res) => {
     let additionalVideos = [];
     let documnets = [];
 
-    if (fileData.data?.additionalImage) {
+    if (fileData?.data?.additionalImage) {
       fileData.data?.additionalImage.forEach((element) => {
         additionalImages.push(element.filename);
       });
     }
 
-    if (fileData.data?.additionalVideo) {
+    if (fileData?.data?.additionalVideo) {
       fileData.data?.additionalVideo.forEach((element) => {
         additionalVideos.push(element.filename);
       });
     }
 
-    if (fileData.data?.uploadDocs) {
+    if (fileData?.data?.uploadDocs) {
       fileData.data?.uploadDocs.forEach((element) => {
         documnets.push(element.filename);
       });
     }
 
+    if (req?.body?.existingImages !== undefined) {
+      if (typeof req?.body?.existingImages === "string") {
+        additionalImages.push(req?.body?.existingImages);
+      } else {
+        for (let i = 0; i < req?.body?.existingImages.length; i++) {
+          additionalImages.push(req?.body?.existingImages[i]);
+        }
+      }
+    }
+
+    if (req?.body?.existingVideos !== undefined) {
+      if (typeof req?.body?.existingVideos === "string") {
+        additionalVideos.push(req?.body?.existingVideos);
+      } else {
+        for (let i = 0; i < req?.body?.existingVideos.length; i++) {
+          additionalVideos.push(req?.body?.existingVideos[i]);
+        }
+      }
+    }
+
+    if (req?.body?.existingDocuments !== undefined) {
+      if (typeof req?.body?.existingDocuments === "string") {
+        documnets.push(req?.body?.existingDocuments);
+      } else {
+        for (let i = 0; i < req?.body?.existingDocuments.length; i++) {
+          documnets.push(req?.body?.existingDocuments[i]);
+        }
+      }
+    }
+
+    const newImageArr =
+      additionalImages?.map((element) => {
+        if (
+          typeof element === "string" &&
+          element.includes("https://dev.freshartclub.com/images/users")
+        ) {
+          return element.replace(
+            "https://dev.freshartclub.com/images/users/",
+            ""
+          );
+        }
+        return element;
+      }) || [];
+
+    const newVideoArr =
+      additionalVideos?.map((element) => {
+        if (
+          typeof element === "string" &&
+          element.includes("https://dev.freshartclub.com/images/users")
+        ) {
+          return element.replace(
+            "https://dev.freshartclub.com/images/users/",
+            ""
+          );
+        }
+        return element;
+      }) || [];
+
+    const newDocumentArr =
+      documnets?.map((element) => {
+        if (
+          typeof element === "string" &&
+          element.includes("https://dev.freshartclub.com/images/users")
+        ) {
+          return element.replace(
+            "https://dev.freshartclub.com/images/users/",
+            ""
+          );
+        }
+        return element;
+      }) || [];
+
     let count = null;
     if (fileData.data === undefined) {
       count = Number(req.body.count);
-    } else if (Object.keys(fileData.data).includes("profileImage")) {
+    } else if (req.body.count == "4") {
       count = 4;
     } else {
       count = 7;
@@ -367,36 +439,27 @@ const artistRegister = async (req, res) => {
         break;
 
       case 4:
-        if (fileData.type !== "success") {
-          return res.status(fileData.status).send({
-            message:
-              fileData?.type === "fileNotFound"
-                ? "Please upload the documents"
-                : fileData.type,
-          });
-        }
-
         obj["profile"] = {
           mainImage: fileData.data?.profileImage
             ? fileData.data.profileImage[0].filename
             : artist?.profile?.mainImage,
-          additionalImage: additionalImages,
+          additionalImage: newImageArr,
           inProcessImage: fileData.data?.inProcessImage
             ? fileData.data.inProcessImage[0].filename
             : artist?.profile?.inProcessImage,
           mainVideo: fileData.data?.mainVideo
             ? fileData.data.mainVideo[0].filename
             : artist?.profile?.mainVideo,
-          additionalVideo: additionalVideos,
+          additionalVideo: newVideoArr,
         };
 
         if (count > artist.pageCount) {
           obj["pageCount"] = count;
         }
+
         break;
 
       case 5:
-        console.log(req.body);
         obj["invoice"] = {
           taxNumber: req.body.taxNumber.trim(),
           taxLegalName: req.body.taxLegalName
@@ -454,7 +517,7 @@ const artistRegister = async (req, res) => {
 
       case 7:
         obj["document"] = {
-          documents: documnets,
+          documents: newDocumentArr,
           documentName: req.body.documentName,
         };
 
@@ -590,13 +653,16 @@ const addDiscipline = async (req, res) => {
       }
     }
 
-    const obj = {
-      disciplineImage: fileData.data.disciplineImage[0].filename,
+    let obj = {
       disciplineName: req.body.name,
       disciplineSpanishName: req.body.spanishName,
       disciplineDescription: req.body.description,
       isDeleted: req.body.isDeleted,
     };
+
+    if (fileData.data !== undefined) {
+      obj["disciplineImage"] = fileData.data.disciplineImage[0].filename;
+    }
 
     let condition = {
       $set: obj,
@@ -999,14 +1065,6 @@ const createInsignias = async (req, res) => {
     const { id } = req.query;
 
     const fileData = await fileUploadFunc(req, res);
-    if (fileData.type !== "success") {
-      return res.status(fileData.status).send({
-        message:
-          fileData?.type === "fileNotFound"
-            ? "Please upload the image"
-            : fileData.type,
-      });
-    }
 
     if (id !== undefined) {
       const isExisting = await Insignia.countDocuments({
@@ -1019,7 +1077,6 @@ const createInsignias = async (req, res) => {
     } else {
       const isExisting = await Insignia.countDocuments({
         credentialName: req.body.credentialName,
-        // isDeleted: false,
       });
 
       if (isExisting) {
@@ -1029,7 +1086,7 @@ const createInsignias = async (req, res) => {
       }
     }
 
-    const obj = {
+    let obj = {
       credentialName: req.body.credentialName.trim(),
       credentialGroup: req.body.credentialGroup.trim(),
       credentialPriority: req.body.credentialPriority.trim(),
@@ -1037,7 +1094,9 @@ const createInsignias = async (req, res) => {
       isDeleted: JSON.parse(req.body.isActive) ? false : true,
     };
 
-    obj["insigniaImage"] = fileData.data.insigniaImage[0]?.filename;
+    if (fileData.data !== undefined) {
+      obj["insigniaImage"] = fileData.data.insigniaImage[0]?.filename;
+    }
 
     let condition = {
       $set: obj,
@@ -1073,13 +1132,11 @@ const getRegisterArtist = async (req, res) => {
     }).lean(true);
 
     if (data) {
-      return res
-        .status(200)
-        .send({
-          data: data,
-          message: "Artist data received successfully",
-          url: "https://dev.freshartclub.com/images",
-        });
+      return res.status(200).send({
+        data: data,
+        message: "Artist data received successfully",
+        url: "https://dev.freshartclub.com/images",
+      });
     }
     return res.status(400).send({ message: "Artist not found" });
   } catch (error) {
@@ -2241,12 +2298,36 @@ const addFAQ = async (req, res) => {
       });
     }
 
-    const obj = {
+    if (req?.body?.existingImages !== undefined) {
+      if (typeof req?.body?.existingImages === "string") {
+        arr.push(req?.body?.existingImages);
+      } else {
+        for (let i = 0; i < req?.body?.existingImages.length; i++) {
+          arr.push(req?.body?.existingImages[i]);
+        }
+      }
+    }
+
+    const newArr =
+      arr?.map((element) => {
+        if (
+          typeof element === "string" &&
+          element.includes("https://dev.freshartclub.com/images/users")
+        ) {
+          return element.replace(
+            "https://dev.freshartclub.com/images/users/",
+            ""
+          );
+        }
+        return element;
+      }) || [];
+
+    let obj = {
       faqGrp: req.body.faqGrp,
       faqQues: req.body.faqQues,
       faqAns: req.body.faqAns,
       tags: req.body.tags,
-      faqImg: arr,
+      faqImg: newArr,
     };
 
     const condition = {
@@ -2303,9 +2384,11 @@ const getFAQList = async (req, res) => {
       },
     ]);
 
-    res
-      .status(201)
-      .send({ message: "FAQ list retrieved successfully", data: faqList });
+    res.status(201).send({
+      message: "FAQ list retrieved successfully",
+      data: faqList,
+      url: "https://dev.freshartclub.com/images",
+    });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
