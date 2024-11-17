@@ -1746,10 +1746,16 @@ const serachUser = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { userId } = req.query;
-    const query = {};
+    let query = {};
 
     if (userId) {
-      query.userId = { $regex: userId, $options: "i" };
+      query = {
+        $or: [
+          { userId: { $regex: userId, $options: "i" } },
+          { artistName: { $regex: userId, $options: "i" } },
+          { artistEmail: { $regex: userId, $options: "i" } },
+        ],
+      };
     }
 
     const users = await Artist.find(
@@ -1767,8 +1773,8 @@ const serachUser = async (req, res) => {
         phone: 1,
         address: 1,
         artistId: 1,
-        userId: 1,
-        avatar: 1,
+        profile: 1,
+        url: "https://dev.freshartclub.com/images",
       }
     ).lean(true);
     return res.status(200).send({ data: users });
