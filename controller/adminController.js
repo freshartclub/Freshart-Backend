@@ -1474,6 +1474,7 @@ const getArtistRequestList = async (req, res) => {
           phone: 1,
           createdAt: 1,
           isActivated: 1,
+          document: 1,
           userId: 1,
           artistId: 1,
           city: "$address.city",
