@@ -18,15 +18,6 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
   const { id } = req.query;
   const fileData = await fileUploadFunc(req, res);
 
-  if (fileData.type !== "success") {
-    return res.status(fileData.status).send({
-      message:
-        fileData?.type === "fileNotFound"
-          ? "Please upload the documents"
-          : fileData.type,
-    });
-  }
-
   let obj = {
     catalogName: req.body.catalogName,
     catalogDesc: req.body.catalogDesc,

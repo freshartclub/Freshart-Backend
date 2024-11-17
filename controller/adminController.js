@@ -2391,6 +2391,9 @@ const getFAQList = async (req, res) => {
           createdAt: 1,
         },
       },
+      {
+        $sort: { createdAt: -1 },
+      },
     ]);
 
     res.status(201).send({
