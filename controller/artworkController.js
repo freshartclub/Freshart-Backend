@@ -243,8 +243,6 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
   const fileData = await fileUploadFunc(req, res);
 
-  console.log(req.body);
-
   let images = [];
   let videos = [];
 
