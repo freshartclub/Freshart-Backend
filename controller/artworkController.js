@@ -29,9 +29,17 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
+  let videos = [];
+
   if (fileData.data?.images) {
     fileData.data?.images.forEach((element) => {
       images.push(element.filename);
+    });
+  }
+
+  if (fileData.data?.otherVideo) {
+    fileData.data?.otherVideo.forEach((element) => {
+      videos.push(element.filename);
     });
   }
 
@@ -45,6 +53,16 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
+  if (req?.body?.existingVideos !== undefined) {
+    if (typeof req?.body?.existingVideos === "string") {
+      videos.push(req?.body?.existingVideos);
+    } else {
+      for (let i = 0; i < req?.body?.existingVideos.length; i++) {
+        videos.push(req?.body?.existingVideos[i]);
+      }
+    }
+  }
+
   const newImageArr =
     images?.map((element) => {
       if (
@@ -53,6 +71,20 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       ) {
         return element.replace(
           "https://dev.freshartclub.com/images/users/",
+          ""
+        );
+      }
+      return element;
+    }) || [];
+
+  const newVideoArr =
+    videos?.map((element) => {
+      if (
+        typeof element === "string" &&
+        element.includes("https://dev.freshartclub.com/images/videos")
+      ) {
+        return element.replace(
+          "https://dev.freshartclub.com/images/videos/",
           ""
         );
       }
@@ -82,9 +114,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     mainVideo: fileData.data?.mainVideo
       ? fileData.data?.mainVideo[0].filename
       : artwork?.media?.mainVideo,
-    otherVideo: fileData.data?.otherVideo
-      ? fileData.data?.otherVideo[0].filename
-      : artwork?.media?.otherVideo,
+    otherVideo: newVideoArr,
   };
 
   obj["additionalInfo"] = {
@@ -116,15 +146,15 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     offensive: req.body.offensive,
   };
 
-  if (req?.body?.purchaseOptions === "subscription") {
+  if (req?.body?.activeTab === "subscription") {
     obj["commercialization"] = {
-      purchaseOptions: req.body.purchaseOptions,
+      activeTab: req.body.activeTab,
       purchaseOption: req.body.purchaseOption,
       purchaseCatalog: req.body.purchaseCatalog,
     };
   } else {
     obj["commercialization"] = {
-      purchaseOptions: req.body.purchaseOptions,
+      activeTab: req.body.activeTab,
       purchaseCatalog: req.body.purchaseCatalog,
       artistbaseFees: req.body.artistbaseFees,
       downwardOffer: req.body.downwardOffer,
@@ -213,18 +243,44 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
   const fileData = await fileUploadFunc(req, res);
 
+  console.log(req.body);
+
   let images = [];
+  let videos = [];
+
   if (fileData.data?.images) {
     fileData.data?.images.forEach((element) => {
       images.push(element.filename);
     });
   }
 
-  let videos = [];
   if (fileData.data?.otherVideo) {
     fileData.data?.otherVideo.forEach((element) => {
       videos.push(element.filename);
     });
+  }
+
+  const cleanArray = (inputArray) => {
+    if (!Array.isArray(inputArray)) return inputArray;
+    return inputArray.map((image) => image.replace(/^"|"$/g, ""));
+  };
+
+  if (req?.body?.existingImage) {
+    if (typeof req?.body?.existingImage === "string") {
+      images.push(req?.body?.existingImage.replace(/^"|"$/g, ""));
+    } else {
+      const cleanedImages = cleanArray(req?.body?.existingImage);
+      images = [...images, ...cleanedImages];
+    }
+  }
+
+  if (req?.body?.existingVideo) {
+    if (typeof req?.body?.existingVideo === "string") {
+      videos.push(req?.body?.existingVideo.replace(/^"|"$/g, ""));
+    } else {
+      const cleanedVideo = cleanArray(req?.body?.existingVideo);
+      videos = [...videos, ...cleanedVideo];
+    }
   }
 
   let styleArr = [];
@@ -298,8 +354,13 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkSeries: req.body.artworkSeries,
     productDescription: req.body.productDescription,
     collectionList: req.body.collectionList,
+    isArtProvider: req.body.artProvider,
     owner: artist._id,
   };
+
+  if (req.body?.artProvider === "yes") {
+    obj["provideArtistName"] = req.body.provideArtistName;
+  }
 
   obj["media"] = {
     backImage: fileData.data?.backImage
@@ -340,14 +401,23 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     offensive: req.body.offensive,
   };
 
-  obj["commercialization"] = {
-    purchaseCatalog: req.body.purchaseCatalog,
-    artistbaseFees: req.body.artistbaseFees,
-    downwardOffer: req.body.downwardOffer,
-    upworkOffer: req.body.upworkOffer,
-    acceptOfferPrice: req.body.acceptOfferPrice,
-    priceRequest: req.body.priceRequest,
-  };
+  if (req?.body?.activeTab === "subscription") {
+    obj["commercialization"] = {
+      activeTab: req.body.activeTab,
+      purchaseOption: req.body.purchaseOption,
+      purchaseCatalog: req.body.purchaseCatalog,
+    };
+  } else {
+    obj["commercialization"] = {
+      activeTab: req.body.activeTab,
+      purchaseCatalog: req.body.purchaseCatalog,
+      artistbaseFees: req.body.artistbaseFees,
+      downwardOffer: req.body.downwardOffer,
+      upworkOffer: req.body.upworkOffer,
+      acceptOfferPrice: req.body.acceptOfferPrice,
+      priceRequest: req.body.priceRequest,
+    };
+  }
 
   obj["pricing"] = {
     basePrice: req.body.basePrice,
@@ -466,7 +536,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         isDeleted: false,
-        status: { $in: ["pending", "success", "rejected"] }
+        status: { $in: ["pending", "success", "rejected"] },
       },
     },
     {
@@ -490,7 +560,6 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         artistSurname1: "$ownerInfo.artistSurname1",
         artistSurname2: "$ownerInfo.artistSurname2",
         isDeleted: 1,
-        isApproved: 1,
         status: 1,
         media: 1,
         artworkName: 1,

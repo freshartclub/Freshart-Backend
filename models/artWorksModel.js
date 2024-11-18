@@ -6,10 +6,6 @@ const artWorkSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    isApproved: {
-      type: String,
-      default: "pending",
-    },
     status: {
       type: String,
       default: "draft",
@@ -18,6 +14,8 @@ const artWorkSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+    isArtProvider: { type: String },
+    provideArtistName: { type: String },
     rejectReason: { type: String },
     artworkName: { type: String },
     artworkCreationYear: { type: String },
