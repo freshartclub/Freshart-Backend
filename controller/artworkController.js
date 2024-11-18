@@ -22,9 +22,10 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Artist not activated` });
   }
 
-  const artwork = await ArtWork.findOne({ _id: artworkId }, { media: 1 }).lean(
-    true
-  );
+  const artwork = await ArtWork.findOne(
+    { _id: artworkId, isDeleted: false },
+    { media: 1 }
+  ).lean(true);
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
@@ -184,7 +185,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
 const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   const artist = await Artist.findOne(
-    { _id: req.user._id },
+    { _id: req.user._id, isDeleted: false },
     { isActivated: 1 }
   ).lean(true);
   if (!artist) return res.status(400).send({ message: `Artist not found` });
@@ -197,7 +198,10 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   let artworkData = null;
   if (id !== "null") {
-    artworkData = await ArtWork.findOne({ _id: id }, { media: 1 }).lean(true);
+    artworkData = await ArtWork.findOne(
+      { _id: id, isDeleted: false },
+      { media: 1 }
+    ).lean(true);
 
     if (!artworkData) {
       return res.status(400).send({ message: `Artwork not found` });
@@ -393,7 +397,11 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 const publishArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  const artwork = await ArtWork.findOne({ _id: id }, { status: 1 }).lean(true);
+  const artwork = await ArtWork.findOne(
+    { _id: id, isDeleted: false },
+    { status: 1 }
+  ).lean(true);
+  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status === "pending") {
     return res.status(400).send({ message: "Artwork Already Published" });
@@ -458,6 +466,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         isDeleted: false,
+        status: { $in: ["pending", "success", "rejected"] }
       },
     },
     {
@@ -502,7 +511,8 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
 
 const removeArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  await ArtWork.updateOne({ _id: id }, { $set: { isDeleted: true } });
+
+  await ArtWork.updateOne({ _id: id }, { $set: { status: "rejected" } });
 
   res.status(200).send({ message: "Artwork Removed Sucessfully" });
 });

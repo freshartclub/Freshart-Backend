@@ -18,6 +18,7 @@ const artWorkSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+    rejectReason: { type: String },
     artworkName: { type: String },
     artworkCreationYear: { type: String },
     artworkSeries: { type: String },
