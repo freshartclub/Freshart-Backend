@@ -194,11 +194,23 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (!artist.isActivated) {
     return res.status(400).send({ message: `Artist not activated` });
   }
+
+  let artworkData = null;
+  if (id !== "null") {
+    artworkData = await ArtWork.findOne({ _id: id }, { media: 1 }).lean(true);
+
+    if (!artworkData) {
+      return res.status(400).send({ message: `Artwork not found` });
+    }
+  }
+
+  if (artworkData && artworkData.status === "pending") {
+    return res.status(400).send({ message: `You cannot edit this artwork` });
+  }
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
   if (fileData.data?.images) {
-    console.log(fileData.data?.images);
     fileData.data?.images.forEach((element) => {
       images.push(element.filename);
     });
@@ -238,10 +250,10 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
     if (typeof artworkTags === "string") {
       const obj = JSON.parse(artworkTags);
-      tagsArr.push(obj.value);
+      tagsArr.push(obj.label);
     } else {
       artworkTags.forEach((element) => {
-        tagsArr.push(element.value);
+        tagsArr.push(element.label);
       });
     }
   }
@@ -286,13 +298,19 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   };
 
   obj["media"] = {
-    backImage: fileData.data?.backImage && fileData.data?.backImage[0].filename,
+    backImage: fileData.data?.backImage
+      ? fileData.data?.backImage[0].filename
+      : artworkData?.media?.backImage,
     images: images,
-    inProcessImage:
-      fileData.data?.inProcessImage &&
-      fileData.data?.inProcessImage[0].filename,
-    mainImage: fileData.data?.mainImage && fileData.data?.mainImage[0].filename,
-    mainVideo: fileData.data?.mainVideo && fileData.data?.mainVideo[0].filename,
+    inProcessImage: fileData.data?.inProcessImage
+      ? fileData.data?.inProcessImage[0].filename
+      : artworkData?.media?.inProcessImage,
+    mainImage: fileData.data?.mainImage
+      ? fileData.data?.mainImage[0].filename
+      : artworkData?.media?.mainImage,
+    mainVideo: fileData.data?.mainVideo
+      ? fileData.data?.mainVideo[0].filename
+      : artworkData?.media?.mainVideo,
     otherVideo: videos,
   };
 
@@ -377,7 +395,7 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne({ _id: id }, { status: 1 }).lean(true);
 
-  if (artwork.status === "published") {
+  if (artwork.status === "pending") {
     return res.status(400).send({ message: "Artwork Already Published" });
   }
 
