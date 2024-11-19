@@ -55,6 +55,7 @@ app.use("/health", (req, res) => res.send(`Welcome to the server`));
 app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/artist", require("./routes/artistRoutes"));
 app.use("/api/general", require("./routes/generalRoutes"));
+app.use("/api/picklist", require("./routes/picklistRoutes"));
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);

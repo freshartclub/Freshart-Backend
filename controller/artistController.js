@@ -727,7 +727,6 @@ const completeProfile = async (req, res) => {
       },
     };
 
-    // Artist.updateOne({ _id: id, isDeleted: false }, { $set: obj }).then();
     const artist = await Artist.findOneAndUpdate(
       { _id: id, isDeleted: false },
       { $set: obj }
@@ -761,16 +760,46 @@ const editArtistProfile = async (req, res) => {
     let additionalImages = [];
     let additionalVideos = [];
 
+    console.log(fileData.data);
+    console.log(req.body);
+
     if (fileData.data?.additionalImage) {
       fileData.data?.additionalImage.forEach((element) => {
         additionalImages.push(element.filename);
       });
     }
 
+    const cleanArray = (inputArray) => {
+      if (!Array.isArray(inputArray)) return inputArray;
+      return inputArray.map((image) => image.replace(/^"|"$/g, ""));
+    };
+
+    if (req?.body?.existingAdditionalImage) {
+      if (typeof req?.body?.existingAdditionalImage === "string") {
+        additionalImages.push(
+          req?.body?.existingAdditionalImage.replace(/^"|"$/g, "")
+        );
+      } else {
+        const cleanedImages = cleanArray(req?.body?.existingAdditionalImage);
+        additionalImages = [...additionalImages, ...cleanedImages];
+      }
+    }
+
     if (fileData.data?.additionalVideo) {
       fileData.data?.additionalVideo.forEach((element) => {
         additionalVideos.push(element.filename);
       });
+    }
+
+    if (req?.body?.existingAdditionalVideo) {
+      if (typeof req?.body?.existingAdditionalVideo === "string") {
+        additionalVideos.push(
+          req?.body?.existingAdditionalVideo.replace(/^"|"$/g, "")
+        );
+      } else {
+        const cleanedImages = cleanArray(req?.body?.existingAdditionalVideo);
+        additionalVideos = [...additionalVideos, ...cleanedImages];
+      }
     }
 
     if (req.body.cvEntries) {
@@ -804,9 +833,6 @@ const editArtistProfile = async (req, res) => {
     }
 
     let obj = {
-      avatar: fileData?.data?.mainImage
-        ? fileData?.data?.mainImage[0].filename
-        : artist?.avatar,
       artistName: req.body.artistName,
       artistSurname1: req.body.artistSurname2,
       artistSurname2: req.body.artistSurname2,
@@ -822,9 +848,9 @@ const editArtistProfile = async (req, res) => {
         cv: cvArr,
       },
       profile: {
-        mainImage: fileData?.data?.profileImage
-          ? fileData?.data?.profileImage[0].filename
-          : artist?.profile?.profileImage,
+        mainImage: fileData?.data?.mainImage
+          ? fileData?.data?.mainImage[0].filename
+          : artist?.profile?.mainImage,
         additionalImage: additionalImages,
         inProcessImage: fileData.data?.inProcessImage
           ? fileData.data.inProcessImage[0].filename
