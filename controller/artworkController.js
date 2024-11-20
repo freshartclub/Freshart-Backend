@@ -97,9 +97,13 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkSeries: req.body.artworkSeries,
     productDescription: req.body.productDescription,
     collectionList: req.body.collectionList,
+    isArtProvider: req.body.isArtProvider,
     owner: id,
   };
 
+  if (req.body?.artProvider === "yes") {
+    obj["provideArtistName"] = req.body.provideArtistName;
+  }
   obj["media"] = {
     backImage: fileData.data?.backImage
       ? fileData.data?.backImage[0].filename
@@ -165,6 +169,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   obj["pricing"] = {
+    currency: req.body.currency,
     basePrice: req.body.basePrice,
     dpersentage: req.body.dpersentage,
     vatAmount: req.body.vatAmount,
@@ -418,6 +423,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   obj["pricing"] = {
+    currency: req.body.currency,
     basePrice: req.body.basePrice,
     dpersentage: req.body.dpersentage,
     vatAmount: req.body.vatAmount,

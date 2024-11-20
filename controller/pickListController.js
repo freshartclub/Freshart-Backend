@@ -42,16 +42,7 @@ const addPickList = catchAsyncError(async (req, res, next) => {
 });
 
 const getPickList = catchAsyncError(async (req, res, next) => {
-  const admin = await Admin.countDocuments({
-    _id: req.user._id,
-    isDeleted: false,
-  }).lean(true);
-
-  if (!admin) {
-    return res.status(400).send({ message: `Admin not found` });
-  }
   const picklist = await PickList.find().lean(true);
-
   res.status(200).send({ data: picklist });
 });
 

@@ -3,7 +3,7 @@ const catchAsyncError = require("../functions/catchAsyncError");
 const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
 const { fileUploadFunc } = require("../functions/common");
-const Catalog = require("../models/catalogModel");
+const Collection = require("../models/collectionModel");
 
 const addCatalog = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({

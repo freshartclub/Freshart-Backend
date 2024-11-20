@@ -27,6 +27,9 @@ const catalogSchema = new mongoose.Schema(
     subPlan: {
       type: String,
     },
+    status: {
+      type: String,
+    },
     exclusiveCatalog: {
       type: Boolean,
       default: false,

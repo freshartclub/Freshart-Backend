@@ -6,13 +6,13 @@ const faqSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    faqGrp: {
+    kbGrp: {
       type: String,
     },
-    faqQues: {
+    kbTitle: {
       type: String,
     },
-    faqAns: {
+    kbDesc: {
       type: String,
     },
     tags: {
@@ -24,4 +24,4 @@ const faqSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("FAQ", faqSchema);
+module.exports = mongoose.model("KB", faqSchema);

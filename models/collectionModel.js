@@ -1,22 +1,22 @@
 const mongoose = require("mongoose");
 
-const faqSchema = new mongoose.Schema(
+const collectionSchema = new mongoose.Schema(
   {
     isDeleted: {
       type: Boolean,
       default: false,
     },
-    faqGrp: {
+    collectionName: {
       type: String,
     },
-    faqQues: {
+    collectionDesc: {
       type: String,
     },
-    faqAns: {
-      type: String,
-    },
-    tags: {
+    artworkList: {
       type: Array,
+    },
+    status: {
+      type: String,
     },
   },
   {
@@ -24,4 +24,4 @@ const faqSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("FAQ", faqSchema);
+module.exports = mongoose.model("Collection", collectionSchema);

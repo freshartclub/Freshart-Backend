@@ -37,6 +37,9 @@ const {
   addFAQ,
   getFAQList,
   getFAQById,
+  addKB,
+  getKBList,
+  getKBById,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -174,5 +177,11 @@ router.post("/add-faq", validateAdminToken, addFAQ);
 router.get("/get-all-faq", validateAdminToken, getFAQList);
 
 router.get("/get-faq-by-id/:id", validateAdminToken, getFAQById);
+
+router.post("/add-kb", validateAdminToken, addKB);
+
+router.get("/get-all-kb", validateAdminToken, getKBList);
+
+router.get("/get-kb-by-id/:id", validateAdminToken, getKBById);
 
 module.exports = router;

@@ -25,6 +25,7 @@ const Technic = require("../models/technicModel");
 const Theme = require("../models/themeModel");
 const MediaSupport = require("../models/mediaSupportModel");
 const FAQ = require("../models/faqModel");
+const KB = require("../models/kbModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -204,6 +205,7 @@ const testAdmin = async (req, res) => {
       _id: req.user._id,
       isDeleted: false,
     }).lean(true);
+
     return res.status(200).send({
       admin: req.user,
       message: `welcome ${admin?.firstName}`,
@@ -1606,7 +1608,14 @@ const createNewUser = async (req, res) => {
         .trim(),
       phone: req.body.phoneNumber.replace(/[- )(]/g, "").trim(),
       email: req.body.email.toLowerCase(),
-      avatar: isfileData ? fileData.data.avatar[0].filename : null,
+    };
+
+    obj["profile"] = {
+      mainImage: isfileData
+        ? fileData.data.avatar[0].filename
+        : checkUser.profile?.mainImage
+        ? checkUser.profile?.mainImage
+        : null,
     };
 
     obj["address"] = {
@@ -1653,11 +1662,6 @@ const createNewUser = async (req, res) => {
         obj["role"] = "artist";
         obj["isArtistRequestStatus"] = "approved";
         obj["artistId"] = generateRandomId();
-        obj["profile"] = {
-          mainImage: isfileData
-            ? fileData.data.avatar[0].filename
-            : checkUser.profile.mainImage,
-        };
 
         let condition = { $set: obj };
         Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
@@ -1837,12 +1841,36 @@ const getAllUsers = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const users = await Artist.find({
-      isDeleted: false,
-      userId: { $exists: true },
-    })
-      .sort({ createdAt: -1 })
-      .lean(true);
+    let { s } = req.query;
+
+    const users = await Artist.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          userId: { $exists: true },
+          $or: [
+            { userId: { $regex: s, $options: "i" } },
+            { artistName: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          role: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          userId: 1,
+          profile: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
 
     return res.status(200).send({ data: users });
   } catch (error) {
@@ -2307,45 +2335,12 @@ const addFAQ = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.query;
-    const fileData = await fileUploadFunc(req, res);
-
-    let arr = [];
-    if (fileData?.data?.faqImg) {
-      fileData.data.faqImg.forEach((item) => {
-        arr.push(item.filename);
-      });
-    }
-
-    if (req?.body?.existingImages !== undefined) {
-      if (typeof req?.body?.existingImages === "string") {
-        arr.push(req?.body?.existingImages);
-      } else {
-        for (let i = 0; i < req?.body?.existingImages.length; i++) {
-          arr.push(req?.body?.existingImages[i]);
-        }
-      }
-    }
-
-    const newArr =
-      arr?.map((element) => {
-        if (
-          typeof element === "string" &&
-          element.includes("https://dev.freshartclub.com/images/users")
-        ) {
-          return element.replace(
-            "https://dev.freshartclub.com/images/users/",
-            ""
-          );
-        }
-        return element;
-      }) || [];
 
     let obj = {
       faqGrp: req.body.faqGrp,
       faqQues: req.body.faqQues,
       faqAns: req.body.faqAns,
       tags: req.body.tags,
-      faqImg: newArr,
     };
 
     const condition = {
@@ -2396,7 +2391,6 @@ const getFAQList = async (req, res) => {
           faqQues: 1,
           faqAns: 1,
           tags: 1,
-          faqImg: 1,
           createdAt: 1,
         },
       },
@@ -2408,7 +2402,6 @@ const getFAQList = async (req, res) => {
     res.status(201).send({
       message: "FAQ list retrieved successfully",
       data: faqList,
-      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -2434,7 +2427,115 @@ const getFAQById = async (req, res) => {
     return res.status(201).send({
       message: "FAQ retrieved successfully",
       data: faq,
-      url: "https://dev.freshartclub.com/images",
+      // url: "https://dev.freshartclub.com/images",
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addKB = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.query;
+
+    let obj = {
+      kbGrp: req.body.kbGrp,
+      kbTitle: req.body.kbTitle,
+      kbDesc: req.body.kbDesc,
+      tags: req.body.tags,
+    };
+
+    const condition = {
+      $set: obj,
+    };
+
+    if (id === undefined) {
+      await KB.create(obj);
+      return res.status(201).send({ message: "KB added successfully" });
+    } else {
+      KB.updateOne({ _id: id }, condition).then();
+      return res.status(201).send({ message: "KB updated successfully" });
+    }
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getKBList = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+
+    if (!admin) {
+      return res.status(400).send({ message: `Admin not found` });
+    }
+
+    let { s, grp } = req.query;
+    if (grp === "All") {
+      grp = "";
+    }
+
+    const kbList = await KB.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          kbGrp: { $regex: grp, $options: "i" },
+          kbTitle: { $regex: s, $options: "i" },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          kbGrp: 1,
+          kbTitle: 1,
+          kbDesc: 1,
+          tags: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    res.status(201).send({
+      message: "KB list retrieved successfully",
+      data: kbList,
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getKBById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const kb = await KB.findOne({ _id: id }).lean(true);
+
+    if (!kb) {
+      return res.status(400).send({ message: "KB not found" });
+    }
+
+    return res.status(201).send({
+      message: "KB retrieved successfully",
+      data: kb,
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -2488,4 +2589,7 @@ module.exports = {
   addFAQ,
   getFAQList,
   getFAQById,
+  addKB,
+  getKBList,
+  getKBById,
 };
