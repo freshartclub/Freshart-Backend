@@ -1615,8 +1615,8 @@ const createNewUser = async (req, res) => {
     obj["profile"] = {
       mainImage: isfileData
         ? fileData.data.avatar[0].filename
-        : checkUser.profile?.mainImage
-        ? checkUser.profile?.mainImage
+        : checkUser?.profile?.mainImage
+        ? checkUser?.profile?.mainImage
         : null,
     };
 
