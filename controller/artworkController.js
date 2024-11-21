@@ -2,6 +2,7 @@ const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
 const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
+const RecentlyView = require("../models/recentlyView");
 const { fileUploadFunc } = require("../functions/common");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
@@ -24,8 +25,11 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne(
     { _id: artworkId, isDeleted: false },
-    { media: 1 }
+    { media: 1, status: 1 }
   ).lean(true);
+  if (artwork.status !== "draft")
+    return res.status(400).send({ message: `You can't edit this artwork` });
+
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
@@ -101,7 +105,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     owner: id,
   };
 
-  if (req.body?.artProvider === "yes") {
+  if (req.body?.isArtProvider === "yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
   }
   obj["media"] = {
@@ -154,7 +158,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
       purchaseOption: req.body.purchaseOption,
-      purchaseCatalog: req.body.purchaseCatalog,
+      subscriptionCatalog: req.body.subscriptionCatalog,
     };
   } else {
     obj["commercialization"] = {
@@ -235,7 +239,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (id !== "null") {
     artworkData = await ArtWork.findOne(
       { _id: id, isDeleted: false },
-      { media: 1 }
+      { media: 1, status: 1 }
     ).lean(true);
 
     if (!artworkData) {
@@ -243,7 +247,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  if (artworkData && artworkData.status === "pending") {
+  if (artworkData && artworkData.status !== "draft") {
     return res.status(400).send({ message: `You cannot edit this artwork` });
   }
   const fileData = await fileUploadFunc(req, res);
@@ -312,11 +316,10 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       : req.body.artworkTags;
 
     if (typeof artworkTags === "string") {
-      const obj = JSON.parse(artworkTags);
-      tagsArr.push(obj.label);
+      tagsArr.push(artworkTags.replace(/^"|"$/g, ""));
     } else {
       artworkTags.forEach((element) => {
-        tagsArr.push(element.label);
+        tagsArr.push(element);
       });
     }
   }
@@ -408,7 +411,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
       purchaseOption: req.body.purchaseOption,
-      purchaseCatalog: req.body.purchaseCatalog,
+      subscriptionCatalog: req.body.subscriptionCatalog,
     };
   } else {
     obj["commercialization"] = {
@@ -431,7 +434,6 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   };
 
   obj["inventoryShipping"] = {
-    sku: req.body.sku,
     pCode: req.body.pCode,
     location: req.body.location,
   };
@@ -477,15 +479,14 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
   ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
-  if (artwork.status === "pending") {
+  if (artwork.status === "draft") {
+    ArtWork.updateOne({ _id: id }, { status: "pending" }).then();
+    return res
+      .status(200)
+      .send({ message: "Artwork Published Sucessfully", data: artwork._id });
+  } else {
     return res.status(400).send({ message: "Artwork Already Published" });
   }
-
-  ArtWork.updateOne({ _id: id }, { status: "pending" }).then();
-
-  return res
-    .status(200)
-    .send({ message: "Artwork Published Sucessfully", data: artwork._id });
 });
 
 const getArtistById = catchAsyncError(async (req, res, next) => {
@@ -540,7 +541,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         isDeleted: false,
-        status: { $in: ["pending", "success", "rejected"] },
+        status: { $in: ["pending", "published", "rejected"] },
       },
     },
     {
@@ -566,6 +567,7 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         isDeleted: 1,
         status: 1,
         media: 1,
+        discipline: 1,
         artworkName: 1,
         artworkCreationYear: 1,
         artworkSeries: 1,
@@ -590,7 +592,7 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ message: "Artwork Removed Sucessfully" });
 });
 
-const getUserArtwork = catchAsyncError(async (req, res, next) => {
+const getArtistArtwork = catchAsyncError(async (req, res, next) => {
   const artworks = await ArtWork.find({
     owner: req.user._id,
   })
@@ -642,6 +644,134 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const getHomeArtwork = catchAsyncError(async (req, res, next) => {
+  const [newAdded, highlighted, artists] = await Promise.all([
+    ArtWork.find(
+      {
+        status: "published",
+        createdAt: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+      },
+      {
+        media: 1,
+        artworkName: 1,
+        additionalInfo: 1,
+        discipline: 1,
+      }
+    )
+      .populate("owner", "artistName artistSurname1 artistSurname2")
+      .lean(true),
+    ArtWork.find(
+      {
+        status: "published",
+      },
+      {
+        media: 1,
+        artworkName: 1,
+        additionalInfo: 1,
+        discipline: 1,
+      }
+    )
+      .populate("owner", "artistName artistSurname1 artistSurname2")
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean(true),
+    Artist.find(
+      {
+        isActivated: true,
+        isDeleted: false,
+      },
+      {
+        artistName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        aboutArtist: 1,
+        profile: 1,
+      }
+    )
+      .limit(15)
+      .lean(true),
+  ]);
+
+  res.status(200).send({
+    newAdded,
+    highlighted,
+    artists,
+    url: "https://dev.freshartclub.com/images",
+  });
+});
+
+const addToRecentView = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+
+  const artwork = await ArtWork.countDocuments({ _id: id }).lean(true);
+  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
+
+  const recentView = await RecentlyView.findOne({ owner: req.user._id }).lean(
+    true
+  );
+
+  if (recentView) {
+    if (recentView.artworks.includes(id)) {
+      return res.status(200).send({ message: "Artwork Already Added" });
+    } else {
+      if (recentView.artworks.length < 15) {
+        await RecentlyView.updateOne(
+          { owner: req.user._id },
+          { $push: { artworks: id } }
+        );
+      } else {
+        await RecentlyView.updateOne(
+          { owner: req.user._id },
+          { $pop: { artworks: -1 }, $push: { artworks: id } }
+        );
+      }
+    }
+  } else {
+    await RecentlyView.create({ owner: req.user._id, artworks: [id] });
+  }
+
+  res.status(200).send({ message: "Artwork Added to Recent View" });
+});
+
+const getRecentlyView = catchAsyncError(async (req, res, next) => {
+  const recentViewd = await RecentlyView.findOne({ owner: req.user._id }).lean(
+    true
+  );
+
+  const artworks = await ArtWork.find(
+    { _id: { $in: recentViewd.artworks } },
+    {
+      media: 1,
+      artworkName: 1,
+      additionalInfo: 1,
+      discipline: 1,
+    }
+  )
+    .populate("owner", "artistName artistSurname1 artistSurname2")
+    .lean(true);
+
+  res.status(200).send({
+    data: artworks,
+    url: "https://dev.freshartclub.com/images",
+  });
+});
+
+const validateArtwork = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+
+  const artwork = await ArtWork.findOne({ _id: id }, { status: 1 }).lean(true);
+  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
+
+  if (artwork.status === "pending") {
+    ArtWork.updateOne({ _id: id }, { status: "published" }).then();
+    return res.status(200).send({ message: "Artwork successfully validated" });
+  } else {
+    return res
+      .status(400)
+      .send({ message: "Artwork is in draft or already validated" });
+  }
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
@@ -649,6 +779,10 @@ module.exports = {
   getArtistById,
   removeArtwork,
   getArtworkById,
-  getUserArtwork,
+  getArtistArtwork,
   publishArtwork,
+  getHomeArtwork,
+  addToRecentView,
+  getRecentlyView,
+  validateArtwork,
 };

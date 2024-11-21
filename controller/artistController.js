@@ -760,9 +760,6 @@ const editArtistProfile = async (req, res) => {
     let additionalImages = [];
     let additionalVideos = [];
 
-    console.log(fileData.data);
-    console.log(req.body);
-
     if (fileData.data?.additionalImage) {
       fileData.data?.additionalImage.forEach((element) => {
         additionalImages.push(element.filename);
@@ -845,6 +842,7 @@ const editArtistProfile = async (req, res) => {
         about: req.body.about,
       },
       highlights: {
+        addHighlights: req.body.highlights.trim(),
         cv: cvArr,
       },
       profile: {

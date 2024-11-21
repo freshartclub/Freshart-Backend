@@ -14,6 +14,7 @@ const artWorkSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+    isHighlighted: { type: Boolean },
     isArtProvider: { type: String },
     provideArtistName: { type: String },
     rejectReason: { type: String },

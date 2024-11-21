@@ -49,6 +49,7 @@ const {
   adminCreateArtwork,
   getArtworkById,
   publishArtwork,
+  validateArtwork,
 } = require("../controller/artworkController");
 const {
   addIncident,
@@ -165,6 +166,10 @@ router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 router.get("/get-artwork/:id", validateAdminToken, getArtworkById);
 
 router.patch("/publish-artwork/:id", validateAdminToken, publishArtwork);
+
+router.patch("/validate-artwork/:id", validateAdminToken, validateArtwork);
+
+// ------------------- Catalog Routes ------------------------
 
 router.post("/add-catalog", validateAdminToken, addCatalog);
 

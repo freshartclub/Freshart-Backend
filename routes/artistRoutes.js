@@ -27,11 +27,14 @@ const {
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
-  getUserArtwork,
+  getArtistArtwork,
   artistCreateArtwork,
   getArtworkById,
   removeArtwork,
   publishArtwork,
+  getHomeArtwork,
+  addToRecentView,
+  getRecentlyView,
 } = require("../controller/artworkController");
 const { getAllIncident } = require("../controller/incidentController");
 
@@ -71,7 +74,9 @@ router.patch("/ticket-feedback/:id", validateToken, ticketFeedback);
 
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
 
-router.get("/get-artist-artworks", validateToken, getUserArtwork);
+// -------------------artwork----------------------------
+
+router.get("/get-artist-artworks", validateToken, getArtistArtwork);
 
 router.post("/add-artwork/:id?", validateToken, artistCreateArtwork);
 
@@ -83,7 +88,11 @@ router.patch("/delete-artwork/:id", validateToken, removeArtwork);
 
 router.patch("/publish-artwork/:id", validateToken, publishArtwork);
 
-router.get("/get-all-incidents", validateToken, getAllIncident);
+router.get("/get-home-artworks", validateToken, getHomeArtwork);
+
+router.post("/add-to-recent/:id", validateToken, addToRecentView);
+
+router.get("/get-recent-view", validateToken, getRecentlyView);
 
 router.patch("/item-to-cart/:id", validateToken, addRemoveToCart);
 
@@ -92,5 +101,7 @@ router.patch("/item-to-wishlist/:id", validateToken, addRemoveToWishlist);
 router.get("/get-wishlist", validateToken, getWishlistItems);
 
 router.get("/get-cart", validateToken, getCartItems);
+
+router.get("/get-all-incidents", validateToken, getAllIncident);
 
 module.exports = router;
