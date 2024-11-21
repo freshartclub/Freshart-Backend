@@ -360,11 +360,11 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkSeries: req.body.artworkSeries,
     productDescription: req.body.productDescription,
     collectionList: req.body.collectionList,
-    isArtProvider: req.body.artProvider,
+    isArtProvider: req.body.isArtProvider,
     owner: artist._id,
   };
 
-  if (req.body?.artProvider === "yes") {
+  if (req.body?.isArtProvider === "yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
   }
 
@@ -575,6 +575,11 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
         artworkTechnic: "$additionalInfo.artworkTechnic",
         upworkOffer: "$commercialization.upworkOffer",
         createdAt: 1,
+      },
+    },
+    {
+      $sort: {
+        createdAt: -1,
       },
     },
   ]);
