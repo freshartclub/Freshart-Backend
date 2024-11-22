@@ -2211,14 +2211,15 @@ const ticketDetail = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
-    const ticketData = await Ticket.findById(id);
+    const ticketData = await Ticket.findById(id)
+      .populate("user", "email")
+      .lean(true);
 
-    return res.status(201).json({
-      message: "Ticket details retrieved successfully",
+    return res.status(201).send({
       data: ticketData,
     });
   } catch (error) {
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).send({ message: "Server error" });
   }
 };
 
@@ -2279,7 +2280,7 @@ const getTicketReplies = async (req, res) => {
       },
       {
         $lookup: {
-          from: "artists", // Lookup for users
+          from: "artists",
           localField: "user",
           foreignField: "_id",
           as: "ownerInfo",

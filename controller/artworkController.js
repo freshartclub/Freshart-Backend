@@ -529,7 +529,7 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ data: artists });
 });
 
-const getArtworkList = catchAsyncError(async (req, res, next) => {
+const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
@@ -777,10 +777,75 @@ const validateArtwork = catchAsyncError(async (req, res, next) => {
   }
 });
 
+const getArtworkList = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const { discipline, option } = req.query;
+  let query = {};
+
+  if (discipline) {
+    query.discipline = { artworkDiscipline: discipline };
+  }
+
+  if (option) {
+    query.commercialization = { activeTab: option };
+  }
+
+  const artworkList = await ArtWork.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        status: "success",
+        ...query,
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerInfo",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        artistName: "$ownerInfo.artistName",
+        artistSurname1: "$ownerInfo.artistSurname1",
+        artistSurname2: "$ownerInfo.artistSurname2",
+        isDeleted: 1,
+        status: 1,
+        media: 1,
+        discipline: 1,
+        artworkName: 1,
+        artworkCreationYear: 1,
+        artworkSeries: 1,
+        productDescription: 1,
+        artworkTechnic: "$additionalInfo.artworkTechnic",
+        upworkOffer: "$commercialization.upworkOffer",
+        createdAt: 1,
+      },
+    },
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    },
+  ]);
+
+  res
+    .status(200)
+    .send({ data: artworkList, url: "https://dev.freshartclub.com/images" });
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
-  getArtworkList,
+  getAdminArtworkList,
   getArtistById,
   removeArtwork,
   getArtworkById,

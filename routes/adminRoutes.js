@@ -43,13 +43,13 @@ const {
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
-  getArtworkList,
   getArtistById,
   removeArtwork,
   adminCreateArtwork,
   getArtworkById,
   publishArtwork,
   validateArtwork,
+  getAdminArtworkList,
 } = require("../controller/artworkController");
 const {
   addIncident,
@@ -159,7 +159,7 @@ router.get("/get-all-incidents", validateAdminToken, getAllIncident);
 
 router.post("/add-artwork/:id?", validateAdminToken, adminCreateArtwork);
 
-router.get("/get-artwork-list", validateAdminToken, getArtworkList);
+router.get("/get-artwork-list", validateAdminToken, getAdminArtworkList);
 
 router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 

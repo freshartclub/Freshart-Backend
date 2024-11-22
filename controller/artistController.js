@@ -645,10 +645,24 @@ const getArtistDetails = async (req, res) => {
 
 const getArtistDetailById = async (req, res) => {
   try {
-    const artist = await Artist.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-    })
+    const artist = await Artist.findOne(
+      {
+        _id: req.params.id,
+        isDeleted: false,
+      },
+      {
+        _id: 1,
+        artistName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        phone: 1,
+        email: 1,
+        aboutArtist: 1,
+        links: 1,
+        profile: 1,
+        highlights: 1,
+      }
+    )
       .populate("insignia", "credentialName insigniaImage")
       .lean(true);
 

@@ -38,7 +38,6 @@ const storage = multer.diskStorage({
         "insigniaImage",
         "avatar",
         "catalogImg",
-        "faqImg",
         "ticketImg",
       ].includes(file?.fieldname)
     ) {
@@ -101,7 +100,6 @@ const upload = multer({
   { name: "backImage", maxCount: 1 },
   { name: "ticketImg", maxCount: 1 },
   { name: "catalogImg", maxCount: 1 },
-  { name: "faqImg", maxCount: 3 },
 ]);
 
 module.exports = upload;

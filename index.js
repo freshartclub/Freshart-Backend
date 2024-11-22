@@ -56,6 +56,7 @@ app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/artist", require("./routes/artistRoutes"));
 app.use("/api/general", require("./routes/generalRoutes"));
 app.use("/api/picklist", require("./routes/picklistRoutes"));
+app.use("/api/order", require("./routes/orderRoutes"));
 
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
