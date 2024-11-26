@@ -12,9 +12,19 @@ const collectionSchema = new mongoose.Schema(
     collectionDesc: {
       type: String,
     },
+    createdBy: {
+      type: String,
+    },
+    collectionFile: {
+      type: String,
+    },
+    expertDetails: {
+      type: Object,
+    },
     artworkList: {
       type: Array,
     },
+    artworkTags: { type: Array },
     status: {
       type: String,
     },

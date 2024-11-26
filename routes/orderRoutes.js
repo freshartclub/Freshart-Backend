@@ -6,8 +6,9 @@ const {
   getAllSubscriptionOrder,
   getAllPurchaseOrder,
   getAllUserOrder,
-  getOrder,
   getArtistOrder,
+  getArtistSingleOrder,
+  acceptRejectOrderRequest,
 } = require("../controller/orderController");
 
 const router = express.Router();
@@ -24,8 +25,12 @@ router.get("/get-purchase-order", validateAdminToken, getAllPurchaseOrder);
 
 router.get("/get-all-user-orders", validateToken, getAllUserOrder);
 
-router.get("/get-order/:id", validateToken, getOrder);
-
 router.get("/get-artist-order", validateToken, getArtistOrder);
+
+// router.get("/get-artist-combined-order",vali)
+
+router.get("/get-artist-single-order/:id", validateToken, getArtistSingleOrder);
+
+router.patch("/accept-order-request/:id", validateToken, acceptRejectOrderRequest);
 
 module.exports = router;

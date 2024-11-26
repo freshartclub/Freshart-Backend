@@ -102,11 +102,18 @@ const artistSchema = new mongoose.Schema(
         type: String,
       },
     },
-    cart: {
-      type: [mongoose.Schema.Types.ObjectId],
-      ref: "ArtWork",
-      default: [],
-    },
+    cart: [
+      {
+        item: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "ArtWork",
+        },
+        quantity: {
+          type: Number,
+          default: 1,
+        },
+      },
+    ],
     wishlist: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "ArtWork",

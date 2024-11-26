@@ -8,12 +8,12 @@ const orderSchema = new mongoose.Schema(
     },
     orderType: {
       type: String,
-      default: "Subscription",
+      default: "subscription",
     },
     status: {
       type: String,
     },
-    orderId: {
+    orderID: {
       type: String,
     },
     price: {
@@ -26,6 +26,9 @@ const orderSchema = new mongoose.Schema(
       type: Number,
     },
     shipping: {
+      type: Number,
+    },
+    discount: {
       type: Number,
     },
     subTotal: {

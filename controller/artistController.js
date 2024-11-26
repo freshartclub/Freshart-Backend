@@ -1068,7 +1068,7 @@ const getActivedArtists = async (req, res) => {
 
 // -------------------ticket----------------------------
 
-const addRemoveToCart = async (req, res) => {
+const addToCart = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1081,16 +1081,83 @@ const addRemoveToCart = async (req, res) => {
       return res.status(400).send({ message: "Artist not found" });
     }
 
-    if (artist.cart) {
-      const isExist = artist.cart.find((item) => item.toString() == id);
-      if (isExist) {
-        Artist.updateOne({ _id: req.user._id }, { $pull: { cart: id } }).then();
-        return res.status(200).send({ message: "Removed from cart" });
+    const result = await Artist.updateOne(
+      {
+        _id: req.user._id,
+        "cart.item": id,
+      },
+      {
+        $inc: { "cart.$.quantity": 1 }, // Increment quantity if the item exists
       }
+    );
+
+    if (result.modifiedCount === 0) {
+      await Artist.updateOne(
+        { _id: req.user._id },
+        {
+          $push: { cart: { item: id, quantity: 1 } }, // Add new item with quantity 1
+        }
+      );
+
+      return res
+        .status(200)
+        .send({ message: "Item added to cart successfully" });
     }
 
-    Artist.updateOne({ _id: req.user._id }, { $push: { cart: id } }).then();
-    return res.status(200).send({ message: "Added to cart successfully" });
+    return res
+      .status(200)
+      .send({ message: `${result.modifiedCount} item(s) updated in cart` });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const removeFromCart = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { remove } = req.query;
+
+    if (remove && remove == "true") {
+      await Artist.updateOne(
+        {
+          _id: req.user._id,
+          "cart.item": id,
+        },
+        {
+          $pull: { cart: { item: id } },
+        }
+      );
+
+      return res.status(200).send({ message: "Item removed from cart" });
+    }
+
+    const result = await Artist.updateOne(
+      {
+        _id: req.user._id,
+        "cart.item": id,
+      },
+      {
+        $inc: { "cart.$.quantity": -1 }, // Decrement quantity by 1
+      }
+    );
+
+    if (result.modifiedCount === 0) {
+      return res.status(404).send({ message: "Item not found in the cart" });
+    }
+
+    await Artist.updateOne(
+      {
+        _id: req.user._id,
+      },
+      {
+        $pull: { cart: { quantity: { $lte: 0 } } }, // Remove items with quantity 0 or less
+      }
+    );
+
+    return res
+      .status(200)
+      .send({ message: `${result.modifiedCount} item(s) removed from cart` });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1131,20 +1198,20 @@ const addRemoveToWishlist = async (req, res) => {
 
 const getCartItems = async (req, res) => {
   try {
-    const artist = await Artist.countDocuments({ _id: req.user._id }).lean(
-      true
-    );
-    if (!artist) {
-      return res.status(400).send({ message: "Artist not found" });
-    }
-
-    const cartItems = await Artist.findOne({ _id: req.user._id }, { cart: 1 })
-      .populate("cart", "artworkName pricing media")
+    const data = await Artist.findOne({ _id: req.user._id }, { cart: 1 })
+      .populate({
+        path: "cart",
+        select: "item quantity",
+        populate: {
+          path: "item",
+          select: "artworkName pricing media.mainImage",
+        },
+      })
       .lean(true);
 
     return res
       .status(200)
-      .send({ data: cartItems, url: "https://dev.freshartclub.com/images" });
+      .send({ data, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1197,7 +1264,8 @@ module.exports = {
   getActivedArtists,
   getUserTickets,
   replyTicketUser,
-  addRemoveToCart,
+  addToCart,
+  removeFromCart,
   addRemoveToWishlist,
   getCartItems,
   getWishlistItems,

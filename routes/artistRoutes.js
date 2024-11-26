@@ -19,11 +19,12 @@ const {
   getUserTickets,
   replyTicketUser,
   getArtistDetailById,
-  addRemoveToCart,
+  addToCart,
   addRemoveToWishlist,
   getWishlistItems,
   getCartItems,
   ticketFeedback,
+  removeFromCart,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -94,7 +95,9 @@ router.post("/add-to-recent/:id", validateToken, addToRecentView);
 
 router.get("/get-recent-view", validateToken, getRecentlyView);
 
-router.patch("/item-to-cart/:id", validateToken, addRemoveToCart);
+router.patch("/add-to-cart/:id", validateToken, addToCart);
+
+router.patch("/remove-from-cart/:id", validateToken, removeFromCart);
 
 router.patch("/item-to-wishlist/:id", validateToken, addRemoveToWishlist);
 

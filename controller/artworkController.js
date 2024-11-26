@@ -654,6 +654,7 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
     ArtWork.find(
       {
         status: "published",
+        isDeleted: false,
         createdAt: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
       },
       {
@@ -777,6 +778,38 @@ const validateArtwork = catchAsyncError(async (req, res, next) => {
   }
 });
 
+const searchArtwork = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  let { s } = req.query;
+
+  console.log(s);
+
+  if (s == "undefined") {
+    s = "";
+  } else if (typeof s === "undefined") {
+    s = "";
+  }
+
+  const artworks = await ArtWork.find(
+    {
+      isDeleted: false,
+      status: "published",
+      artworkName: { $regex: s, $options: "i" },
+    },
+    { artworkName: 1, media: 1, inventoryShipping: 1 }
+  ).lean(true);
+
+  res.status(200).send({
+    data: artworks,
+    url: "https://dev.freshartclub.com/images",
+  });
+});
+
 const getArtworkList = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
     _id: req.user._id,
@@ -855,4 +888,5 @@ module.exports = {
   addToRecentView,
   getRecentlyView,
   validateArtwork,
+  searchArtwork,
 };

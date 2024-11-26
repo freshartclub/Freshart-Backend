@@ -5,7 +5,7 @@ const ArtWork = require("../models/artWorksModel");
 const { fileUploadFunc } = require("../functions/common");
 const Collection = require("../models/collectionModel");
 
-const addCatalog = catchAsyncError(async (req, res, next) => {
+const addCollection = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
@@ -15,36 +15,51 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Admin not found` });
   }
 
+  const collection = null;
+
   const { id } = req.query;
+  if (id !== undefined) {
+    collection = await Collection.findOne(
+      {
+        _id: id,
+      },
+      { expertDetails: 1 }
+    ).lean(true);
+  }
   const fileData = await fileUploadFunc(req, res);
 
   let obj = {
-    catalogName: req.body.catalogName,
-    catalogDesc: req.body.catalogDesc,
+    collectionName: req.body.collectionName,
+    collectionDesc: req.body.collectionDesc,
+    createdBy: req.body.createdBy,
     artworkList: req.body.artworkList,
-    catalogCollection: req.body.catalogCollection,
-    artProvider: req.body.artProvider,
-    subPlan: req.body.subPlan,
+    artworkTags: req.body.artworkTags,
     status: req.body.status,
-    exclusiveCatalog: req.body.exclusiveCatalog,
   };
 
-  if (fileData.data !== undefined) {
-    obj["catalogImg"] = fileData.data.catalogImg[0].filename;
+  obj["expertDetails"] = {
+    expertDesc: req.body.expertDesc,
+    expertImg: fileData.data?.expertImg
+      ? fileData.data?.expertImg[0].filename
+      : collection?.expertDetails?.expertImg,
+  };
+
+  if (fileData.data?.collectionFile !== undefined) {
+    obj["collectionFile"] = fileData.data.collectionFile[0].filename;
   }
 
   const condition = { $set: obj };
 
   if (id === undefined) {
-    await Catalog.create(obj);
-    return res.status(200).send({ message: "Catalog added successfully" });
+    await Collection.create(obj);
+    return res.status(200).send({ message: "Collection added successfully" });
   } else {
-    Catalog.updateOne({ _id: id }, condition).then();
-    return res.status(200).send({ message: "Catalog updated successfully" });
+    Collection.updateOne({ _id: id }, condition).then();
+    return res.status(200).send({ message: "Collection updated successfully" });
   }
 });
 
-const getCatalog = catchAsyncError(async (req, res, next) => {
+const getCollection = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
@@ -56,7 +71,7 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
 
   let { s } = req.query;
 
-  const catalog = await Catalog.aggregate([
+  const collection = await Collection.aggregate([
     {
       $match: {
         isDeleted: false,
@@ -65,24 +80,22 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
     },
     {
       $project: {
-        catalogName: 1,
-        catalogImg: 1,
-        catalogDesc: 1,
         _id: 1,
-        artworkList: 1,
-        subPlan: 1,
-        exclusiveCatalog: 1,
-        createdAt: 1,
+        collectionName: 1,
+        collectionDesc: 1,
+        collectionFile: 1,
+        status: 1,
+        expertDetails: 1,
       },
     },
   ]);
 
   res
     .status(200)
-    .send({ data: catalog, url: "https://dev.freshartclub.com/images" });
+    .send({ data: collection, url: "https://dev.freshartclub.com/images" });
 });
 
-const getCatalogById = catchAsyncError(async (req, res, next) => {
+const getCollectionById = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
@@ -92,7 +105,7 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Admin not found` });
   }
 
-  const catalog = await Catalog.findOne({
+  const catalog = await Collection.findOne({
     _id: req.params.id,
   }).lean(true);
 
@@ -101,4 +114,4 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
     .send({ data: catalog, url: "https://dev.freshartclub.com/images" });
 });
 
-module.exports = { addCatalog, getCatalog, getCatalogById };
+module.exports = { addCollection, getCollection, getCollectionById };

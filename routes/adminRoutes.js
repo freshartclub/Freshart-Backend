@@ -50,6 +50,7 @@ const {
   publishArtwork,
   validateArtwork,
   getAdminArtworkList,
+  searchArtwork,
 } = require("../controller/artworkController");
 const {
   addIncident,
@@ -60,6 +61,11 @@ const {
   getCatalog,
   getCatalogById,
 } = require("../controller/catalogController");
+const {
+  addCollection,
+  getCollection,
+  getCollectionById,
+} = require("../controller/collectionController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -169,6 +175,8 @@ router.patch("/publish-artwork/:id", validateAdminToken, publishArtwork);
 
 router.patch("/validate-artwork/:id", validateAdminToken, validateArtwork);
 
+router.get("/get-search-artwork", validateAdminToken, searchArtwork);
+
 // ------------------- Catalog Routes ------------------------
 
 router.post("/add-catalog", validateAdminToken, addCatalog);
@@ -176,6 +184,14 @@ router.post("/add-catalog", validateAdminToken, addCatalog);
 router.get("/get-all-catalog", validateAdminToken, getCatalog);
 
 router.get("/get-catalog-by-id/:id", validateAdminToken, getCatalogById);
+
+// ------------------ collection routes ---------------------
+
+router.post("/add-collection", validateAdminToken, addCollection);
+
+router.get("/get-all-collection", validateAdminToken, getCollection);
+
+router.get("/get-collection-by-id/:id", validateAdminToken, getCollectionById);
 
 router.post("/add-faq", validateAdminToken, addFAQ);
 
