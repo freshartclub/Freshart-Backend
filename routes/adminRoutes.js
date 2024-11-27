@@ -63,8 +63,9 @@ const {
 } = require("../controller/catalogController");
 const {
   addCollection,
-  getCollection,
   getCollectionById,
+  getAllCollections,
+  searchCollection,
 } = require("../controller/collectionController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
@@ -189,15 +190,21 @@ router.get("/get-catalog-by-id/:id", validateAdminToken, getCatalogById);
 
 router.post("/add-collection", validateAdminToken, addCollection);
 
-router.get("/get-all-collection", validateAdminToken, getCollection);
+router.get("/get-all-collection", validateAdminToken, getAllCollections);
 
 router.get("/get-collection-by-id/:id", validateAdminToken, getCollectionById);
+
+router.get("/get-search-collection", validateAdminToken, searchCollection);
+
+// ------------------ faq routes ---------------------
 
 router.post("/add-faq", validateAdminToken, addFAQ);
 
 router.get("/get-all-faq", validateAdminToken, getFAQList);
 
 router.get("/get-faq-by-id/:id", validateAdminToken, getFAQById);
+
+// ------------------ kb routes ---------------------
 
 router.post("/add-kb", validateAdminToken, addKB);
 

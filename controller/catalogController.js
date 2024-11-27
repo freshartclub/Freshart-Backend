@@ -64,12 +64,29 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "artworks",
+        localField: "artworkList",
+        foreignField: "_id",
+        as: "artworkList",
+      },
+    },
+    {
       $project: {
         catalogName: 1,
         catalogImg: 1,
         catalogDesc: 1,
         _id: 1,
-        artworkList: 1,
+        artworkList: {
+          $map: {
+            input: "$artworkList",
+            as: "item",
+            in: {
+              _id: "$$item._id",
+              artworkName: "$$item.artworkName",
+            },
+          },
+        },
         subPlan: 1,
         exclusiveCatalog: 1,
         createdAt: 1,
@@ -94,7 +111,10 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
 
   const catalog = await Catalog.findOne({
     _id: req.params.id,
-  }).lean(true);
+  })
+    .populate("artworkList", "artworkName")
+    .populate("catalogCollection", "collectionName")
+    .lean(true);
 
   res
     .status(200)

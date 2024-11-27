@@ -2212,7 +2212,7 @@ const ticketDetail = async (req, res) => {
 
     const { id } = req.params;
     const ticketData = await Ticket.findById(id)
-      .populate("user", "email")
+      .populate("user", "email artistName artistSurname1 artistSurname2")
       .lean(true);
 
     return res.status(201).send({

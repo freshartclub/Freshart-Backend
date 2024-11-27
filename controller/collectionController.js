@@ -4,6 +4,7 @@ const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
 const { fileUploadFunc } = require("../functions/common");
 const Collection = require("../models/collectionModel");
+const objectId = require("mongoose").Types.ObjectId;
 
 const addCollection = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
@@ -15,33 +16,78 @@ const addCollection = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Admin not found` });
   }
 
-  const collection = null;
-
+  let collection = null;
   const { id } = req.query;
+
+  const fileData = await fileUploadFunc(req, res);
+
   if (id !== undefined) {
+    const isExist = await Collection.countDocuments({
+      collectionName: req.body.collectionName,
+    }).lean(true);
+
+    if (isExist !== 1) {
+      return res
+        .status(400)
+        .send({ message: `Collection with this name already exist` });
+    }
+
     collection = await Collection.findOne(
       {
         _id: id,
       },
       { expertDetails: 1 }
     ).lean(true);
+  } else {
+    const isExist = await Collection.countDocuments({
+      collectionName: req.body.collectionName,
+    }).lean(true);
+
+    if (isExist) {
+      return res
+        .status(400)
+        .send({ message: `Collection with this name already exist` });
+    }
   }
-  const fileData = await fileUploadFunc(req, res);
+
+  let artworkListArr = [];
+
+  if (req.body.artworkList) {
+    const artworkList = Array.isArray(req.body.artworkList)
+      ? req.body.artworkList.map((item) => JSON.parse(item))
+      : req.body.artworkList;
+
+    if (typeof artworkList === "string") {
+      const obj = JSON.parse(artworkList);
+      artworkListArr.push({
+        artworkId: obj.artworkId,
+        artworkDesc: obj.artworkDesc,
+      });
+    } else {
+      artworkList.forEach((element) => {
+        artworkListArr.push({
+          artworkId: element.artworkId,
+          artworkDesc: element.artworkDesc,
+        });
+      });
+    }
+  }
 
   let obj = {
     collectionName: req.body.collectionName,
     collectionDesc: req.body.collectionDesc,
     createdBy: req.body.createdBy,
-    artworkList: req.body.artworkList,
+    artworkList: artworkListArr,
     artworkTags: req.body.artworkTags,
     status: req.body.status,
   };
 
   obj["expertDetails"] = {
     expertDesc: req.body.expertDesc,
-    expertImg: fileData.data?.expertImg
-      ? fileData.data?.expertImg[0].filename
-      : collection?.expertDetails?.expertImg,
+    expertImg:
+      fileData.data?.expertImg !== undefined
+        ? fileData.data?.expertImg[0].filename
+        : collection?.expertDetails?.expertImg,
   };
 
   if (fileData.data?.collectionFile !== undefined) {
@@ -59,7 +105,7 @@ const addCollection = catchAsyncError(async (req, res, next) => {
   }
 });
 
-const getCollection = catchAsyncError(async (req, res, next) => {
+const getAllCollections = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
     _id: req.user._id,
     isDeleted: false,
@@ -75,17 +121,18 @@ const getCollection = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         isDeleted: false,
-        catalogName: { $regex: s, $options: "i" },
+        collectionName: { $regex: s, $options: "i" },
       },
     },
     {
       $project: {
         _id: 1,
         collectionName: 1,
-        collectionDesc: 1,
+        createdBy: 1,
         collectionFile: 1,
         status: 1,
-        expertDetails: 1,
+        artworkTags: 1,
+        createdAt: 1,
       },
     },
   ]);
@@ -105,13 +152,49 @@ const getCollectionById = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Admin not found` });
   }
 
-  const catalog = await Collection.findOne({
+  const collection = await Collection.findOne({
     _id: req.params.id,
-  }).lean(true);
+  })
+    .populate("artworkList.artworkId", "artworkName inventoryShipping.pCode")
+    .lean(true);
 
   res
     .status(200)
-    .send({ data: catalog, url: "https://dev.freshartclub.com/images" });
+    .send({ data: collection, url: "https://dev.freshartclub.com/images" });
 });
 
-module.exports = { addCollection, getCollection, getCollectionById };
+const searchCollection = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  let { s } = req.query;
+
+  if (s == "undefined") {
+    s = "";
+  } else if (typeof s === "undefined") {
+    s = "";
+  }
+
+  const artworks = await Collection.find(
+    {
+      isDeleted: false,
+      collectionName: { $regex: s, $options: "i" },
+    },
+    { collectionName: 1, collectionFile: 1, createdBy: 1 }
+  ).lean(true);
+
+  res.status(200).send({
+    data: artworks,
+    url: "https://dev.freshartclub.com/images",
+  });
+});
+
+module.exports = {
+  addCollection,
+  getAllCollections,
+  getCollectionById,
+  searchCollection,
+};

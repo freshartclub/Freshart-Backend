@@ -40,6 +40,7 @@ const storage = multer.diskStorage({
         "catalogImg",
         "ticketImg",
         "collectionFile",
+        "expertImg",
       ].includes(file?.fieldname)
     ) {
       data = mongoose.Types.ObjectId();
@@ -61,11 +62,27 @@ const fileFilter = (req, file, cb) => {
       return cb(null, true);
     }
   }
+  if (["collectionFile"].includes(file?.fieldname)) {
+    if (file.mimetype === "video/mp4") {
+      return cb(null, true);
+    } else if (
+      file.mimetype === "image/jpg" ||
+      file.mimetype === "image/png" ||
+      file.mimetype === "image/jpeg" ||
+      file.mimetype === "image/webp"
+    ) {
+      return cb(null, true);
+    }
+  }
 
   if (
     ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
   ) {
-    if (file.mimetype === "video/mp4") {
+    if (
+      file.mimetype === "video/mp4" ||
+      file.mimetype === "video/webm" ||
+      file.mimetype === "video/mkv"
+    ) {
       return cb(null, true);
     }
   } else {
@@ -78,7 +95,7 @@ const fileFilter = (req, file, cb) => {
     }
   }
 
-  req.fileValidationError = "Please upload valid image format";
+  req.fileValidationError = "Please upload valid File format";
   return cb(null, false, req.fileValidationError);
 };
 
@@ -102,6 +119,7 @@ const upload = multer({
   { name: "ticketImg", maxCount: 1 },
   { name: "catalogImg", maxCount: 1 },
   { name: "collectionFile", maxCount: 1 },
+  { name: "expertImg", maxCount: 1 },
 ]);
 
 module.exports = upload;

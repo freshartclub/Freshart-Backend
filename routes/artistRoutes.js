@@ -25,6 +25,7 @@ const {
   getCartItems,
   ticketFeedback,
   removeFromCart,
+  exportLanguageJSONFile,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -106,5 +107,7 @@ router.get("/get-wishlist", validateToken, getWishlistItems);
 router.get("/get-cart", validateToken, getCartItems);
 
 router.get("/get-all-incidents", validateToken, getAllIncident);
+
+router.get("/get-language", exportLanguageJSONFile);
 
 module.exports = router;

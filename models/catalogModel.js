@@ -15,17 +15,23 @@ const catalogSchema = new mongoose.Schema(
     catalogDesc: {
       type: String,
     },
-    artworkList: {
-      type: Array,
-    },
-    catalogCollection: {
-      type: Array,
-    },
+    artworkList: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ArtWork",
+      },
+    ],
+    catalogCollection: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Collection",
+      },
+    ],
     artProvider: {
       type: Array,
     },
     subPlan: {
-      type: String,
+      type: Array,
     },
     status: {
       type: String,

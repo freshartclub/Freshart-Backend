@@ -13,6 +13,8 @@ const TicketReply = require("../models/ticketReplyModel");
 const Ticket = require("../models/ticketModel");
 const md5 = require("md5");
 const objectId = require("mongoose").Types.ObjectId;
+const fs = require("fs");
+const path = require("path");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -1204,7 +1206,7 @@ const getCartItems = async (req, res) => {
         select: "item quantity",
         populate: {
           path: "item",
-          select: "artworkName pricing media.mainImage",
+          select: "artworkName pricing media.mainImage commercialization",
         },
       })
       .lean(true);
@@ -1244,6 +1246,29 @@ const getWishlistItems = async (req, res) => {
   }
 };
 
+const exportLanguageJSONFile = async (req, res) => {
+  try {
+    const { language } = req.query;
+    if (!language) {
+      return res.status(400).send({ message: "Language parameter is missing" });
+    }
+
+    const filePath = path.join(__dirname, `../utils/${language}.json`);
+
+    if (!fs.existsSync(filePath)) {
+      return res
+        .status(404)
+        .send({ message: "Requested language file not found" });
+    }
+
+    res.setHeader("Content-Type", "application/json");
+    res.sendFile(filePath);
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -1269,4 +1294,5 @@ module.exports = {
   addRemoveToWishlist,
   getCartItems,
   getWishlistItems,
+  exportLanguageJSONFile,
 };

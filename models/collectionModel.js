@@ -8,6 +8,7 @@ const collectionSchema = new mongoose.Schema(
     },
     collectionName: {
       type: String,
+      trim: true,
     },
     collectionDesc: {
       type: String,
@@ -21,9 +22,17 @@ const collectionSchema = new mongoose.Schema(
     expertDetails: {
       type: Object,
     },
-    artworkList: {
-      type: Array,
-    },
+    artworkList: [
+      {
+        artworkId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "ArtWork",
+        },
+        artworkDesc: {
+          type: String,
+        },
+      },
+    ],
     artworkTags: { type: Array },
     status: {
       type: String,

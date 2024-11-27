@@ -36,7 +36,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       subTotal: req.body.subTotal,
       items: items,
     });
-  } else {
+  } else if (req.body.orderType === "purchase") {
     order = await PurchaseOrder.create({
       user: user._id,
       orderID: orderID,
@@ -47,6 +47,8 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       discount: req.body.discount,
       items: items,
     });
+  } else {
+    return res.status(400).send({ message: "Order type not found" });
   }
 
   if (!order) return res.status(400).send({ message: "Order not created" });
@@ -122,9 +124,38 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
       .lean(true),
   ]);
 
+  const transformOrders = (orders, type) => {
+    return orders.flatMap((order) =>
+      order.items.map((item) => ({
+        _id: order._id,
+        user: order.user,
+        status: order.status,
+        orderType: order.orderType,
+        orderID: order.orderID,
+        discount: order.discount,
+        tax: order.tax,
+        shipping: order.shipping,
+        subTotal: order.subTotal,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        artwork: {
+          _id: item.artWork._id,
+          quantity: item.quantity,
+          artworkName: item.artWork.artworkName,
+          media: item.artWork.media.mainImage,
+          inventoryShipping: item.artWork.inventoryShipping,
+          pricing: item.artWork.pricing,
+        },
+      }))
+    );
+  };
+
+  const transformedSubOrders = transformOrders(subOrders, "subscription");
+  const transformedPurchaseOrders = transformOrders(purchaseOrders, "purchase");
+
   return res.status(200).send({
-    subscription: subOrders,
-    purchase: purchaseOrders,
+    subscription: transformedSubOrders,
+    purchase: transformedPurchaseOrders,
     url: "https://dev.freshartclub.com/images",
   });
 });
@@ -414,6 +445,9 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
   if (!id || !orderType)
     return res.status(404).send({ message: "OrderId not found" });
 
+  if (status !== "accept" && status !== "reject")
+    return res.status(400).send({ message: "Please provide valid status" });
+
   if (status === "accept") {
     status = "accepted";
   } else {
@@ -427,10 +461,12 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     );
 
     return res.status(200).send({ message: `Order Request ${status}` });
-  } else {
+  } else if (orderType.toLowerCase() === "purchase") {
     await PurchaseOrder.updateOne({ _id: id }, { $set: { status: status } });
 
     return res.status(200).send({ message: `Order Request ${status}` });
+  } else {
+    return res.status(400).send({ message: "Please provide valid order type" });
   }
 });
 

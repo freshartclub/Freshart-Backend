@@ -27,7 +27,10 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     { _id: artworkId, isDeleted: false },
     { media: 1, status: 1 }
   ).lean(true);
-  if (artwork.status !== "draft")
+
+  const isArtwork = artwork ? true : false;
+
+  if (isArtwork && artwork.status !== "draft")
     return res.status(400).send({ message: `You can't edit this artwork` });
 
   const fileData = await fileUploadFunc(req, res);
@@ -181,7 +184,6 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   };
 
   obj["inventoryShipping"] = {
-    sku: req.body.sku,
     pCode: req.body.pCode,
     location: req.body.location,
   };
@@ -655,7 +657,7 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
       {
         status: "published",
         isDeleted: false,
-        createdAt: { $gt: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+        updatedAt: { $gt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
       },
       {
         media: 1,
@@ -786,8 +788,6 @@ const searchArtwork = catchAsyncError(async (req, res, next) => {
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   let { s } = req.query;
-
-  console.log(s);
 
   if (s == "undefined") {
     s = "";
