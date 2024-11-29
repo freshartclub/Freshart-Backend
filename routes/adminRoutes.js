@@ -40,6 +40,8 @@ const {
   addKB,
   getKBList,
   getKBById,
+  unRejectArtistRequest,
+  unBanArtistRequest,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -60,6 +62,7 @@ const {
   addCatalog,
   getCatalog,
   getCatalogById,
+  getCatalogList,
 } = require("../controller/catalogController");
 const {
   addCollection,
@@ -146,7 +149,19 @@ router.patch(
   rejectArtistRequest
 );
 
+router.patch(
+  "/unreject-artist-request/:id",
+  validateAdminToken,
+  unRejectArtistRequest
+);
+
 router.patch("/ban-artist-request/:id", validateAdminToken, banArtistRequest);
+
+router.patch(
+  "/unban-artist-request/:id",
+  validateAdminToken,
+  unBanArtistRequest
+);
 
 router.post("/add-ticket", validateAdminToken, addTicket);
 
@@ -185,6 +200,8 @@ router.post("/add-catalog", validateAdminToken, addCatalog);
 router.get("/get-all-catalog", validateAdminToken, getCatalog);
 
 router.get("/get-catalog-by-id/:id", validateAdminToken, getCatalogById);
+
+router.get("/get-catalog-list", validateAdminToken, getCatalogList);
 
 // ------------------ collection routes ---------------------
 

@@ -453,7 +453,7 @@ const becomeArtist = async (req, res) => {
           _id: id,
           isDeleted: false,
         },
-        { isArtistRequest: 1, isArtistRequestStatus: 1 }
+        { isArtistRequestStatus: 1 }
       ).lean(true);
 
       if (user && user?.isArtistRequestStatus === "pending") {
@@ -469,6 +469,11 @@ const becomeArtist = async (req, res) => {
         return res.status(400).send({
           message: "You cannot requset to become artist. Please contact admin",
         });
+      } else if (user && user?.isArtistRequestStatus === "processing") {
+        return res.status(400).send({
+          message:
+            "You have already requested to become Artist. Your requset is in process",
+        });
       }
     } else {
       const user = await Artist.findOne(
@@ -476,7 +481,7 @@ const becomeArtist = async (req, res) => {
           email: req.body.email.toLowerCase(),
           isDeleted: false,
         },
-        { isArtistRequest: 1, isArtistRequestStatus: 1 }
+        { isArtistRequestStatus: 1 }
       ).lean(true);
 
       if (user && user?.isArtistRequestStatus === "pending") {
@@ -491,6 +496,11 @@ const becomeArtist = async (req, res) => {
       } else if (user && user?.isArtistRequestStatus === "ban") {
         return res.status(400).send({
           message: "You cannot request to become artist. Please contact admin",
+        });
+      } else if (user && user?.isArtistRequestStatus === "processing") {
+        return res.status(400).send({
+          message:
+            "You have already requested to become Artist. Your requset is in process",
         });
       }
     }
@@ -517,6 +527,8 @@ const becomeArtist = async (req, res) => {
       }
     }
 
+    console.log(documnet);
+
     if (req.body?.socialMedia) {
       links.push({
         name: req.body.socialMedia,
@@ -531,7 +543,6 @@ const becomeArtist = async (req, res) => {
         .trim(),
       phone: req.body.phone.replace(/[- )(]/g, "").trim(),
       email: req.body.email.toLowerCase(),
-      isArtistRequest: true,
       isArtistRequestStatus: "pending",
       pageCount: 0,
     };
@@ -563,9 +574,12 @@ const becomeArtist = async (req, res) => {
       zipCode: String(req.body.zipCode),
     };
 
-    obj["document"] = {
-      documents: documnets,
-    };
+    obj["documents"] = [
+      {
+        documentName: "Document",
+        uploadDocs: documnets[0],
+      },
+    ];
 
     let condition = {
       $set: obj,

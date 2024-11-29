@@ -22,7 +22,7 @@ const artistSchema = new mongoose.Schema(
     },
     isArtistRequestStatus: {
       type: String,
-      enum: ["pending", "approved", "rejected", "ban"],
+      enum: ["pending", "processing", "approved", "rejected", "ban"],
     },
     userId: {
       type: String,
@@ -67,7 +67,10 @@ const artistSchema = new mongoose.Schema(
       type: String,
     },
     language: {
-      type: [String],
+      type: String,
+    },
+    currency: {
+      type: String,
     },
     isManagerDetails: {
       type: Boolean,
@@ -150,23 +153,29 @@ const artistSchema = new mongoose.Schema(
     },
     commercilization: {
       type: Object,
+      publishingCatalog: [Object],
     },
     logistics: {
       type: Object,
     },
-    document: {
-      documentName: {
-        type: String,
+    documents: [
+      {
+        documentName: {
+          type: String,
+        },
+        uploadDocs: {
+          type: String,
+        },
       },
-      documents: {
-        type: Array,
-      },
+    ],
+    otherTags: {
+      type: Object,
     },
     managerDetails: {
       type: Object,
     },
     links: {
-      type: Array, // change it to array
+      type: Array,
     },
     OTP: {
       type: String,

@@ -121,4 +121,17 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
     .send({ data: catalog, url: "https://dev.freshartclub.com/images" });
 });
 
-module.exports = { addCatalog, getCatalog, getCatalogById };
+const getCatalogList = catchAsyncError(async (req, res, next) => {
+  const catalogs = await Catalog.find(
+    {
+      isDeleted: false,
+    },
+    { catalogName: 1 }
+  )
+    .sort({ createdAt: -1 })
+    .lean(true);
+
+  res.status(200).send({ data: catalogs });
+});
+
+module.exports = { addCatalog, getCatalog, getCatalogById, getCatalogList };

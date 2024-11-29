@@ -357,22 +357,17 @@ const artistRegister = async (req, res) => {
             .toLowerCase()
             .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
             .trim(),
+          artistSurname1: req.body.artistSurname1
+            .toLowerCase()
+            .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+            .trim(),
           phone: req.body.phone.replace(/[- )(]/g, "").trim(),
           email: req.body.email.toLowerCase(),
           gender: req.body.gender,
-          notes: req?.body?.notes,
+          notes: req.body?.notes,
+          language: req.body?.language,
+          currency: req.body?.currency,
         };
-
-        if (req?.body?.language.length) {
-          obj["language"] = req.body.language;
-        }
-
-        if (req?.body?.artistSurname1) {
-          obj["artistSurname1"] = req.body.artistSurname1
-            .toLowerCase()
-            .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-            .trim();
-        }
 
         if (req?.body?.artistSurname2) {
           obj["artistSurname2"] = req.body.artistSurname2
@@ -477,19 +472,29 @@ const artistRegister = async (req, res) => {
           taxPhone: req.body.taxPhone.replace(/[- )(]/g, "").trim(),
           taxBankIBAN: req.body.taxBankIBAN,
           taxBankName: req.body.taxBankName,
+          vatAmount: req.body.vatAmount,
         };
 
         obj["commercilization"] = {
           customOrder: req.body.CustomOrder,
           artistLevel: req.body.artistLevel,
           artProvider: req.body.artProvider,
-          publishingCatalog: req.body.PublishingCatalog,
           scoreProfessional: req.body.scoreProfessional,
           scorePlatform: req.body.scorePlatform,
           artistPlus: req.body.ArtistPlus,
           minNumberOfArtwork: req.body.MinNumberOfArtwork,
           maxNumberOfArtwork: req.body.MaxNumberOfArtwork,
         };
+
+        if (Array.isArray(req.body.PublishingCatalog)) {
+          obj["commercilization"]["publishingCatalog"] =
+            req.body.PublishingCatalog.map((item) => ({
+              PublishingCatalog: objectId(item.PublishingCatalog),
+              ArtistFees: item.ArtistFees,
+            }));
+        } else {
+          obj["commercilization"]["publishingCatalog"] = [];
+        }
 
         if (req.body.count > artist.pageCount) {
           obj["pageCount"] = req.body.count;
@@ -519,10 +524,12 @@ const artistRegister = async (req, res) => {
         break;
 
       case 7:
-        obj["document"] = {
-          documents: newDocumentArr,
-          documentName: req.body.documentName,
+        obj["documents"] = req.body.documents;
+        obj["otherTags"] = {
+          intTags: req.body.intTags,
+          extTags: req.body.extTags,
         };
+        obj["isArtistRequestStatus"] = "approved";
 
         if (req.body.isManagerDetails == "true") {
           obj["isManagerDetails"] = true;
@@ -606,7 +613,7 @@ const artistRegister = async (req, res) => {
 
       Artist.updateOne(
         { _id: newArtist._id, isDeleted: false },
-        { $set: { isArtistRequestStatus: "approved" } }
+        { $set: { isArtistRequestStatus: "processing" } }
       ).then();
     }
 
@@ -1362,6 +1369,7 @@ const getAllArtists = async (req, res) => {
           $or: [
             { artistId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
           ],
         },
       },
@@ -1413,6 +1421,7 @@ const getAllCompletedArtists = async (req, res) => {
         $or: [
           { artistId: { $regex: s, $options: "i" } },
           { artistName: { $regex: s, $options: "i" } },
+          { email: { $regex: s, $options: "i" } },
         ],
       };
     }
@@ -1458,21 +1467,37 @@ const getArtistRequestList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { s } = req.query;
+    let { s, status } = req.query;
+
+    if (status === "All") {
+      status = "";
+    } else {
+      status = status.toLowerCase();
+    }
+
+    const searchStatus = ["pending", "ban", "rejected"];
+
+    const statusFilter =
+      status && searchStatus.includes(status)
+        ? { isArtistRequestStatus: { $regex: status, $options: "i" } }
+        : { isArtistRequestStatus: { $in: searchStatus } };
 
     const artists = await Artist.aggregate([
       {
         $match: {
           isDeleted: false,
-          isArtistRequest: true,
-          isArtistRequestStatus: "pending",
-          artistName: { $regex: s, $options: "i" },
+          ...statusFilter,
+          $or: [
+            { artistName: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
+          ],
         },
       },
       {
         $project: {
           artistName: 1,
           artistSurname1: 1,
+          isArtistRequestStatus: 1,
           artistSurname2: 1,
           avatar: 1,
           email: 1,
@@ -1661,7 +1686,7 @@ const createNewUser = async (req, res) => {
         obj["userId"] = generateRandomId(nUser);
         obj["pageCount"] = 1;
         obj["role"] = "artist";
-        obj["isArtistRequestStatus"] = "approved";
+        obj["isArtistRequestStatus"] = "processing";
         obj["artistId"] = generateRandomId();
 
         let condition = { $set: obj };
@@ -1674,7 +1699,7 @@ const createNewUser = async (req, res) => {
     } else {
       obj["pageCount"] = 1;
       obj["role"] = "artist";
-      obj["isArtistRequestStatus"] = "approved";
+      obj["isArtistRequestStatus"] = "processing";
       obj["artistId"] = generateRandomId();
 
       let condition = { $set: obj };
@@ -1761,7 +1786,7 @@ const serachUser = async (req, res) => {
         $or: [
           { userId: { $regex: userId, $options: "i" } },
           { artistName: { $regex: userId, $options: "i" } },
-          { artistEmail: { $regex: userId, $options: "i" } },
+          { email: { $regex: userId, $options: "i" } },
         ],
       };
     }
@@ -1810,7 +1835,7 @@ const serachUserByQueryInput = async (req, res) => {
           $or: [
             { artistId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
-            { artistEmail: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
           ],
         },
       },
@@ -1943,11 +1968,11 @@ const rejectArtistRequest = async (req, res) => {
 
     const user = await Artist.findOne(
       { _id: req.params.id },
-      { isArtistRequest: 1 }
+      { isArtistRequestStatus: 1 }
     ).lean(true);
     if (!user) return res.status(400).send({ message: `User not found` });
 
-    if (user.isArtistRequest === false) {
+    if (user.isArtistRequestStatus === "rejected") {
       return res
         .status(400)
         .send({ message: `Artsit request already rejected` });
@@ -1955,13 +1980,46 @@ const rejectArtistRequest = async (req, res) => {
 
     Artist.updateOne(
       { _id: req.params.id },
-      {
-        $set: { isArtistRequest: false },
-        $unset: { isArtistRequestStatus: "" },
-      }
+      { $set: { isArtistRequestStatus: "rejected" } }
     ).then();
 
-    return res.status(200).send({ message: "Artist rejected successfully" });
+    return res
+      .status(200)
+      .send({ message: "Artist request rejected successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const unRejectArtistRequest = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const user = await Artist.findOne(
+      { _id: req.params.id },
+      { isArtistRequestStatus: 1 }
+    ).lean(true);
+    if (!user) return res.status(400).send({ message: `User not found` });
+
+    if (user.isArtistRequestStatus === "pending") {
+      return res
+        .status(400)
+        .send({ message: `Artist request already in pending` });
+    }
+
+    Artist.updateOne(
+      { _id: req.params.id },
+      { $set: { isArtistRequestStatus: "pending" } }
+    ).then();
+
+    return res
+      .status(200)
+      .send({ message: "Artist request un-rejected successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1978,25 +2036,56 @@ const banArtistRequest = async (req, res) => {
 
     const user = await Artist.findOne(
       { _id: req.params.id },
-      { isArtistRequestStatus: 1, isArtistRequest: 1 }
+      { isArtistRequestStatus: 1 }
     ).lean(true);
     if (!user) return res.status(400).send({ message: `User not found` });
 
-    if (
-      user.isArtistRequest === false &&
-      user.isArtistRequestStatus === "ban"
-    ) {
+    if (user.isArtistRequestStatus === "ban") {
       return res.status(400).send({ message: `Artsit requset already banned` });
     }
 
     Artist.updateOne(
       { _id: req.params.id },
-      { $set: { isArtistRequest: false, isArtistRequestStatus: "ban" } }
+      { $set: { isArtistRequestStatus: "ban" } }
     ).then();
 
     return res
       .status(200)
       .send({ message: "Artist request banned successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const unBanArtistRequest = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const user = await Artist.findOne(
+      { _id: req.params.id },
+      { isArtistRequestStatus: 1 }
+    ).lean(true);
+    if (!user) return res.status(400).send({ message: `User not found` });
+
+    if (user.isArtistRequestStatus === "pending") {
+      return res
+        .status(400)
+        .send({ message: `Artsit requset already in pending` });
+    }
+
+    Artist.updateOne(
+      { _id: req.params.id },
+      { $set: { isArtistRequestStatus: "pending" } }
+    ).then();
+
+    return res
+      .status(200)
+      .send({ message: "Artist request un-banned successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2581,7 +2670,9 @@ module.exports = {
   suspendArtist,
   unSuspendArtist,
   rejectArtistRequest,
+  unRejectArtistRequest,
   banArtistRequest,
+  unBanArtistRequest,
   changeArtistPassword,
   addTicket,
   ticketList,
