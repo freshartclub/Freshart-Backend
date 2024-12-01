@@ -120,6 +120,7 @@ const upload = multer({
   { name: "catalogImg", maxCount: 1 },
   { name: "collectionFile", maxCount: 1 },
   { name: "expertImg", maxCount: 1 },
+  { name: "expertImg", maxCount: 1 },
 ]);
 
 module.exports = upload;

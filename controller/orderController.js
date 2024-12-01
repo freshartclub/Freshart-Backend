@@ -101,27 +101,136 @@ const getAllPurchaseOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const getAllUserOrder = catchAsyncError(async (req, res, next) => {
+  const subOrdersPipeline = [
+    { $match: { user: req.user._id } },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artWork",
+        foreignField: "_id",
+        as: "artWorkData",
+      },
+    },
+    {
+      $addFields: {
+        items: {
+          $cond: {
+            if: { $isArray: "$items" },
+            then: {
+              $map: {
+                input: "$items",
+                as: "item",
+                in: {
+                  quantity: "$$item.quantity",
+                  artWork: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$artWorkData",
+                          as: "artWork",
+                          cond: { $eq: ["$$artWork._id", "$$item.artWork"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+            else: [],
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: 1,
+        status: 1,
+        orderType: 1,
+        orderID: 1,
+        discount: 1,
+        tax: 1,
+        shipping: 1,
+        subTotal: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        "items.quantity": 1,
+        "items.artWork.artworkName": 1,
+        "items.artWork.media.mainImage": 1,
+        "items.artWork.inventoryShipping": 1,
+        "items.artWork.pricing": 1,
+      },
+    },
+  ];
+
+  const purchaseOrdersPipeline = [
+    { $match: { user: req.user._id } },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artWork",
+        foreignField: "_id",
+        as: "artWorkData",
+      },
+    },
+    {
+      $addFields: {
+        items: {
+          $cond: {
+            if: { $isArray: "$items" },
+            then: {
+              $map: {
+                input: "$items",
+                as: "item",
+                in: {
+                  quantity: "$$item.quantity",
+                  artWork: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$artWorkData",
+                          as: "artWork",
+                          cond: { $eq: ["$$artWork._id", "$$item.artWork"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+            else: [],
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: 1,
+        status: 1,
+        orderType: 1,
+        orderID: 1,
+        discount: 1,
+        tax: 1,
+        shipping: 1,
+        subTotal: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        "items.quantity": 1,
+        "items.artWork.artworkName": 1,
+        "items.artWork.media.mainImage": 1,
+        "items.artWork.inventoryShipping": 1,
+        "items.artWork.pricing": 1,
+      },
+    },
+  ];
+
+  // Execute pipelines
   const [subOrders, purchaseOrders] = await Promise.all([
-    SubscriptionOrder.find({ user: req.user._id })
-      .populate({
-        path: "items",
-        select: "quantity artWork",
-        populate: {
-          path: "artWork",
-          select: "artworkName media.mainImage inventoryShipping pricing",
-        },
-      })
-      .lean(true),
-    PurchaseOrder.find({ user: req.user._id })
-      .populate({
-        path: "items",
-        select: "quantity artWork",
-        populate: {
-          path: "artWork",
-          select: "artworkName media.mainImage inventoryShipping pricing",
-        },
-      })
-      .lean(true),
+    SubscriptionOrder.aggregate(subOrdersPipeline),
+    PurchaseOrder.aggregate(purchaseOrdersPipeline),
   ]);
 
   const transformOrders = (orders, type) => {

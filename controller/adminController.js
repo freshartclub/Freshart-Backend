@@ -249,7 +249,8 @@ const artistRegister = async (req, res) => {
 
     let additionalImages = [];
     let additionalVideos = [];
-    let documnets = [];
+    let uploadDocs = [];
+    let docsArr = [];
 
     if (fileData?.data?.additionalImage) {
       fileData.data?.additionalImage.forEach((element) => {
@@ -265,8 +266,47 @@ const artistRegister = async (req, res) => {
 
     if (fileData?.data?.uploadDocs) {
       fileData.data?.uploadDocs.forEach((element) => {
-        documnets.push(element.filename);
+        uploadDocs.push(element.filename);
       });
+    }
+
+    if (req.body?.uploadDocs) {
+      if (typeof req.body?.uploadDocs === "string") {
+        if (!isNaN(element) && isFinite(element)) {
+          docsArr.push({
+            documentName: req.body?.documentName,
+            uploadDocs: uploadDocs,
+          });
+        } else {
+          const filename = req.body?.uploadDocs.replace(
+            "https://dev.freshartclub.com/images/documents/",
+            ""
+          );
+          docsArr.push({
+            documentName: req.body?.documentName,
+            uploadDocs: filename,
+          });
+        }
+      } else {
+        req.body?.uploadDocs.forEach((element, i) => {
+          if (!isNaN(element) && isFinite(element)) {
+            docsArr.push({
+              documentName: req.body?.documentName[i],
+              uploadDocs: uploadDocs[0],
+            });
+            uploadDocs.shift();
+          } else {
+            const filename = element.replace(
+              "https://dev.freshartclub.com/images/documents/",
+              ""
+            );
+            docsArr.push({
+              documentName: req.body?.documentName[i],
+              uploadDocs: filename,
+            });
+          }
+        });
+      }
     }
 
     if (req?.body?.existingImages !== undefined) {
@@ -285,16 +325,6 @@ const artistRegister = async (req, res) => {
       } else {
         for (let i = 0; i < req?.body?.existingVideos.length; i++) {
           additionalVideos.push(req?.body?.existingVideos[i]);
-        }
-      }
-    }
-
-    if (req?.body?.existingDocuments !== undefined) {
-      if (typeof req?.body?.existingDocuments === "string") {
-        documnets.push(req?.body?.existingDocuments);
-      } else {
-        for (let i = 0; i < req?.body?.existingDocuments.length; i++) {
-          documnets.push(req?.body?.existingDocuments[i]);
         }
       }
     }
@@ -327,28 +357,11 @@ const artistRegister = async (req, res) => {
         return element;
       }) || [];
 
-    const newDocumentArr =
-      documnets?.map((element) => {
-        if (
-          typeof element === "string" &&
-          element.includes("https://dev.freshartclub.com/images/users")
-        ) {
-          return element.replace(
-            "https://dev.freshartclub.com/images/users/",
-            ""
-          );
-        }
-        return element;
-      }) || [];
-
-    let count = null;
-    if (fileData.data === undefined) {
-      count = Number(req.body.count);
-    } else if (req.body.count == "4") {
-      count = 4;
-    } else {
-      count = 7;
-    }
+    const count = fileData?.data
+      ? req.body.count === "4"
+        ? 4
+        : 7
+      : Number(req.body.count);
 
     switch (count) {
       case 1:
@@ -524,33 +537,41 @@ const artistRegister = async (req, res) => {
         break;
 
       case 7:
-        obj["documents"] = req.body.documents;
+        obj["documents"] = docsArr;
         obj["otherTags"] = {
-          intTags: req.body.intTags,
-          extTags: req.body.extTags,
+          intTags:
+            typeof req.body.intTags === "string"
+              ? [req.body.intTags]
+              : req.body.intTags,
+          extTags:
+            typeof req.body.extTags === "string"
+              ? [req.body.extTags]
+              : req.body.extTags,
         };
-        obj["isArtistRequestStatus"] = "approved";
+        obj["profileStatus"] = req.body.profileStatus;
+        obj["lastRevalidationDate"] = req.body.lastRevalidationDate;
+        obj["nextRevalidationDate"] = req.body.nextRevalidationDate;
+        obj["extraInfo"] = {
+          extraInfo1: req.body.extraInfo1,
+          extraInfo2: req.body.extraInfo2,
+          extraInfo3: req.body.extraInfo3,
+        };
+
+        obj["emergencyInfo"] = {
+          emergencyContactName: req.body.emergencyContactName,
+          emergencyContactEmail: req.body.emergencyContactEmail,
+          emergencyContactPhone: req.body.emergencyContactPhone,
+          emergencyContactRelation: req.body.emergencyContactRelation,
+          emergencyContactAddress: req.body.emergencyContactAddress,
+        };
 
         if (req.body.isManagerDetails == "true") {
           obj["isManagerDetails"] = true;
           obj["managerDetails"] = {
-            artistName: req.body.managerArtistName
+            managerName: req.body.managerName
               .toLowerCase()
               .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
               .trim(),
-            artistSurname1: req.body.managerArtistSurnameOther1
-              .toLowerCase()
-              .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-              .trim(),
-            artistSurname2: req.body.managerArtistSurname2
-              .toLowerCase()
-              .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-              .trim(),
-            artistNickname: req.body.managerArtistNickname
-              .toLowerCase()
-              .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
-              .trim(),
-            artistContactTo: req.body.managerArtistContactTo,
             artistPhone: req.body.managerArtistPhone
               .replace(/[- )(]/g, "")
               .trim(),
@@ -562,9 +583,6 @@ const artistRegister = async (req, res) => {
               state: req.body.managerState,
               zipCode: String(req.body.managerZipCode),
               country: req.body.managerCountry,
-              extraInfo1: req.body.managerExtraInfo1,
-              extraInfo2: req.body.managerExtraInfo2,
-              extraInfo3: req.body.managerExtraInfo3,
             },
           };
 
@@ -625,7 +643,6 @@ const artistRegister = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while registered the artist by admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1296,10 +1313,19 @@ const activateArtist = async (req, res) => {
 
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const artist = await Artist.findOne({
-      _id: req.params.id,
-      isDeleted: false,
-    });
+    const artist = await Artist.findOne(
+      {
+        _id: req.params.id,
+        isDeleted: false,
+      },
+      {
+        isActivated: 1,
+        email: 1,
+        userId: 1,
+        artistName: 1,
+        phone: 1,
+      }
+    ).lean(true);
 
     if (!artist) return res.status(400).send({ message: "Artist not found" });
     if (artist.isActivated) {
@@ -1314,6 +1340,7 @@ const activateArtist = async (req, res) => {
         {
           $set: {
             isActivated: true,
+            isArtistRequestStatus: "approved",
           },
         }
       );
@@ -1322,6 +1349,7 @@ const activateArtist = async (req, res) => {
         { _id: req.params.id },
         {
           $set: {
+            isArtistRequestStatus: "approved",
             isActivated: true,
             passwordLinkToken: token,
           },
@@ -1377,6 +1405,7 @@ const getAllArtists = async (req, res) => {
         $project: {
           artistName: 1,
           artistSurname1: 1,
+          nickName: 1,
           artistSurname2: 1,
           avatar: 1,
           email: 1,
@@ -1397,7 +1426,9 @@ const getAllArtists = async (req, res) => {
       },
     ]);
 
-    return res.status(200).send({ data: artists });
+    return res
+      .status(200)
+      .send({ data: artists, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1436,6 +1467,7 @@ const getAllCompletedArtists = async (req, res) => {
         artistName: 1,
         avatar: 1,
         artistSurname1: 1,
+        nickName: 1,
         artistSurname2: 1,
         email: 1,
         phone: 1,
@@ -1450,7 +1482,9 @@ const getAllCompletedArtists = async (req, res) => {
       .sort({ createdAt: -1 })
       .lean(true);
 
-    res.status(200).send({ data: getArtists });
+    res
+      .status(200)
+      .send({ data: getArtists, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1498,6 +1532,7 @@ const getArtistRequestList = async (req, res) => {
           artistName: 1,
           artistSurname1: 1,
           isArtistRequestStatus: 1,
+          nickName: 1,
           artistSurname2: 1,
           avatar: 1,
           email: 1,
@@ -1517,7 +1552,9 @@ const getArtistRequestList = async (req, res) => {
       },
     ]);
 
-    res.status(200).send({ data: artists });
+    res
+      .status(200)
+      .send({ data: artists, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1551,6 +1588,7 @@ const getArtistPendingList = async (req, res) => {
         $project: {
           artistName: 1,
           artistSurname1: 1,
+          nickName: 1,
           artistSurname2: 1,
           email: 1,
           phone: 1,
@@ -1569,7 +1607,9 @@ const getArtistPendingList = async (req, res) => {
       },
     ]);
 
-    res.status(200).send({ data: artistlist });
+    res
+      .status(200)
+      .send({ data: artistlist, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1744,6 +1784,7 @@ const suspendedArtistList = async (req, res) => {
         $project: {
           artistName: 1,
           artistSurname1: 1,
+          nickName: 1,
           artistSurname2: 1,
           avatar: 1,
           email: 1,
@@ -1762,7 +1803,10 @@ const suspendedArtistList = async (req, res) => {
       },
     ]);
 
-    return res.status(200).send({ data: suspendedList });
+    return res.status(200).send({
+      data: suspendedList,
+      url: "https://dev.freshartclub.com/images",
+    });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1810,6 +1854,7 @@ const serachUser = async (req, res) => {
         url: "https://dev.freshartclub.com/images",
       }
     ).lean(true);
+
     return res.status(200).send({ data: users });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
@@ -1898,7 +1943,9 @@ const getAllUsers = async (req, res) => {
       },
     ]);
 
-    return res.status(200).send({ data: users });
+    return res
+      .status(200)
+      .send({ data: users, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);

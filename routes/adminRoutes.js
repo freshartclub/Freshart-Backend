@@ -53,6 +53,7 @@ const {
   validateArtwork,
   getAdminArtworkList,
   searchArtwork,
+  addSeriesToArtist,
 } = require("../controller/artworkController");
 const {
   addIncident,
@@ -70,6 +71,7 @@ const {
   getAllCollections,
   searchCollection,
 } = require("../controller/collectionController");
+const { getAllSeriesList } = require("../controller/generalController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -176,6 +178,14 @@ router.get("/get-ticket-replies/:id", validateAdminToken, getTicketReplies);
 router.post("/add-incident", validateAdminToken, addIncident);
 
 router.get("/get-all-incidents", validateAdminToken, getAllIncident);
+
+router.patch(
+  "/add-series-to-artist/:id",
+  validateAdminToken,
+  addSeriesToArtist
+);
+
+router.get("/get-series-list/:id", validateAdminToken, getAllSeriesList);
 
 // ------------------- Artwork Routes ------------------------
 

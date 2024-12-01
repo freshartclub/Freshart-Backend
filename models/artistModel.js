@@ -151,6 +151,9 @@ const artistSchema = new mongoose.Schema(
     invoice: {
       type: Object,
     },
+    artistSeriesList: {
+      type: Array,
+    },
     commercilization: {
       type: Object,
       publishingCatalog: [Object],
@@ -158,17 +161,25 @@ const artistSchema = new mongoose.Schema(
     logistics: {
       type: Object,
     },
-    documents: [
-      {
-        documentName: {
-          type: String,
-        },
-        uploadDocs: {
-          type: String,
-        },
-      },
-    ],
+    profileStatus: {
+      type: String,
+    },
+    lastRevalidationDate: {
+      type: Date,
+    },
+    nextRevalidationDate: {
+      type: Date,
+    },
+    documents: {
+      type: Array,
+    },
     otherTags: {
+      type: Object,
+    },
+    extraInfo: {
+      type: Object,
+    },
+    emergencyInfo: {
       type: Object,
     },
     managerDetails: {

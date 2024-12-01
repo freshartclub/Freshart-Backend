@@ -522,6 +522,7 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
       artistName: 1,
       artistSurname1: 1,
       artistSurname2: 1,
+      artProvider: "$commercilization.artProvider",
       artistId: 1,
       userId: 1,
       avatar: 1,
@@ -600,16 +601,103 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
 });
 
 const getArtistArtwork = catchAsyncError(async (req, res, next) => {
-  const artworks = await ArtWork.find({
-    owner: req.user._id,
-  })
-    .populate("owner", "artistName artistSurname1 artistSurname2")
-    .sort({ createdAt: -1 })
-    .lean(true);
+  let { artworkType } = req.query;
 
-  res
-    .status(200)
-    .send({ data: artworks, url: "https://dev.freshartclub.com/images" });
+  const matchQuery = {
+    owner: req.user._id,
+    isDeleted: false,
+  };
+
+  const groupByField =
+    artworkType === "series"
+      ? "$artworkSeries"
+      : artworkType === "discipline"
+      ? "$discipline.artworkDiscipline"
+      : artworkType === "artprovider"
+      ? "$provideArtistName"
+      : null;
+
+  let artworks = [];
+
+  if (!groupByField) {
+    artworks = await ArtWork.aggregate([
+      { $match: matchQuery },
+      // {
+      //   $lookup: {
+      //     from: "artists",
+      //     localField: "owner",
+      //     foreignField: "_id",
+      //     as: "ownerInfo",
+      //   },
+      // },
+      // { $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: 1,
+          status: 1,
+          media: "$media.mainImage",
+          artworkTechnic: "$additionalInfo.artworkTechnic",
+          discipline: 1,
+          artworkName: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ]);
+
+    return res
+      .status(200)
+      .send({ data: artworks, url: "https://dev.freshartclub.com/images" });
+  } else {
+    artworks = await ArtWork.aggregate([
+      { $match: matchQuery },
+      // {
+      //   $lookup: {
+      //     from: "artists",
+      //     localField: "owner",
+      //     foreignField: "_id",
+      //     as: "ownerInfo",
+      //   },
+      // },
+      { $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $group: {
+          _id: groupByField,
+          artworks: {
+            $push: {
+              _id: "$_id",
+              status: "$status",
+              media: "$media.mainImage",
+              provideArtistName: "$provideArtistName",
+              discipline: "$discipline",
+              artworkName: "$artworkName",
+              artworkTechnic: "$additionalInfo.artworkTechnic",
+              discipline: "$discipline",
+              artworkSeries: "$artworkSeries",
+              createdAt: "$createdAt",
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          groupName: "$_id",
+          artworks: 1,
+          _id: 0,
+        },
+      },
+      { $sort: { groupName: 1 } },
+    ]);
+
+    return res.status(200).send({
+      data: artworks,
+      url: "https://dev.freshartclub.com/images",
+    });
+  }
 });
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
@@ -875,6 +963,32 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
     .send({ data: artworkList, url: "https://dev.freshartclub.com/images" });
 });
 
+const addSeriesToArtist = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const { seriesName } = req.body;
+
+  const artist = await Artist.findOne(
+    { _id: id },
+    { artistSeriesList: 1 }
+  ).lean(true);
+  if (!artist) return res.status(400).send({ message: "Artist not found" });
+
+  if (
+    artist.artistSeriesList &&
+    artist.artistSeriesList.length > 0 &&
+    artist.artistSeriesList.find((item) => item == seriesName) !== undefined
+  ) {
+    return res.status(400).send({ message: "Series already exists" });
+  }
+
+  await Artist.updateOne(
+    { _id: id },
+    { $push: { artistSeriesList: seriesName } }
+  );
+
+  return res.status(200).send({ message: "Series added successfully" });
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
@@ -889,4 +1003,5 @@ module.exports = {
   getRecentlyView,
   validateArtwork,
   searchArtwork,
+  addSeriesToArtist,
 };

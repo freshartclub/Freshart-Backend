@@ -3,6 +3,7 @@ const Technic = require("../models/technicModel");
 const Theme = require("../models/themeModel");
 const MediaSupport = require("../models/mediaSupportModel");
 const Discipline = require("../models/disciplineModel");
+const Artist = require("../models/artistModel");
 const { createLog } = require("../functions/common");
 const APIErrorLog = createLog("API_error_log");
 const Admin = require("../models/adminModel");
@@ -486,7 +487,24 @@ const deleteMedia = async (req, res) => {
     MediaSupport.updateOne({ _id: id }, { $set: { isDeleted: true } }).then();
     return res.status(200).send({ message: "Media deleted successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the discipline");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getAllSeriesList = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const seriesList = await Artist.findOne(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { artistSeriesList: 1 }
+    ).lean(true);
+
+    return res.status(200).send({ data: seriesList.artistSeriesList });
+  } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -503,4 +521,5 @@ module.exports = {
   deleteTechnic,
   deleteTheme,
   deleteMedia,
+  getAllSeriesList,
 };

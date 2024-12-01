@@ -37,8 +37,10 @@ const {
   getHomeArtwork,
   addToRecentView,
   getRecentlyView,
+  addSeriesToArtist,
 } = require("../controller/artworkController");
 const { getAllIncident } = require("../controller/incidentController");
+const { getAllSeriesList } = require("../controller/generalController");
 
 router.post("/login", login);
 
@@ -75,6 +77,10 @@ router.get("/ticket/:id", validateToken, ticketDetail);
 router.patch("/ticket-feedback/:id", validateToken, ticketFeedback);
 
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
+
+router.patch("/add-series-to-artist/:id", validateToken, addSeriesToArtist);
+
+router.get("/get-series-list/:id", validateToken, getAllSeriesList);
 
 // -------------------artwork----------------------------
 
