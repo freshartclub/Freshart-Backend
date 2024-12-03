@@ -15,6 +15,13 @@ const catalogSchema = new mongoose.Schema(
     catalogDesc: {
       type: String,
     },
+    defaultArtistFee: {
+      type: Number,
+    },
+    catalogCommercialization: {
+      type: String,
+      trim: true,
+    },
     artworkList: [
       {
         type: mongoose.Schema.Types.ObjectId,

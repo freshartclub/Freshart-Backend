@@ -23,6 +23,8 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
     catalogDesc: req.body.catalogDesc,
     artworkList: req.body.artworkList,
     catalogCollection: req.body.catalogCollection,
+    catalogCommercialization: req.body.catalogCommercialization,
+    defaultArtistFee: req.body.defaultArtistFee,
     artProvider: req.body.artProvider,
     subPlan: req.body.subPlan,
     status: req.body.status,
@@ -92,6 +94,9 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
         createdAt: 1,
       },
     },
+    {
+      $sort: { createdAt: -1 },
+    }
   ]);
 
   res

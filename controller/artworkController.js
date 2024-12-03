@@ -3,7 +3,7 @@ const catchAsyncError = require("../functions/catchAsyncError");
 const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
 const RecentlyView = require("../models/recentlyView");
-const { fileUploadFunc } = require("../functions/common");
+const { fileUploadFunc, generateRandomId } = require("../functions/common");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -25,7 +25,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne(
     { _id: artworkId, isDeleted: false },
-    { media: 1, status: 1 }
+    { media: 1, status: 1, artworkId: 1 }
   ).lean(true);
 
   const isArtwork = artwork ? true : false;
@@ -105,6 +105,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     productDescription: req.body.productDescription,
     collectionList: req.body.collectionList,
     isArtProvider: req.body.isArtProvider,
+    artworkId: isArtwork ? artwork?.artworkId : "ARW-" + generateRandomId(),
     owner: id,
   };
 
@@ -167,25 +168,38 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
       purchaseCatalog: req.body.purchaseCatalog,
-      artistbaseFees: req.body.artistbaseFees,
-      downwardOffer: req.body.downwardOffer,
-      upworkOffer: req.body.upworkOffer,
-      acceptOfferPrice: req.body.acceptOfferPrice,
-      priceRequest: req.body.priceRequest,
+      purchaseType: req.body.purchaseType,
     };
   }
 
-  obj["pricing"] = {
-    currency: req.body.currency,
-    basePrice: req.body.basePrice,
-    dpersentage: req.body.dpersentage,
-    vatAmount: req.body.vatAmount,
-    artistFees: req.body.artistFees,
-  };
+  if (req.body?.activeTab === "subscription") {
+    obj["pricing"] = {
+      currency: req.body.currency,
+      basePrice: req.body.basePrice,
+      dpersentage: Number(req.body.dpersentage),
+      vatAmount: Number(req.body.vatAmount),
+      artistFees: req.body.artistFees,
+    };
+  } else {
+    obj["pricing"] = {
+      currency: req.body.currency,
+      basePrice: req.body.basePrice,
+      acceptOfferPrice: req.body.acceptOfferPrice,
+      dpersentage: Number(req.body.dpersentage),
+      vatAmount: Number(req.body.vatAmount),
+      artistFees: req.body.artistFees,
+    };
+  }
 
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
     location: req.body.location,
+    commingSoon: Boolean(req.body.commingSoon),
+    packageMaterial: req.body.packageMaterial,
+    packageWeight: req.body.packageWeight,
+    packageLength: req.body.packageLength,
+    packageHeight: req.body.packageHeight,
+    packageWidth: req.body.packageWidth,
   };
 
   obj["discipline"] = {
@@ -198,12 +212,23 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["promotions"] = {
     promotion: req.body.promotion,
-    promotionScore: req.body.promotionScore,
+    promotionScore: Number(req.body.promotionScore),
   };
 
   obj["restriction"] = {
     availableTo: req.body.availableTo,
     discountAcceptation: req.body.discountAcceptation,
+  };
+
+  obj["tags"] = {
+    intTags:
+      typeof req.body.intTags === "string"
+        ? [req.body.intTags]
+        : req.body.intTags,
+    extTags:
+      typeof req.body.extTags === "string"
+        ? [req.body.extTags]
+        : req.body.extTags,
   };
 
   let condition = {
@@ -438,6 +463,12 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
     location: req.body.location,
+    commingSoon: req.body.commingSoon,
+    packageMaterial: req.body.packageMaterial,
+    packageWeight: req.body.packageWeight,
+    packageLength: req.body.packageLength,
+    packageHeight: req.body.packageHeight,
+    packageWidth: req.body.packageWidth,
   };
 
   obj["discipline"] = {
@@ -883,14 +914,26 @@ const searchArtwork = catchAsyncError(async (req, res, next) => {
     s = "";
   }
 
-  const artworks = await ArtWork.find(
+  const artworks = await ArtWork.aggregate([
     {
-      isDeleted: false,
-      status: "published",
-      artworkName: { $regex: s, $options: "i" },
+      $match: {
+        isDeleted: false,
+        status: "published",
+        $or: [
+          { artworkName: { $regex: s, $options: "i" } },
+          { artworkId: { $regex: s, $options: "i" } },
+        ],
+      },
     },
-    { artworkName: 1, media: 1, inventoryShipping: 1 }
-  ).lean(true);
+    {
+      $project: {
+        artworkId: 1,
+        artworkName: 1,
+        media: 1,
+        inventoryShipping: 1,
+      },
+    },
+  ]);
 
   res.status(200).send({
     data: artworks,

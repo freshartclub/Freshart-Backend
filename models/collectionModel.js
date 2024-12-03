@@ -13,9 +13,6 @@ const collectionSchema = new mongoose.Schema(
     collectionDesc: {
       type: String,
     },
-    createdBy: {
-      type: String,
-    },
     collectionFile: {
       type: String,
     },

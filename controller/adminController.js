@@ -572,11 +572,11 @@ const artistRegister = async (req, res) => {
               .toLowerCase()
               .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
               .trim(),
-            artistPhone: req.body.managerArtistPhone
+            managerPhone: req.body.managerArtistPhone
               .replace(/[- )(]/g, "")
               .trim(),
-            artistEmail: req.body.managerArtistEmail.toLowerCase(),
-            artistGender: req.body.managerArtistGender,
+            managerEmail: req.body.managerArtistEmail.toLowerCase(),
+            managerGender: req.body.managerArtistGender,
             address: {
               address: req.body.address,
               city: req.body.managerCity,
@@ -1581,6 +1581,7 @@ const getArtistPendingList = async (req, res) => {
           $or: [
             { artistId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
           ],
         },
       },
@@ -1777,6 +1778,7 @@ const suspendedArtistList = async (req, res) => {
           $or: [
             { artistId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
           ],
         },
       },

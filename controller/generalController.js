@@ -7,6 +7,7 @@ const Artist = require("../models/artistModel");
 const { createLog } = require("../functions/common");
 const APIErrorLog = createLog("API_error_log");
 const Admin = require("../models/adminModel");
+const objectId = require("mongoose").Types.ObjectId;
 const moment = require("moment");
 
 const listArtworkStyle = async (req, res) => {
@@ -495,15 +496,97 @@ const deleteMedia = async (req, res) => {
 const getAllSeriesList = async (req, res) => {
   try {
     const { id } = req.params;
-    const seriesList = await Artist.findOne(
-      {
-        _id: id,
-        isDeleted: false,
-      },
-      { artistSeriesList: 1 }
-    ).lean(true);
 
-    return res.status(200).send({ data: seriesList.artistSeriesList });
+    const seriesList = await Artist.aggregate([
+      {
+        $match: {
+          _id: objectId(id),
+          isDeleted: false,
+        },
+      },
+      {
+        $unwind: {
+          path: "$commercilization.publishingCatalog",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "catalogs",
+          localField: "commercilization.publishingCatalog.PublishingCatalog",
+          foreignField: "_id",
+          as: "publishCatalog",
+        },
+      },
+      {
+        $unwind: {
+          path: "$publishCatalog",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          artistSeriesList: 1,
+          vatAmount: "$invoice.vatAmount",
+          commercilization: {
+            artistFees: "$commercilization.publishingCatalog.ArtistFees",
+            _id: "$publishCatalog._id",
+            catalogName: "$publishCatalog.catalogName",
+            catalogCommercialization:
+              "$publishCatalog.catalogCommercialization",
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            artistId: "$_id",
+            catalogCommercialization:
+              "$commercilization.catalogCommercialization",
+          },
+          artistSeriesList: { $first: "$artistSeriesList" },
+          vatAmount: { $first: "$vatAmount" },
+          commercilization: {
+            $push: {
+              _id: "$commercilization._id",
+              artistFees: "$commercilization.artistFees",
+              catalogName: "$commercilization.catalogName",
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.artistId",
+          artistSeriesList: { $first: "$artistSeriesList" },
+          vatAmount: { $first: "$vatAmount" },
+          commercilization: {
+            $push: {
+              catalogCommercialization: "$_id.catalogCommercialization",
+              details: "$commercilization",
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          artistSeriesList: 1,
+          commercilization: 1,
+          vatAmount: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).send({
+      seriesList: seriesList[0].artistSeriesList,
+      purchaseCatalog: seriesList[0].commercilization.filter(
+        (item) => item.catalogCommercialization === "Purchase"
+      )[0].details,
+      subscriptionCatalog: seriesList[0].commercilization.filter(
+        (item) => item.catalogCommercialization === "Subscription"
+      )[0].details,
+      vatAmount: seriesList[0].vatAmount,
+    });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });

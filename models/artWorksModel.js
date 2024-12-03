@@ -14,6 +14,7 @@ const artWorkSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+    artworkId: { type: String },
     isHighlighted: { type: Boolean },
     isArtProvider: { type: String },
     provideArtistName: { type: String },
@@ -31,6 +32,7 @@ const artWorkSchema = new mongoose.Schema(
     discipline: { type: Object },
     promotions: { type: Object },
     restriction: { type: Object },
+    tags: { type: Object },
   },
   {
     timestamps: true,

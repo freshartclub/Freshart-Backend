@@ -76,7 +76,6 @@ const addCollection = catchAsyncError(async (req, res, next) => {
   let obj = {
     collectionName: req.body.collectionName,
     collectionDesc: req.body.collectionDesc,
-    createdBy: req.body.createdBy,
     artworkList: artworkListArr,
     artworkTags: req.body.artworkTags,
     status: req.body.status,
@@ -84,6 +83,7 @@ const addCollection = catchAsyncError(async (req, res, next) => {
 
   obj["expertDetails"] = {
     expertDesc: req.body.expertDesc,
+    createdBy: req.body.createdBy,
     expertImg:
       fileData.data?.expertImg !== undefined
         ? fileData.data?.expertImg[0].filename
@@ -121,19 +121,26 @@ const getAllCollections = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         isDeleted: false,
-        collectionName: { $regex: s, $options: "i" },
+        $or: [
+          { collectionName: { $regex: s, $options: "i" } },
+          { "expertDetails.createdBy": { $regex: s, $options: "i" } },
+          { artworkTags: { $regex: s, $options: "i" } },
+        ],
       },
     },
     {
       $project: {
         _id: 1,
         collectionName: 1,
-        createdBy: 1,
+        createdBy: "$expertDetails.createdBy",
         collectionFile: 1,
         status: 1,
         artworkTags: 1,
         createdAt: 1,
       },
+    },
+    {
+      $sort: { createdAt: -1 },
     },
   ]);
 
@@ -183,7 +190,11 @@ const searchCollection = catchAsyncError(async (req, res, next) => {
       isDeleted: false,
       collectionName: { $regex: s, $options: "i" },
     },
-    { collectionName: 1, collectionFile: 1, createdBy: 1 }
+    {
+      collectionName: 1,
+      collectionFile: 1,
+      createdBy: "$expertDetails.createdBy",
+    }
   ).lean(true);
 
   res.status(200).send({
