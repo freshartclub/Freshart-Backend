@@ -270,33 +270,25 @@ const verifyEmailOTP = async (req, res) => {
 };
 
 const smsSendOTP = async (req, res) => {
-  const user = process.env.API_SMS_USER;
-  const password = process.env.API_SMS_PWD;
-
-  const url = "https://dashboard.wausms.com/Api/rest/message";
-
-  const authHeader = `Basic ${Buffer.from(`${user}:${password}`).toString(
-    "base64"
-  )}`;
-
   try {
-    // const post = {
-    //   to: ["34666555444"],
-    //   text: `Some Text message - ${generateRandomOTP()}`,
-    //   from: "FreshArt Club",
-    // };
+    const { phone, email } = req.body;
+    const user = process.env.API_SMS_USER;
+    const password = process.env.API_SMS_PWD;
 
-    // console.log(authHeader);
+    const authHeader = `Basic ${Buffer.from(`${user}:${password}`).toString(
+      "base64"
+    )}`;
 
-    // return res
-    //   .status(200)
-    //   .send({ message: "OTP sent Successfully", authHeader, url, post });
+    const otp = generateRandomOTP();
+
+    let phoneArr = [];
+    phoneArr.push(phone.replace("+", ""));
 
     const response = await axios.post(
       "https://dashboard.wausms.com/Api/rest/message",
       {
-        to: ["918103192641"],
-        text: `Some Text message - ${generateRandomOTP()}`,
+        to: phoneArr,
+        text: `Some Text message - ${otp}`,
         from: "FreshArt111",
       },
       {
@@ -307,19 +299,18 @@ const smsSendOTP = async (req, res) => {
       }
     );
 
-    console.log(response);
+    await Artist.updateOne(
+      { email: email.toLowerCase(), isDeleted: false },
+      { $set: { OTP: otp } }
+    );
+
     return res.status(200).send({
       message: "OTP sent Successfully",
       response,
-      authHeader,
-      url,
-      post,
     });
   } catch (error) {
     APIErrorLog.error(error);
-    return res
-      .status(500)
-      .send({ message: error, authHeader, url, post, user, password });
+    return res.status(500).send({ message: error });
   }
 };
 
