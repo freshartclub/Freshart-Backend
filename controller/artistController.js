@@ -272,9 +272,9 @@ const verifyEmailOTP = async (req, res) => {
 const smsSendOTP = async (req, res) => {
   try {
     const { phone, email } = req.body;
-    const authHeader = `Basic ${Buffer.from(
+    const authHeader = Buffer.from(
       `${process.env.API_SMS_USER}:${process.env.API_SMS_PWD}`
-    ).toString("base64")}`;
+    ).toString("base64");
 
     const otp = generateRandomOTP();
 
