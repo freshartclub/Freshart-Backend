@@ -283,7 +283,7 @@ const smsSendOTP = async (req, res) => {
 
     const data = {
       to: phoneArr,
-      text: `Some Text message - ${otp}`,
+      text: `To verify your phone number for the 'Become an Artist' form, use OTP ${otp}. It is valid for 10 minutes.`,
       from: "57575757111",
     };
 
@@ -310,14 +310,10 @@ const smsSendOTP = async (req, res) => {
           .send({ message: "Something went wrong", error: error });
       });
 
-    return res
-      .status(200)
-      .send({ message: "OTP sent Successfully", response: response });
+    return res.status(200).send({ message: "OTP sent Successfully" });
   } catch (error) {
     APIErrorLog.error(error);
-    return res
-      .status(500)
-      .send({ message: "Something went wrong", error: error });
+    return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
