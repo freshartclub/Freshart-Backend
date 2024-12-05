@@ -296,23 +296,20 @@ const smsSendOTP = async (req, res) => {
       headers: {
         Authorization: authHeader,
         Accept: "application/json",
-        "Content-Type": "application/json",
       },
     });
 
     console.log(response);
-    return res
-      .status(200)
-      .send({
-        message: "OTP sent Successfully",
-        response,
-        authHeader,
-        url,
-        post,
-      });
+    return res.status(200).send({
+      message: "OTP sent Successfully",
+      response,
+      authHeader,
+      url,
+      post,
+    });
   } catch (error) {
     APIErrorLog.error(error);
-    return res.status(500).send({ message: "Something went wrong" });
+    return res.status(500).send({ message: error });
   }
 };
 
