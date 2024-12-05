@@ -295,22 +295,16 @@ const smsSendOTP = async (req, res) => {
       Authorization: `Basic ${authHeader}`,
     };
 
-    const response = await axios
-      .post(url, data, { headers })
-      .then(async (data) => {
-        await Artist.updateOne(
-          { email: email.toLowerCase(), isDeleted: false },
-          { $set: { OTP: otp } }
-        );
-      })
-      .catch((error) => {
-        APIErrorLog.error(error);
-        return res
-          .status(500)
-          .send({ message: "Something went wrong", error: error });
-      });
+    const response = await axios.post(url, data, { headers });
 
-    return res.status(200).send({ message: "OTP sent Successfully" });
+    Artist.updateOne(
+      { email: email.toLowerCase(), isDeleted: false },
+      { $set: { OTP: otp } }
+    ).then();
+
+    return res
+      .status(200)
+      .json({ message: "OTP sent Successfully", data: response });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
