@@ -272,7 +272,7 @@ const verifyEmailOTP = async (req, res) => {
 const smsSendOTP = async (req, res) => {
   try {
     const post = {
-      to: ["916264173732"],
+      to: ["34666555444"],
       text: `Some Text message - ${generateRandomOTP()}`,
       from: "FreshArt Club",
     };
@@ -294,8 +294,8 @@ const smsSendOTP = async (req, res) => {
 
     const response = await axios.post(url, post, {
       headers: {
-        Authorization: authHeader,
         Accept: "application/json",
+        Authorization: authHeader,
       },
     });
 
