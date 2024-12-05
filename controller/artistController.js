@@ -296,10 +296,10 @@ const smsSendOTP = async (req, res) => {
       }
     );
 
-    await Artist.updateOne(
-      { email: email.toLowerCase(), isDeleted: false },
-      { $set: { OTP: otp } }
-    );
+    // await Artist.updateOne(
+    //   { email: email.toLowerCase(), isDeleted: false },
+    //   { $set: { OTP: otp } }
+    // );
 
     return res.status(200).send({
       message: "OTP sent Successfully",
