@@ -302,7 +302,7 @@ const smsSendOTP = async (req, res) => {
       { $set: { OTP: otp } }
     ).then();
 
-    return res.status(200).json({ message: "OTP sent Successfully", response });
+    return res.status(200).json({ message: "OTP sent Successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
