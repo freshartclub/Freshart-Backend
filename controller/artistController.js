@@ -281,31 +281,38 @@ const smsSendOTP = async (req, res) => {
     let phoneArr = [];
     phoneArr.push(phone.replace("+", ""));
 
-    const response = await axios.post(
-      "https://dashboard.wausms.com/Api/rest/message",
-      {
-        to: phoneArr,
-        text: `Some Text message - ${otp}`,
-        from: "5757571111",
-      },
-      {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: authHeader,
+    await axios
+      .post(
+        "https://dashboard.wausms.com/Api/rest/message",
+        {
+          to: phoneArr,
+          text: `Some Text message - ${otp}`,
+          from: "5757571111",
         },
-      }
-    );
+        {
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/json",
+            Authorization: authHeader,
+          },
+        }
+      )
+      .then(async (data) => {
+        await Artist.updateOne(
+          { email: email.toLowerCase(), isDeleted: false },
+          { $set: { OTP: otp } }
+        );
 
-    // await Artist.updateOne(
-    //   { email: email.toLowerCase(), isDeleted: false },
-    //   { $set: { OTP: otp } }
-    // );
-
-    return res.status(200).send({
-      message: "OTP sent Successfully",
-      response,
-    });
+        return res.status(200).send({
+          message: "OTP sent Successfully",
+          data: data,
+          // response,
+        });
+      })
+      .catch((error) => {
+        APIErrorLog.error(error);
+        return res.status(500).send({ message: error, data: "Some Error" });
+      });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: error });
