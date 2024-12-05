@@ -281,22 +281,22 @@ const smsSendOTP = async (req, res) => {
     let phoneArr = [];
     phoneArr.push(phone.replace("+", ""));
 
+    const data = {
+      to: phoneArr,
+      text: `Some Text message - ${otp}`,
+      from: "57575757111",
+    };
+
+    const url = "https://dashboard.wausms.com/Api/rest/message";
+
+    const headers = {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      Authorization: `Basic ${authHeader}`,
+    };
+
     await axios
-      .post(
-        "https://dashboard.wausms.com/Api/rest/message",
-        {
-          to: phoneArr,
-          text: `Some Text message - ${otp}`,
-          from: "5757571111",
-        },
-        {
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-            Authorization: authHeader,
-          },
-        }
-      )
+      .post(url, data, { headers })
       .then(async (data) => {
         await Artist.updateOne(
           { email: email.toLowerCase(), isDeleted: false },
