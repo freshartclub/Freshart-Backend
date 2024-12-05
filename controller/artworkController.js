@@ -103,13 +103,12 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkCreationYear: req.body.artworkCreationYear,
     artworkSeries: req.body.artworkSeries,
     productDescription: req.body.productDescription,
-    collectionList: req.body.collectionList,
     isArtProvider: req.body.isArtProvider,
     artworkId: isArtwork ? artwork?.artworkId : "ARW-" + generateRandomId(),
     owner: id,
   };
 
-  if (req.body?.isArtProvider === "yes") {
+  if (req.body?.isArtProvider === "Yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
   }
   obj["media"] = {
@@ -204,10 +203,6 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["discipline"] = {
     artworkDiscipline: req.body.artworkDiscipline,
-    artworkTags:
-      typeof req.body.artworkTags === "string"
-        ? [req.body.artworkTags]
-        : req.body.artworkTags,
   };
 
   obj["promotions"] = {
@@ -320,7 +315,8 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   let styleArr = [];
   let colorsArr = [];
   let emotionsArr = [];
-  let tagsArr = [];
+  let intTagsArr = [];
+  let extTagsArr = [];
 
   if (req.body.emotions) {
     const emotions = Array.isArray(req.body.emotions)
@@ -337,16 +333,30 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  if (req.body.artworkTags) {
-    const artworkTags = Array.isArray(req.body.artworkTags)
-      ? req.body.artworkTags.map((item) => JSON.parse(item))
-      : req.body.artworkTags;
+  if (req.body.intTags) {
+    const intTags = Array.isArray(req.body.intTags)
+      ? req.body.intTags.map((item) => JSON.parse(item))
+      : req.body.intTags;
 
-    if (typeof artworkTags === "string") {
-      tagsArr.push(artworkTags.replace(/^"|"$/g, ""));
+    if (typeof intTags === "string") {
+      intTagsArr.push(intTags.replace(/^"|"$/g, ""));
     } else {
-      artworkTags.forEach((element) => {
-        tagsArr.push(element);
+      intTags.forEach((element) => {
+        intTagsArr.push(element);
+      });
+    }
+  }
+
+  if (req.body.extTags) {
+    const extTags = Array.isArray(req.body.extTags)
+      ? req.body.extTags.map((item) => JSON.parse(item))
+      : req.body.extTags;
+
+    if (typeof extTags === "string") {
+      extTagsArr.push(extTags.replace(/^"|"$/g, ""));
+    } else {
+      extTags.forEach((element) => {
+        extTagsArr.push(element);
       });
     }
   }
@@ -386,12 +396,12 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkCreationYear: req.body.artworkCreationYear,
     artworkSeries: req.body.artworkSeries,
     productDescription: req.body.productDescription,
-    collectionList: req.body.collectionList,
     isArtProvider: req.body.isArtProvider,
+    artworkId: isArtwork ? artwork?.artworkId : "ARW-" + generateRandomId(),
     owner: artist._id,
   };
 
-  if (req.body?.isArtProvider === "yes") {
+  if (req.body?.isArtProvider === "Yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
   }
 
@@ -444,21 +454,28 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
       purchaseCatalog: req.body.purchaseCatalog,
-      artistbaseFees: req.body.artistbaseFees,
-      downwardOffer: req.body.downwardOffer,
-      upworkOffer: req.body.upworkOffer,
-      acceptOfferPrice: req.body.acceptOfferPrice,
-      priceRequest: req.body.priceRequest,
+      purchaseType: req.body.purchaseType,
     };
   }
 
-  obj["pricing"] = {
-    currency: req.body.currency,
-    basePrice: req.body.basePrice,
-    dpersentage: req.body.dpersentage,
-    vatAmount: req.body.vatAmount,
-    artistFees: req.body.artistFees,
-  };
+  if (req.body?.activeTab === "subscription") {
+    obj["pricing"] = {
+      currency: req.body.currency,
+      basePrice: req.body.basePrice,
+      dpersentage: Number(req.body.dpersentage),
+      vatAmount: Number(req.body.vatAmount),
+      artistFees: req.body.artistFees,
+    };
+  } else {
+    obj["pricing"] = {
+      currency: req.body.currency,
+      basePrice: req.body.basePrice,
+      acceptOfferPrice: req.body.acceptOfferPrice,
+      dpersentage: Number(req.body.dpersentage),
+      vatAmount: Number(req.body.vatAmount),
+      artistFees: req.body.artistFees,
+    };
+  }
 
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
@@ -473,7 +490,6 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["discipline"] = {
     artworkDiscipline: req.body.artworkDiscipline,
-    artworkTags: tagsArr,
   };
 
   obj["promotions"] = {
@@ -484,6 +500,11 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   obj["restriction"] = {
     availableTo: req.body.availableTo,
     discountAcceptation: req.body.discountAcceptation,
+  };
+
+  obj["tags"] = {
+    intTags: intTagsArr,
+    extTags: extTagsArr,
   };
 
   let condition = {
@@ -571,11 +592,23 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
 
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+  let { s } = req.query;
+
+  if (s == "undefined") {
+    s = "";
+  } else if (typeof s === "undefined") {
+    s = "";
+  }
+
   const artworkList = await ArtWork.aggregate([
     {
       $match: {
         isDeleted: false,
         status: { $in: ["pending", "published", "rejected"] },
+        $or: [
+          { artworkName: { $regex: s, $options: "i" } },
+          { artworkId: { $regex: s, $options: "i" } },
+        ],
       },
     },
     {
@@ -595,6 +628,7 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         _id: 1,
+        artworkId: 1,
         artistName: "$ownerInfo.artistName",
         artistSurname1: "$ownerInfo.artistSurname1",
         artistSurname2: "$ownerInfo.artistSurname2",
@@ -604,6 +638,7 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
         discipline: 1,
         artworkName: 1,
         artworkCreationYear: 1,
+        isArtProvider: 1,
         artworkSeries: 1,
         productDescription: 1,
         artworkTechnic: "$additionalInfo.artworkTechnic",

@@ -9,9 +9,6 @@ const mediaSupportSchema = new mongoose.Schema(
     mediaName: {
       type: String,
     },
-    spanishMediaName: {
-      type: String,
-    },
     discipline: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "Discipline",

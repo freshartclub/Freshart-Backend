@@ -9,9 +9,6 @@ const artworkTechnicSchema = new mongoose.Schema(
     technicName: {
       type: String,
     },
-    spanishTechnicName: {
-      type: String,
-    },
     discipline: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "Discipline",

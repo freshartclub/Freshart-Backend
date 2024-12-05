@@ -12,9 +12,6 @@ const disciplineSchema = new mongoose.Schema(
     disciplineName: {
       type: String,
     },
-    disciplineSpanishName: {
-      type: String,
-    },
     disciplineDescription: {
       type: String,
     },

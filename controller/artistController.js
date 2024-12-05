@@ -15,6 +15,7 @@ const md5 = require("md5");
 const objectId = require("mongoose").Types.ObjectId;
 const fs = require("fs");
 const path = require("path");
+const axios = require("axios");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -262,6 +263,53 @@ const verifyEmailOTP = async (req, res) => {
     return res
       .status(200)
       .send({ token, id: user._id, message: "Email verified Successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const smsSendOTP = async (req, res) => {
+  try {
+    const post = {
+      to: ["916264173732"],
+      text: `Some Text message - ${generateRandomOTP()}`,
+      from: "FreshArt Club",
+    };
+
+    const user = process.env.API_SMS_USER;
+    const password = process.env.API_SMS_PWD;
+
+    const url = "https://dashboard.wausms.com/Api/rest/message";
+
+    const authHeader = `Basic ${Buffer.from(`${user}:${password}`).toString(
+      "base64"
+    )}`;
+
+    // console.log(authHeader);
+
+    // return res
+    //   .status(200)
+    //   .send({ message: "OTP sent Successfully", authHeader, url, post });
+
+    const response = await axios.post(url, post, {
+      headers: {
+        Authorization: authHeader,
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+    });
+
+    console.log(response);
+    return res
+      .status(200)
+      .send({
+        message: "OTP sent Successfully",
+        response,
+        authHeader,
+        url,
+        post,
+      });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1287,6 +1335,7 @@ module.exports = {
   login,
   sendVerifyEmailOTP,
   verifyEmailOTP,
+  smsSendOTP,
   becomeArtist,
   sendForgotPasswordOTP,
   validateOTP,

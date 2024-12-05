@@ -26,6 +26,7 @@ const {
   ticketFeedback,
   removeFromCart,
   exportLanguageJSONFile,
+  smsSendOTP,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -47,6 +48,8 @@ router.post("/login", login);
 router.post("/send-register-otp", sendVerifyEmailOTP);
 
 router.post("/verify-email", verifyEmailOTP);
+
+router.post("/sms-otp", smsSendOTP);
 
 router.post("/become-artist", becomeArtist);
 

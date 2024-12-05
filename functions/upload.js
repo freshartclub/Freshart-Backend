@@ -3,15 +3,41 @@ const mongoose = require("mongoose");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
+    if (file?.fieldname === "collectionFile") {
+      if (
+        file.mimetype === "image/jpg" ||
+        file.mimetype === "image/png" ||
+        file.mimetype === "image/jpeg" ||
+        file.mimetype === "image/webp"
+      ) {
+        return cb(null, "./public/uploads/users");
+      } else {
+        return cb(null, "./public/uploads/videos");
+      }
+    }
+
+    if (file?.fieldname === "ticketImg") {
+      if (
+        file.mimetype === "image/jpg" ||
+        file.mimetype === "image/png" ||
+        file.mimetype === "image/jpeg" ||
+        file.mimetype === "image/webp"
+      ) {
+        return cb(null, "./public/uploads/users");
+      } else {
+        return cb(null, "./public/uploads/documents");
+      }
+    }
+
     if (file?.fieldname === "uploadDocs") {
       cb(null, "./public/uploads/documents");
     } else {
       if (
         ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
       ) {
-        cb(null, "./public/uploads/videos");
+        return cb(null, "./public/uploads/videos");
       } else {
-        cb(null, "./public/uploads/users");
+        return cb(null, "./public/uploads/users");
       }
     }
   },
@@ -71,6 +97,19 @@ const fileFilter = (req, file, cb) => {
       file.mimetype === "image/jpeg" ||
       file.mimetype === "image/webp"
     ) {
+      return cb(null, true);
+    }
+  }
+
+  if (["ticketImg"].includes(file?.fieldname)) {
+    if (
+      file.mimetype === "image/jpg" ||
+      file.mimetype === "image/png" ||
+      file.mimetype === "image/jpeg" ||
+      file.mimetype === "image/webp"
+    ) {
+      return cb(null, true);
+    } else {
       return cb(null, true);
     }
   }

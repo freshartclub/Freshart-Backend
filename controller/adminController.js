@@ -363,6 +363,8 @@ const artistRegister = async (req, res) => {
         : 7
       : Number(req.body.count);
 
+    console.log(req.body);
+
     switch (count) {
       case 1:
         obj = {
@@ -682,7 +684,6 @@ const addDiscipline = async (req, res) => {
 
     let obj = {
       disciplineName: req.body.name,
-      disciplineSpanishName: req.body.spanishName,
       disciplineDescription: req.body.description,
       isDeleted: req.body.isDeleted,
     };
@@ -771,7 +772,6 @@ const addStyles = async (req, res) => {
 
     const obj = {
       styleName: req.body.name,
-      spanishStyleName: req.body.spanishName,
       discipline: req.body.discipline,
       isDeleted: req.body.isDeleted,
     };
@@ -857,7 +857,6 @@ const addTechnic = async (req, res) => {
 
     const obj = {
       technicName: req.body.name,
-      spanishTechnicName: req.body.spanishName,
       discipline: req.body.discipline,
       isDeleted: req.body.isDeleted,
     };
@@ -943,7 +942,6 @@ const addTheme = async (req, res) => {
 
     const obj = {
       themeName: req.body.name,
-      spanishThemeName: req.body.spanishName,
       discipline: req.body.discipline,
       isDeleted: req.body.isDeleted,
     };
@@ -1029,7 +1027,6 @@ const addMediaSupport = async (req, res) => {
 
     const obj = {
       mediaName: req.body.name,
-      spanishMediaName: req.body.spanishName,
       discipline: req.body.discipline,
       isDeleted: req.body.isDeleted,
     };
@@ -1090,7 +1087,6 @@ const createInsignias = async (req, res) => {
     }
 
     const { id } = req.query;
-
     const fileData = await fileUploadFunc(req, res);
 
     if (id !== undefined) {
@@ -1161,15 +1157,12 @@ const getRegisterArtist = async (req, res) => {
     if (data) {
       return res.status(200).send({
         data: data,
-        message: "Artist data received successfully",
         url: "https://dev.freshartclub.com/images",
       });
     }
     return res.status(400).send({ message: "Artist not found" });
   } catch (error) {
-    APIErrorLog.error("Error while get the artist data");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1194,8 +1187,10 @@ const getInsignias = async (req, res) => {
     const data = await Insignia.aggregate([
       {
         $match: {
-          // isDeleted: false,
-          credentialName: s ? { $regex: s, $options: "i" } : { $ne: null },
+          $or: [
+            { credentialName: { $regex: s, $options: "i" } },
+            { credentialGroup: { $regex: s, $options: "i" } },
+          ],
         },
       },
       {
@@ -1880,7 +1875,7 @@ const serachUserByQueryInput = async (req, res) => {
         $match: {
           isDeleted: false,
           $or: [
-            { artistId: { $regex: s, $options: "i" } },
+            { userId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
             { email: { $regex: s, $options: "i" } },
           ],
@@ -2202,6 +2197,9 @@ const addTicket = async (req, res) => {
       isDeleted: false,
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const fileData = await fileUploadFunc(req, res);
+
     const {
       id,
       ticketType,
@@ -2226,6 +2224,7 @@ const addTicket = async (req, res) => {
       impact,
       priority,
       subject,
+      ticketImg: fileData.data?.ticketImg[0].filename,
       message,
     });
 
@@ -2304,7 +2303,7 @@ const ticketList = async (req, res) => {
           artistSurname1: "$artistInfo.artistSurname1",
           artistSurname2: "$artistInfo.artistSurname2",
           email: "$artistInfo.email",
-          avatar: "$artistInfo.avatar",
+          mainImage: "$artistInfo.profile.mainImage",
           ticketType: 1,
           status: 1,
           subject: 1,
@@ -2327,6 +2326,7 @@ const ticketList = async (req, res) => {
     return res.json({
       message: "All tickets retrieved successfully.",
       data: getData,
+      url: "https://dev.freshartclub.com/images",
       // pagination: {
       //   totalItems,
       //   currentPage: page,
@@ -2355,6 +2355,7 @@ const ticketDetail = async (req, res) => {
 
     return res.status(201).send({
       data: ticketData,
+      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     return res.status(500).send({ message: "Server error" });
@@ -2521,7 +2522,12 @@ const getFAQList = async (req, res) => {
         $match: {
           isDeleted: false,
           faqGrp: { $regex: grp, $options: "i" },
-          faqQues: { $regex: s, $options: "i" },
+          $or: [
+            { faqQues: { $regex: s, $options: "i" } },
+            {
+              tags: { $regex: s, $options: "i" },
+            },
+          ],
         },
       },
       {
@@ -2630,7 +2636,12 @@ const getKBList = async (req, res) => {
         $match: {
           isDeleted: false,
           kbGrp: { $regex: grp, $options: "i" },
-          kbTitle: { $regex: s, $options: "i" },
+          $or: [
+            { kbTitle: { $regex: s, $options: "i" } },
+            {
+              tags: { $regex: s, $options: "i" },
+            },
+          ],
         },
       },
       {

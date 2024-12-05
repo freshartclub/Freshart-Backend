@@ -9,9 +9,6 @@ const artworkStyle = new mongoose.Schema(
     styleName: {
       type: String,
     },
-    spanishStyleName: {
-      type: String,
-    },
     discipline: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "Discipline",

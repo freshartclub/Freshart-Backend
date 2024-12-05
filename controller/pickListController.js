@@ -1,6 +1,5 @@
 const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
-const { fileUploadFunc } = require("../functions/common");
 const PickList = require("../models/pickListModel");
 
 const addPickList = catchAsyncError(async (req, res, next) => {
@@ -86,7 +85,7 @@ const updatePicklist = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   const { name: queryName } = req.query;
 
-  const { name, isDeleted } = req.body;
+  const { name } = req.body;
 
   const picklist = await PickList.findById(id).lean(true);
   if (!picklist) {
@@ -106,7 +105,6 @@ const updatePicklist = catchAsyncError(async (req, res, next) => {
     {
       $set: {
         "picklist.$.name": name,
-        "picklist.$.isDeleted": isDeleted,
       },
     }
   ).then();
@@ -114,4 +112,49 @@ const updatePicklist = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ message: "Picklist updated successfully" });
 });
 
-module.exports = { addPickList, getPickList, getPickListById, updatePicklist };
+const deletePicklist = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) {
+    return res.status(400).send({ message: `Admin not found` });
+  }
+
+  const { id } = req.params;
+  const { name } = req.query;
+
+  const picklist = await PickList.findById(id).lean(true);
+  if (!picklist) {
+    return res.status(400).send({ message: "Picklist not found" });
+  }
+
+  const findField = picklist.picklist.find((item) => item.name === name);
+  if (!findField) {
+    return res.status(400).send({ message: "Requested field not found" });
+  }
+
+  PickList.updateOne(
+    {
+      _id: id,
+    },
+    {
+      $pull: {
+        picklist: {
+          name: name,
+        },
+      },
+    }
+  ).then();
+
+  return res.status(200).send({ message: "Picklist deleted successfully" });
+});
+
+module.exports = {
+  addPickList,
+  getPickList,
+  getPickListById,
+  updatePicklist,
+  deletePicklist,
+};

@@ -96,7 +96,7 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
     },
     {
       $sort: { createdAt: -1 },
-    }
+    },
   ]);
 
   res
@@ -131,7 +131,7 @@ const getCatalogList = catchAsyncError(async (req, res, next) => {
     {
       isDeleted: false,
     },
-    { catalogName: 1 }
+    { catalogName: 1, defaultArtistFee: 1 }
   )
     .sort({ createdAt: -1 })
     .lean(true);
