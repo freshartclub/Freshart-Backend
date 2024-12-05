@@ -286,11 +286,12 @@ const smsSendOTP = async (req, res) => {
       {
         to: phoneArr,
         text: `Some Text message - ${otp}`,
-        from: "FreshArt111",
+        from: "5757571111",
       },
       {
         headers: {
           Accept: "application/json",
+          "Content-Type": "application/json",
           Authorization: authHeader,
         },
       }
