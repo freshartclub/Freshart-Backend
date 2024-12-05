@@ -298,27 +298,22 @@ const smsSendOTP = async (req, res) => {
     const response = await axios
       .post(url, data, { headers })
       .then(async (data) => {
-        
         await Artist.updateOne(
           { email: email.toLowerCase(), isDeleted: false },
           { $set: { OTP: otp } }
         );
-
-        return res.status(200).send({
-          message: "OTP sent Successfully",
-          data: data,
-          response: response,
-        });
       })
       .catch((error) => {
         APIErrorLog.error(error);
-        return res
-          .status(500)
-          .send({ message: error, data: "Some Error", response: response });
+        return res.status(500).send({ message: "Something went wrong", error });
       });
+
+    return res
+      .status(200)
+      .send({ message: "OTP sent Successfully", response: response });
   } catch (error) {
     APIErrorLog.error(error);
-    return res.status(500).send({ message: error });
+    return res.status(500).send({ message: "Something went wrong", error });
   }
 };
 
