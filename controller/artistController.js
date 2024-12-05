@@ -295,9 +295,10 @@ const smsSendOTP = async (req, res) => {
       Authorization: `Basic ${authHeader}`,
     };
 
-    await axios
+    const response = await axios
       .post(url, data, { headers })
       .then(async (data) => {
+        
         await Artist.updateOne(
           { email: email.toLowerCase(), isDeleted: false },
           { $set: { OTP: otp } }
@@ -306,12 +307,14 @@ const smsSendOTP = async (req, res) => {
         return res.status(200).send({
           message: "OTP sent Successfully",
           data: data,
-          // response,
+          response: response,
         });
       })
       .catch((error) => {
         APIErrorLog.error(error);
-        return res.status(500).send({ message: error, data: "Some Error" });
+        return res
+          .status(500)
+          .send({ message: error, data: "Some Error", response: response });
       });
   } catch (error) {
     APIErrorLog.error(error);
