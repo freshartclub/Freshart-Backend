@@ -270,21 +270,21 @@ const verifyEmailOTP = async (req, res) => {
 };
 
 const smsSendOTP = async (req, res) => {
+  const user = process.env.API_SMS_USER;
+  const password = process.env.API_SMS_PWD;
+
+  const url = "https://dashboard.wausms.com/Api/rest/message";
+
+  const authHeader = `Basic ${Buffer.from(`${user}:${password}`).toString(
+    "base64"
+  )}`;
+
   try {
-    const post = {
-      to: ["34666555444"],
-      text: `Some Text message - ${generateRandomOTP()}`,
-      from: "FreshArt Club",
-    };
-
-    const user = process.env.API_SMS_USER;
-    const password = process.env.API_SMS_PWD;
-
-    const url = "https://dashboard.wausms.com/Api/rest/message";
-
-    const authHeader = `Basic ${Buffer.from(`${user}:${password}`).toString(
-      "base64"
-    )}`;
+    // const post = {
+    //   to: ["34666555444"],
+    //   text: `Some Text message - ${generateRandomOTP()}`,
+    //   from: "FreshArt Club",
+    // };
 
     // console.log(authHeader);
 
@@ -292,12 +292,20 @@ const smsSendOTP = async (req, res) => {
     //   .status(200)
     //   .send({ message: "OTP sent Successfully", authHeader, url, post });
 
-    const response = await axios.post(url, post, {
-      headers: {
-        Accept: "application/json",
-        Authorization: authHeader,
+    const response = await axios.post(
+      "https://dashboard.wausms.com/Api/rest/message",
+      {
+        to: ["918103192641"],
+        text: `Some Text message - ${generateRandomOTP()}`,
+        from: "FreshArt111",
       },
-    });
+      {
+        headers: {
+          Accept: "application/json",
+          Authorization: authHeader,
+        },
+      }
+    );
 
     console.log(response);
     return res.status(200).send({
@@ -309,7 +317,9 @@ const smsSendOTP = async (req, res) => {
     });
   } catch (error) {
     APIErrorLog.error(error);
-    return res.status(500).send({ message: error });
+    return res
+      .status(500)
+      .send({ message: error, authHeader, url, post, user, password });
   }
 };
 
