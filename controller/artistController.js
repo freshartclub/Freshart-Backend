@@ -305,7 +305,9 @@ const smsSendOTP = async (req, res) => {
       })
       .catch((error) => {
         APIErrorLog.error(error);
-        return res.status(500).send({ message: "Something went wrong", error });
+        return res
+          .status(500)
+          .send({ message: "Something went wrong", error: error });
       });
 
     return res
@@ -313,7 +315,9 @@ const smsSendOTP = async (req, res) => {
       .send({ message: "OTP sent Successfully", response: response });
   } catch (error) {
     APIErrorLog.error(error);
-    return res.status(500).send({ message: "Something went wrong", error });
+    return res
+      .status(500)
+      .send({ message: "Something went wrong", error: error });
   }
 };
 
