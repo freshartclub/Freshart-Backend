@@ -217,7 +217,7 @@ const verifyEmailOTP = async (req, res) => {
       }
 
       Artist.updateOne(
-        { email: email, isDeleted: false },
+        { email: email.toLowerCase(), isDeleted: false },
         { $unset: { OTP: "" } }
       ).then();
 
@@ -269,7 +269,7 @@ const verifyEmailOTP = async (req, res) => {
   }
 };
 
-const smsSendOTP = async (req, res) => {
+const sendSMSOTP = async (req, res) => {
   try {
     const { phone, email } = req.body;
     const authHeader = Buffer.from(
@@ -302,7 +302,38 @@ const smsSendOTP = async (req, res) => {
       { $set: { OTP: otp } }
     ).then();
 
-    return res.status(200).json({ message: "OTP sent Successfully" });
+    return res.status(200).send({ message: "OTP sent Successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const verifySMSOTP = async (req, res) => {
+  try {
+    const { otp, email } = req.body;
+
+    const user = await Artist.findOne({
+      email: email.toLowerCase(),
+      isDeleted: false,
+    }).lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    if (otp !== user.OTP) {
+      return res.status(400).send({ message: "Invalid OTP" });
+    }
+
+    Artist.updateOne(
+      { email: email.toLowerCase(), isDeleted: false },
+      { $unset: { OTP: "" } }
+    ).then();
+
+    return res.status(200).send({
+      message: "Phone Number verified Successfully",
+    });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -468,9 +499,7 @@ const resetPassword = async (req, res) => {
 const resendOTP = async (req, res) => {
   try {
   } catch (error) {
-    APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1328,7 +1357,8 @@ module.exports = {
   login,
   sendVerifyEmailOTP,
   verifyEmailOTP,
-  smsSendOTP,
+  sendSMSOTP,
+  verifySMSOTP,
   becomeArtist,
   sendForgotPasswordOTP,
   validateOTP,

@@ -8,6 +8,7 @@ const artworkStyle = new mongoose.Schema(
     },
     picklistName: {
       type: String,
+      trim: true,
     },
     picklist: [
       {
@@ -17,6 +18,7 @@ const artworkStyle = new mongoose.Schema(
         },
         name: {
           type: String,
+          trim: true,
         },
       },
     ],

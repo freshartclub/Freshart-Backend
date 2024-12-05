@@ -363,8 +363,6 @@ const artistRegister = async (req, res) => {
         : 7
       : Number(req.body.count);
 
-    console.log(req.body);
-
     switch (count) {
       case 1:
         obj = {
