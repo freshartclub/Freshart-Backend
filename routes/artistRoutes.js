@@ -28,6 +28,7 @@ const {
   exportLanguageJSONFile,
   sendSMSOTP,
   verifySMSOTP,
+  changePassword,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -63,6 +64,8 @@ router.post("/validate-otp", validateOTP);
 router.post("/reset-password", resetPassword);
 
 router.post("/resend-otp", resendOTP);
+
+router.patch("/change-password", validateToken, changePassword);
 
 router.get("/get-artist", validateToken, getArtistDetails);
 

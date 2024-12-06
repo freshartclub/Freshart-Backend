@@ -504,6 +504,55 @@ const resendOTP = async (req, res) => {
   }
 };
 
+const changePassword = async (req, res) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+
+    if (!isStrongPassword(newPassword)) {
+      return res.status(400).send({
+        message:
+          "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res
+        .status(400)
+        .send({ message: "Password and confirm password does not match" });
+    }
+
+    const user = await Artist.findOne(
+      {
+        _id: req.user._id,
+        isDeleted: false,
+      },
+      { password: 1 }
+    ).lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    if (md5(oldPassword) !== user.password) {
+      return res.status(400).send({ message: "Invalid old password" });
+    }
+
+    await Artist.updateOne(
+      { _id: user._id, isDeleted: false },
+      {
+        $set: {
+          password: md5(newPassword),
+        },
+      }
+    );
+
+    return res.status(200).send({ message: "Password changed successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const becomeArtist = async (req, res) => {
   try {
     const { id } = req.params;
@@ -929,15 +978,24 @@ const editArtistProfile = async (req, res) => {
       }
     }
 
+    const processBodyImg = (img) => {
+      if (img === "null") {
+        return null;
+      } else {
+        return img;
+      }
+    };
+
     let obj = {
       artistName: req.body.artistName,
       artistSurname1: req.body.artistSurname2,
       artistSurname2: req.body.artistSurname2,
       nickName: req.body.nickName,
+      email: req.body.email,
       gender: req.body.gender,
       language: req.body.language,
       phone: req.body.phoneNumber,
-      dob: req.body.dob,
+      // dob: req.body.dob,
       aboutArtist: {
         about: req.body.about,
       },
@@ -948,14 +1006,14 @@ const editArtistProfile = async (req, res) => {
       profile: {
         mainImage: fileData?.data?.mainImage
           ? fileData?.data?.mainImage[0].filename
-          : artist?.profile?.mainImage,
+          : processBodyImg(req.body?.mainImage),
         additionalImage: additionalImages,
         inProcessImage: fileData.data?.inProcessImage
           ? fileData.data.inProcessImage[0].filename
-          : artist?.profile?.inProcessImage,
+          : processBodyImg(req.body?.inProcessImage),
         mainVideo: fileData.data?.mainVideo
           ? fileData.data.mainVideo[0].filename
-          : artist?.profile?.mainVideo,
+          : processBodyImg(req.body?.mainVideo),
         additionalVideo: additionalVideos,
       },
       address: {
@@ -966,16 +1024,50 @@ const editArtistProfile = async (req, res) => {
         residentialAddress: req.body.address,
       },
     };
+
+    if (req.body.isManagerDetails == "true") {
+      obj["isManagerDetails"] = true;
+      obj["managerDetails"] = {
+        managerName: req.body.managerName.toLowerCase().trim(),
+        managerPhone: req.body?.managerPhone.trim(),
+        managerEmail: req.body?.managerEmail.toLowerCase(),
+        managerGender: req.body?.managerGender,
+        address: {
+          address: req.body.managerAddress,
+          city: req.body.managerCity,
+          state: req.body.managerState,
+          zipCode: String(req.body.managerZipCode),
+          country: req.body.managerCountry,
+        },
+      };
+
+      if (
+        req.body.managerArtistLanguage &&
+        req.body.managerArtistLanguage.length
+      ) {
+        obj["managerDetails"]["language"] = Array.isArray(
+          req.body.managerArtistLanguage
+        )
+          ? req.body.managerArtistLanguage
+          : [req.body.managerArtistLanguage];
+      }
+    } else {
+      obj["isManagerDetails"] = false;
+      obj["managerDetails"] = null;
+    }
+
     obj["links"] = accountArr;
 
     Artist.updateOne(
       { _id: artist._id, isDeleted: false },
-      { $set: obj }
+      { $set: { reviewDetails: obj, profileStatus: "under-review" } }
     ).then();
 
-    return res.status(200).send({ message: "Profile updated successfully" });
+    return res.status(200).send({
+      message:
+        "Changes saved successfully. Your profile is currently under review",
+    });
   } catch (error) {
-    APIErrorLog.error("Error while edit the artist profile");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -1204,6 +1296,8 @@ const removeFromCart = async (req, res) => {
     const { id } = req.params;
     const { remove } = req.query;
 
+    console.log("remove", remove, id);
+
     if (remove && remove == "true") {
       await Artist.updateOne(
         {
@@ -1228,7 +1322,7 @@ const removeFromCart = async (req, res) => {
       }
     );
 
-    if (result.modifiedCount === 0) {
+    if (result && result.modifiedCount === 0) {
       return res.status(404).send({ message: "Item not found in the cart" });
     }
 
@@ -1364,6 +1458,7 @@ module.exports = {
   validateOTP,
   resetPassword,
   resendOTP,
+  changePassword,
   getArtistDetails,
   getArtistDetailById,
   logOut,

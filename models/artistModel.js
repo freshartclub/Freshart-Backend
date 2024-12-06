@@ -185,6 +185,9 @@ const artistSchema = new mongoose.Schema(
     managerDetails: {
       type: Object,
     },
+    reviewDetails: {
+      type: Object,
+    },
     links: {
       type: Array,
     },

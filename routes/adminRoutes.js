@@ -42,6 +42,9 @@ const {
   getKBById,
   unRejectArtistRequest,
   unBanArtistRequest,
+  getReviewDetailArtist,
+  approveArtistChanges,
+  rejectArtistChanges,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -165,6 +168,12 @@ router.patch(
   unBanArtistRequest
 );
 
+router.get(
+  "/get-review-artist-detail/:id",
+  validateAdminToken,
+  getReviewDetailArtist
+);
+
 router.post("/add-ticket", validateAdminToken, addTicket);
 
 router.get("/get-all-tickets", validateAdminToken, ticketList);
@@ -186,6 +195,10 @@ router.patch(
 );
 
 router.get("/get-series-list/:id", validateAdminToken, getAllSeriesList);
+
+router.patch("/approve-changes/:id", validateAdminToken, approveArtistChanges);
+
+router.patch("/reject-changes/:id", validateAdminToken, rejectArtistChanges);
 
 // ------------------- Artwork Routes ------------------------
 

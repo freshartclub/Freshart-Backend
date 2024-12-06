@@ -1503,11 +1503,18 @@ const getArtistRequestList = async (req, res) => {
     }
 
     const searchStatus = ["pending", "ban", "rejected"];
+    let statusFilter;
 
-    const statusFilter =
-      status && searchStatus.includes(status)
-        ? { isArtistRequestStatus: { $regex: status, $options: "i" } }
-        : { isArtistRequestStatus: { $in: searchStatus } };
+    if (status && status.toLowerCase() === "under-review") {
+      statusFilter = {
+        profileStatus: { $regex: status, $options: "i" },
+      };
+    } else {
+      statusFilter =
+        status && searchStatus.includes(status)
+          ? { isArtistRequestStatus: { $regex: status, $options: "i" } }
+          : { isArtistRequestStatus: { $in: searchStatus } };
+    }
 
     const artists = await Artist.aggregate([
       {
@@ -1525,6 +1532,7 @@ const getArtistRequestList = async (req, res) => {
           artistName: 1,
           artistSurname1: 1,
           isArtistRequestStatus: 1,
+          profileStatus: 1,
           nickName: 1,
           artistSurname2: 1,
           avatar: 1,
@@ -2692,6 +2700,138 @@ const getKBById = async (req, res) => {
   }
 };
 
+const getReviewDetailArtist = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const artist = await Artist.findOne({
+      _id: id,
+      profileStatus: "under-review",
+      isDeleted: false,
+    }).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const sendData = {
+      artistName: artist.artistName,
+      artistSurname1: artist.artistSurname1,
+      artistSurname2: artist.artistSurname2,
+      nickName: artist.nickName,
+      email: artist.email,
+      gender: artist.gender,
+      language: artist.language,
+      phone: artist.phone,
+      // dob: artist.dob,
+      address: artist.address,
+      aboutArtist: artist.aboutArtist,
+      highlights: artist.highlights,
+      profile: artist.profile,
+      address: artist.address,
+      links: artist.links,
+      managerDetails: artist.managerDetails,
+      isManagerDetails: artist.isManagerDetails,
+      reviewDetails: artist.reviewDetails,
+    };
+
+    return res
+      .status(200)
+      .send({ data: sendData, url: "https://dev.freshartclub.com/images" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const approveArtistChanges = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const artist = await Artist.findOne({
+      _id: id,
+      profileStatus: "under-review",
+      isDeleted: false,
+    }).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    if (artist.profileStatus !== "under-review") {
+      return res.status(400).send({ message: "Artist is already approved" });
+    }
+
+    const data = req.body;
+
+    let obj = {
+      artistName: data.artistName,
+      artistSurname1: data.artistSurname2,
+      artistSurname2: data.artistSurname2,
+      nickName: data.nickName,
+      email: data.email,
+      gender: data.gender,
+      language: data.language,
+      phone: data.phoneNumber,
+      aboutArtist: data?.aboutArtist,
+      highlights: data?.highlights,
+      profile: data?.profile,
+      address: data?.address,
+      links: data?.links,
+      managerDetails: data?.managerDetails,
+      isManagerDetails: data?.isManagerDetails,
+    };
+
+    await Artist.updateOne(
+      { _id: id },
+      {
+        $set: {
+          profileStatus: "active",
+          ...obj,
+        },
+        $unset: {
+          reviewDetails: "",
+        },
+      }
+    );
+    return res.status(200).send({ message: "Artist Profile Changes Approved" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const rejectArtistChanges = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const artist = await Artist.findOne({
+      _id: id,
+      profileStatus: "under-review",
+      isDeleted: false,
+    }).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    await Artist.updateOne(
+      { _id: id },
+      {
+        $set: {
+          profileStatus: "inactive",
+        },
+        $unset: {
+          reviewDetails: "",
+        },
+      }
+    );
+
+    return res.status(200).send({ message: "Artist Profile Changes Rejected" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -2743,4 +2883,7 @@ module.exports = {
   addKB,
   getKBList,
   getKBById,
+  getReviewDetailArtist,
+  approveArtistChanges,
+  rejectArtistChanges,
 };
