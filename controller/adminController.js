@@ -1503,24 +1503,32 @@ const getArtistRequestList = async (req, res) => {
     }
 
     const searchStatus = ["pending", "ban", "rejected"];
-    let statusFilter;
+    let statusFilter = {};
 
-    if (status && status.toLowerCase() === "under-review") {
+    if (status === "under-review") {
+      statusFilter = { profileStatus: { $regex: status, $options: "i" } };
+    } else if (searchStatus.includes(status)) {
       statusFilter = {
-        profileStatus: { $regex: status, $options: "i" },
+        isArtistRequestStatus: { $regex: status, $options: "i" },
       };
-    } else {
-      statusFilter =
-        status && searchStatus.includes(status)
-          ? { isArtistRequestStatus: { $regex: status, $options: "i" } }
-          : { isArtistRequestStatus: { $in: searchStatus } };
     }
 
     const artists = await Artist.aggregate([
       {
         $match: {
           isDeleted: false,
-          ...statusFilter,
+          ...(!status
+            ? {
+                $or: [
+                  { isArtistRequestStatus: { $in: searchStatus } },
+                  { profileStatus: { $regex: "under-review", $options: "i" } },
+                ],
+              }
+            : statusFilter),
+        },
+      },
+      {
+        $match: {
           $or: [
             { artistName: { $regex: s, $options: "i" } },
             { email: { $regex: s, $options: "i" } },
@@ -1540,7 +1548,7 @@ const getArtistRequestList = async (req, res) => {
           phone: 1,
           createdAt: 1,
           isActivated: 1,
-          document: 1,
+          documents: 1,
           userId: 1,
           artistId: 1,
           city: "$address.city",
