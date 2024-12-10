@@ -5,6 +5,7 @@ const ArtWork = require("../models/artWorksModel");
 const SubscriptionOrder = require("../models/subscriptionOrderModel");
 const PurchaseOrder = require("../models/purchaseOrderModel");
 const objectId = require("mongoose").Types.ObjectId;
+const { fileUploadFunc } = require("../functions/common");
 
 const createOrder = catchAsyncError(async (req, res, next) => {
   const user = await Artist.findOne({ _id: req.user._id }, { cart: 1 }).lean(
@@ -18,40 +19,26 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   if (req.body.items) {
     items = req.body.items.map((item) => {
       return {
-        artWork: item.id,
+        artWork: objectId(item.id),
         quantity: item.quantity,
       };
     });
   }
 
-  let order = null;
-  if (req.body.orderType === "subscription") {
-    order = await SubscriptionOrder.create({
-      orderID: orderID,
-      user: user._id,
-      status: "pending",
-      tax: req.body.tax,
-      shipping: req.body.shipping,
-      discount: req.body.discount,
-      subTotal: req.body.subTotal,
-      items: items,
-    });
-  } else if (req.body.orderType === "purchase") {
-    order = await PurchaseOrder.create({
-      user: user._id,
-      orderID: orderID,
-      status: "pending",
-      tax: req.body.tax,
-      shipping: req.body.shipping,
-      subTotal: req.body.subTotal,
-      discount: req.body.discount,
-      items: items,
-    });
-  } else {
-    return res.status(400).send({ message: "Order type not found" });
-  }
+  const OrderModel =
+    orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
 
-  if (!order) return res.status(400).send({ message: "Order not created" });
+  const order = await OrderModel.create({
+    orderID: orderID,
+    user: user._id,
+    status: "pending",
+    tax: req.body.tax,
+    shipping: req.body.shipping,
+    discount: req.body.discount,
+    subTotal: req.body.subTotal,
+    total: req.body.total,
+    items: items,
+  });
 
   const itemIds = items.map((item) => objectId(item.artWork));
   await Artist.updateOne(
@@ -65,17 +52,78 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const getAllSubscriptionOrder = catchAsyncError(async (req, res, next) => {
-  const orders = await SubscriptionOrder.find({})
-    .populate("user", "artistName artistSurname1 artistSurname2 email")
-    .populate({
-      path: "items",
-      select: "quantity artWork",
-      populate: {
-        path: "artWork",
-        select: "artworkName media inventoryShipping pricing",
+  const orders = await SubscriptionOrder.aggregate([
+    {
+      $unwind: "$items",
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artWork",
+        foreignField: "_id",
+        as: "artWorkData",
       },
-    })
-    .lean(true);
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        as: "userData",
+      },
+    },
+    {
+      $unwind: { path: "$userData", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        orderID: { $first: "$orderID" },
+        orderType: { $first: "$orderType" },
+        status: { $first: "$status" },
+        tax: { $first: "$tax" },
+        shipping: { $first: "$shipping" },
+        discount: { $first: "$discount" },
+        subTotal: { $first: "$subTotal" },
+        createdAt: { $first: "$createdAt" },
+        updatedAt: { $first: "$updatedAt" },
+        user: { $first: "$userData" },
+        items: {
+          $push: {
+            quantity: "$items.quantity",
+            artWork: {
+              _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+              artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
+              media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
+              inventoryShipping: {
+                $arrayElemAt: ["$artWorkData.inventoryShipping", 0],
+              },
+              pricing: { $arrayElemAt: ["$artWorkData.pricing", 0] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        orderID: 1,
+        orderType: 1,
+        status: 1,
+        tax: 1,
+        shipping: 1,
+        discount: 1,
+        subTotal: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        items: 1,
+        "user.artistName": 1,
+        "user.artistSurname1": 1,
+        "user.artistSurname2": 1,
+        "user.email": 1,
+      },
+    },
+  ]);
 
   return res
     .status(200)
@@ -83,17 +131,78 @@ const getAllSubscriptionOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const getAllPurchaseOrder = catchAsyncError(async (req, res, next) => {
-  const orders = await PurchaseOrder.find({})
-    .populate("user", "artistName artistSurname1 artistSurname2 email profile")
-    .populate({
-      path: "items",
-      select: "quantity artWork",
-      populate: {
-        path: "artWork",
-        select: "artworkName media inventoryShipping pricing",
+  const orders = await PurchaseOrder.aggregate([
+    {
+      $unwind: "$items",
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artWork",
+        foreignField: "_id",
+        as: "artWorkData",
       },
-    })
-    .lean(true);
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        as: "userData",
+      },
+    },
+    {
+      $unwind: { path: "$userData", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        orderID: { $first: "$orderID" },
+        status: { $first: "$status" },
+        orderType: { $first: "$orderType" },
+        tax: { $first: "$tax" },
+        shipping: { $first: "$shipping" },
+        discount: { $first: "$discount" },
+        subTotal: { $first: "$subTotal" },
+        createdAt: { $first: "$createdAt" },
+        updatedAt: { $first: "$updatedAt" },
+        user: { $first: "$userData" },
+        items: {
+          $push: {
+            quantity: "$items.quantity",
+            artWork: {
+              _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+              artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
+              media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
+              inventoryShipping: {
+                $arrayElemAt: ["$artWorkData.inventoryShipping", 0],
+              },
+              pricing: { $arrayElemAt: ["$artWorkData.pricing", 0] },
+            },
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        orderID: 1,
+        orderType: 1,
+        status: 1,
+        tax: 1,
+        shipping: 1,
+        discount: 1,
+        subTotal: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        items: 1,
+        "user.artistName": 1,
+        "user.artistSurname1": 1,
+        "user.artistSurname2": 1,
+        "user.email": 1,
+      },
+    },
+  ]);
 
   return res
     .status(200)
@@ -445,6 +554,7 @@ const getArtistOrder = catchAsyncError(async (req, res, next) => {
           createdAt: 1,
         },
       },
+      { $sort: { createdAt: -1 } },
     ]),
     PurchaseOrder.aggregate([
       {
@@ -492,6 +602,7 @@ const getArtistOrder = catchAsyncError(async (req, res, next) => {
           createdAt: 1,
         },
       },
+      { $sort: { createdAt: -1 } },
     ]),
   ]);
 
@@ -511,39 +622,112 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
       .status(400)
       .send({ message: "Please provide valid order id and order type" });
 
-  let order = null;
-  if (orderType.toLowerCase() === "subscription") {
-    order = await SubscriptionOrder.findOne({ _id: id })
-      .populate("user", "artistName artistSurname1 artistSurname2 email")
-      .populate({
-        path: "items",
-        select: "quantity artWork",
-        populate: {
-          path: "artWork",
-          select: "artworkName media.mainImage inventoryShipping pricing",
+  const artistId = req.user._id;
+  const artist = await Artist.countDocuments({ _id: artistId }).lean(true);
+  if (!artist) return res.status(400).send({ message: "Artist not found" });
+
+  const OrderModel =
+    orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
+
+  const order = await OrderModel.aggregate([
+    {
+      $match: {
+        _id: objectId(id),
+      },
+    },
+    {
+      $unwind: "$items",
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artWork",
+        foreignField: "_id",
+        as: "artWorkData",
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        as: "userData",
+      },
+    },
+    {
+      $unwind: { path: "$userData", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $addFields: {
+        "items.artWork": {
+          _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+          owner: { $arrayElemAt: ["$artWorkData.owner", 0] },
+          artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
+          media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
+          inventoryShipping: {
+            $arrayElemAt: ["$artWorkData.inventoryShipping", 0],
+          },
+          pricing: { $arrayElemAt: ["$artWorkData.pricing", 0] },
         },
-      })
-      .lean(true);
-  } else {
-    order = await PurchaseOrder.findOne({ _id: id })
-      .populate(
-        "user",
-        "artistName artistSurname1 artistSurname2 email profile.mainImage"
-      )
-      .populate({
-        path: "items",
-        select: "quantity artWork",
-        populate: {
-          path: "artWork",
-          select: "artworkName media.mainImage inventoryShipping pricing",
+      },
+    },
+    {
+      $match: {
+        $expr: {
+          $eq: ["$items.artWork.owner", objectId(artistId)],
         },
-      })
-      .lean(true);
-  }
+      },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        orderID: { $first: "$orderID" },
+        status: { $first: "$status" },
+        tax: { $first: "$tax" },
+        orderType: { $first: "$orderType" },
+        shipping: { $first: "$shipping" },
+        discount: { $first: "$discount" },
+        subTotal: { $first: "$subTotal" },
+        createdAt: { $first: "$createdAt" },
+        user: { $first: "$userData" },
+        items: {
+          $push: {
+            quantity: "$items.quantity",
+            evidenceImg: "$items.evidenceImg",
+            isCancelled: "$items.isCancelled",
+            cancelReason: "$items.cancelReason",
+            artWork: "$items.artWork",
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        orderID: 1,
+        status: 1,
+        tax: 1,
+        shipping: 1,
+        orderType: 1,
+        discount: 1,
+        subTotal: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        items: 1,
+        user: {
+          artistName: "$user.artistName",
+          artistSurname1: "$user.artistSurname1",
+          artistSurname2: "$user.artistSurname2",
+          email: "$user.email",
+          mainImage: "$user.profile.mainImage",
+        },
+      },
+    },
+  ]);
 
   return res
     .status(200)
-    .send({ data: order, url: "https://dev.freshartclub.com/images" });
+    .send({ data: order[0], url: "https://dev.freshartclub.com/images" });
 });
 
 const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
@@ -579,36 +763,165 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
   }
 });
 
-const getOrder = catchAsyncError(async (req, res, next) => {
+const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   const { orderType } = req.query;
 
-  if (orderType === "subscription") {
-    const order = await SubscriptionOrder.findById(id)
-      .populate("user", "artistName artistSurname1 artistSurname2 email")
-      .populate({
-        path: "items",
-        select: "quantity artWork",
-        populate: {
-          path: "artWork",
-          select: "artworkName media inventoryShipping pricing",
+  if (!id || !orderType)
+    return res.status(404).send({ message: "OrderId not found" });
+
+  const OrderModel =
+    orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
+
+  const order = await OrderModel.aggregate([
+    {
+      $match: {
+        _id: objectId(id),
+      },
+    },
+    {
+      $unwind: "$items",
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artWork",
+        foreignField: "_id",
+        as: "artWorkData",
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        as: "userData",
+      },
+    },
+    {
+      $unwind: { path: "$userData", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $group: {
+        _id: "$_id",
+        orderID: { $first: "$orderID" },
+        status: { $first: "$status" },
+        tax: { $first: "$tax" },
+        orderType: { $first: "$orderType" },
+        shipping: { $first: "$shipping" },
+        discount: { $first: "$discount" },
+        subTotal: { $first: "$subTotal" },
+        createdAt: { $first: "$createdAt" },
+        updatedAt: { $first: "$updatedAt" },
+        user: { $first: "$userData" },
+        items: {
+          $push: {
+            quantity: "$items.quantity",
+            evidenceImg: "$items.evidenceImg",
+            isCancelled: "$items.isCancelled",
+            cancelReason: "$items.cancelReason",
+
+            artWork: {
+              _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+              artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
+              media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
+              inventoryShipping: {
+                $arrayElemAt: ["$artWorkData.inventoryShipping", 0],
+              },
+              pricing: { $arrayElemAt: ["$artWorkData.pricing", 0] },
+            },
+          },
         },
-      });
-    return res.status(200).send({ order });
-  } else {
-    const order = await PurchaseOrder.findById(id)
-      .populate("user", "artistName artistSurname1 artistSurname2 email")
-      .populate({
-        path: "items",
-        select: "quantity artWork",
-        populate: {
-          path: "artWork",
-          select: "artworkName media inventoryShipping pricing",
-        },
-      });
-    return res.status(200).send({ order });
-  }
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        orderID: 1,
+        status: 1,
+        tax: 1,
+        shipping: 1,
+        orderType: 1,
+        discount: 1,
+        subTotal: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        items: 1,
+        "user.artistName": 1,
+        "user.artistSurname1": 1,
+        "user.artistSurname2": 1,
+        "user.email": 1,
+        "user.profile.mainImage": 1,
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .send({ data: order[0], url: "https://dev.freshartclub.com/images" });
 });
+
+const uploadEvedience = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const { orderType } = req.query;
+
+  let imgArr = [];
+  const fileData = await fileUploadFunc(req, res);
+
+  if (fileData.data?.evidenceImg) {
+    fileData.data?.evidenceImg.forEach((img) => imgArr.push(img.filename));
+  }
+
+  const { artworkId } = req.body;
+
+  const OrderModel =
+    orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
+
+  await OrderModel.updateOne(
+    { _id: id, "items.artWork": objectId(artworkId) },
+    { $set: { "items.$.evidenceImg": imgArr } }
+  );
+
+  return res.status(200).send({ message: "Evidence Uploaded" });
+});
+
+const cancelParticularItemFromOrder = catchAsyncError(
+  async (req, res, next) => {
+    const { id } = req.params;
+    const { orderType } = req.query;
+
+    const { reason, description, artworkId, title } = req.body;
+    if (!artworkId)
+      return res.status(400).send({ message: "Please provide artwork id" });
+
+    let obj = {
+      reason: reason,
+      description: description,
+    };
+
+    const OrderModel =
+      orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
+
+    const alreadyCancelled = await OrderModel.findOne({
+      _id: id,
+      "items.artWork": objectId(artworkId),
+      "items.isCancelled": true,
+    });
+
+    if (alreadyCancelled) {
+      return res.status(400).send({ message: "Artwork already cancelled" });
+    }
+
+    await OrderModel.updateOne(
+      { _id: id, "items.artWork": objectId(artworkId) },
+      { $set: { "items.$.isCancelled": true, "items.$.cancelReason": obj } }
+    );
+
+    return res
+      .status(200)
+      .send({ message: `Artwork - "${title}" cancelled successfully` });
+  }
+);
 
 module.exports = {
   createOrder,
@@ -619,4 +932,7 @@ module.exports = {
   getArtistOrder,
   acceptRejectOrderRequest,
   // getCombinedArtistOrder,
+  uploadEvedience,
+  cancelParticularItemFromOrder,
+  getAdminOrderDetails,
 };

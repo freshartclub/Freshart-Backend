@@ -67,6 +67,7 @@ const storage = multer.diskStorage({
         "ticketImg",
         "collectionFile",
         "expertImg",
+        "evidenceImg",
       ].includes(file?.fieldname)
     ) {
       data = mongoose.Types.ObjectId();
@@ -160,6 +161,7 @@ const upload = multer({
   { name: "collectionFile", maxCount: 1 },
   { name: "expertImg", maxCount: 1 },
   { name: "expertImg", maxCount: 1 },
+  { name: "evidenceImg", maxCount: 7 },
 ]);
 
 module.exports = upload;

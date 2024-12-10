@@ -34,12 +34,13 @@ const orderSchema = new mongoose.Schema(
     subTotal: {
       type: Number,
     },
-    items: [
-      {
-        artWork: { type: mongoose.Schema.Types.ObjectId, ref: "ArtWork" },
-        quantity: { type: Number },
-      },
-    ],
+    total: {
+      type: Number,
+    },
+    items: [{ type: Object }],
+    evidence: {
+      type: Object,
+    },
   },
   {
     timestamps: true,
