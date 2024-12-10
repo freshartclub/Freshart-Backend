@@ -577,11 +577,13 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
       artProvider: "$commercilization.artProvider",
       artistId: 1,
       userId: 1,
-      avatar: 1,
+      mainImage: "$profile.mainImage",
     }
   ).lean(true);
 
-  res.status(200).send({ data: artists });
+  res
+    .status(200)
+    .send({ data: artists, url: "https://dev.freshartclub.com/images" });
 });
 
 const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
@@ -605,10 +607,6 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
       $match: {
         isDeleted: false,
         status: { $in: ["pending", "published", "rejected"] },
-        $or: [
-          { artworkName: { $regex: s, $options: "i" } },
-          { artworkId: { $regex: s, $options: "i" } },
-        ],
       },
     },
     {
@@ -626,9 +624,20 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
       },
     },
     {
+      $match: {
+        $or: [
+          { artworkName: { $regex: s, $options: "i" } },
+          { artworkId: { $regex: s, $options: "i" } },
+          { "ownerInfo.artistName": { $regex: s, $options: "i" } },
+          { "ownerInfo.artistId": { $regex: s, $options: "i" } },
+        ],
+      },
+    },
+    {
       $project: {
         _id: 1,
         artworkId: 1,
+        artistId: "$ownerInfo.artistId",
         artistName: "$ownerInfo.artistName",
         artistSurname1: "$ownerInfo.artistSurname1",
         artistSurname2: "$ownerInfo.artistSurname2",
@@ -643,6 +652,7 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
         productDescription: 1,
         artworkTechnic: "$additionalInfo.artworkTechnic",
         upworkOffer: "$commercialization.upworkOffer",
+        activeTab: "$commercialization.activeTab",
         createdAt: 1,
       },
     },

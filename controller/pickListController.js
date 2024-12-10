@@ -40,6 +40,32 @@ const addPickList = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ message: "Picklist added successfully" });
 });
 
+const updatePicklistName = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) {
+    return res.status(400).send({ message: `Admin not found` });
+  }
+
+  const { id } = req.params;
+  const { picklistName } = req.body;
+
+  const picklist = await PickList.findById(id).lean(true);
+  if (!picklist) {
+    return res.status(400).send({ message: "Picklist not found" });
+  }
+
+  await PickList.updateOne(
+    { _id: id },
+    { $set: { picklistName: picklistName } }
+  );
+
+  res.status(200).send({ message: "Picklist name updated successfully" });
+});
+
 const getPickList = catchAsyncError(async (req, res, next) => {
   const picklist = await PickList.find().lean(true);
   res.status(200).send({ data: picklist });

@@ -30,7 +30,7 @@ const collectionSchema = new mongoose.Schema(
         },
       },
     ],
-    artworkTags: { type: Array },
+    collectionTags: { type: Array },
     status: {
       type: String,
     },

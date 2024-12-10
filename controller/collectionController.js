@@ -77,7 +77,7 @@ const addCollection = catchAsyncError(async (req, res, next) => {
     collectionName: req.body.collectionName,
     collectionDesc: req.body.collectionDesc,
     artworkList: artworkListArr,
-    artworkTags: req.body.artworkTags,
+    collectionTags: req.body.collectionTags,
     status: req.body.status,
   };
 
@@ -124,7 +124,7 @@ const getAllCollections = catchAsyncError(async (req, res, next) => {
         $or: [
           { collectionName: { $regex: s, $options: "i" } },
           { "expertDetails.createdBy": { $regex: s, $options: "i" } },
-          { artworkTags: { $regex: s, $options: "i" } },
+          { collectionTags: { $regex: s, $options: "i" } },
         ],
       },
     },
@@ -135,7 +135,7 @@ const getAllCollections = catchAsyncError(async (req, res, next) => {
         createdBy: "$expertDetails.createdBy",
         collectionFile: 1,
         status: 1,
-        artworkTags: 1,
+        collectionTags: 1,
         createdAt: 1,
       },
     },

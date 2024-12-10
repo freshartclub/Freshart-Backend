@@ -12,6 +12,7 @@ const {
   uploadEvedience,
   cancelParticularItemFromOrder,
   getAdminOrderDetails,
+  getUserSingleOrder,
 } = require("../controller/orderController");
 
 const router = express.Router();
@@ -46,6 +47,12 @@ router.patch(
   cancelParticularItemFromOrder
 );
 
-router.get("/get-admin-order-detail/:id", validateAdminToken, getAdminOrderDetails);
+router.get(
+  "/get-admin-order-detail/:id",
+  validateAdminToken,
+  getAdminOrderDetails
+);
+
+router.get("/get-user-single-order/:id", validateToken, getUserSingleOrder);
 
 module.exports = router;

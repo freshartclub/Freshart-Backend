@@ -28,6 +28,15 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   const OrderModel =
     orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
 
+  // let price = 0;
+  // for (let i = 0; i < items.length; i++) {
+  //   const artWork = await ArtWork.findOne(
+  //     { _id: items[i].artWork },
+  //     { pricing: 1 }
+  //   ).lean(true);
+  //   price += artWork.price * items[i].quantity;
+  // }
+
   const order = await OrderModel.create({
     orderID: orderID,
     user: user._id,
@@ -49,6 +58,37 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   return res
     .status(200)
     .send({ message: "Order Created Successfully", data: order });
+});
+
+const collectBilling = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const { orderType } = req.query;
+
+  if (!id || !orderType) {
+    return res.status(404).send({ message: "OrderId not found" });
+  }
+
+  const OrderModel =
+    orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
+  const order = await OrderModel.findOne({ _id: id }, { _id: 1 }).lean(true);
+  if (!order) return res.status(400).send({ message: "Order not found" });
+
+  let obj = {
+    firstName: req.body.firstName,
+    lastName: req.body.lastName,
+    email: req.body.email,
+    phone: req.body.phone,
+    address: req.body.address,
+    city: req.body.city,
+    state: req.body.state,
+    country: req.body.country,
+    zipCode: req.body.zipCode,
+    companyName: req.body.companyName,
+  };
+
+  await OrderModel.updateOne({ _id: id }, { $set: { billing: obj } });
+
+  return res.status(200).send({ message: "Billing Info Added" });
 });
 
 const getAllSubscriptionOrder = catchAsyncError(async (req, res, next) => {
@@ -265,6 +305,7 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
         createdAt: 1,
         updatedAt: 1,
         "items.quantity": 1,
+        "items.artWork._id": 1,
         "items.artWork.artworkName": 1,
         "items.artWork.media.mainImage": 1,
         "items.artWork.inventoryShipping": 1,
@@ -328,6 +369,7 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
         createdAt: 1,
         updatedAt: 1,
         "items.quantity": 1,
+        "items.artWork._id": 1,
         "items.artWork.artworkName": 1,
         "items.artWork.media.mainImage": 1,
         "items.artWork.inventoryShipping": 1,
@@ -377,123 +419,6 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
     url: "https://dev.freshartclub.com/images",
   });
 });
-
-// const getCombinedArtistOrder = catchAsyncError(async (req, res, next) => {
-//   const loggedUserId = req.user._id;
-
-//   const user = await Artist.findOne({ _id: loggedUserId }, { role: 1 }).lean(
-//     true
-//   );
-//   if (!user) return res.status(400).send({ message: "Artist not found" });
-//   if (user.role !== "artist")
-//     return res
-//       .status(400)
-//       .send({ message: "You are not authorized to access this page" });
-
-//   const combinedOrders = await SubscriptionOrder.aggregate([
-//     {
-//       $lookup: {
-//         from: "artworks",
-//         localField: "items.artWork",
-//         foreignField: "_id",
-//         as: "artWorkDetails",
-//       },
-//     },
-//     { $unwind: "$artWorkDetails" },
-//     {
-//       $lookup: {
-//         from: "artists",
-//         localField: "user",
-//         foreignField: "_id",
-//         as: "user",
-//       },
-//     },
-//     { $unwind: "$user" },
-//     {
-//       $match: {
-//         "artWorkDetails.owner": objectId(loggedUserId),
-//       },
-//     },
-//     {
-//       $project: {
-//         _id: 1,
-//         status: 1,
-//         tax: 1,
-//         shipping: 1,
-//         subTotal: 1,
-//         image: "$artWorkDetails.media.mainImage",
-//         artWorkName: "$artWorkDetails.artworkName",
-//         artistName: "$user.artistName",
-//         artistSurname1: "$user.artistSurname1",
-//         artistSurname2: "$user.artistSurname2",
-//         email: "$user.email",
-//         length: "$artWorkDetails.additionalInfo.length",
-//         height: "$artWorkDetails.additionalInfo.height",
-//         width: "$artWorkDetails.additionalInfo.width",
-//         orderID: 1,
-//         orderType: 1,
-//         createdAt: 1,
-//       },
-//     },
-//     {
-//       $unionWith: {
-//         coll: "purchaseorders",
-//         pipeline: [
-//           {
-//             $lookup: {
-//               from: "artworks",
-//               localField: "items.artWork",
-//               foreignField: "_id",
-//               as: "artWorkDetails",
-//             },
-//           },
-//           { $unwind: "$artWorkDetails" },
-//           {
-//             $lookup: {
-//               from: "artists",
-//               localField: "user",
-//               foreignField: "_id",
-//               as: "user",
-//             },
-//           },
-//           { $unwind: "$user" },
-//           {
-//             $match: {
-//               "artWorkDetails.owner": objectId(loggedUserId),
-//             },
-//           },
-//           {
-//             $project: {
-//               _id: 1,
-//               status: 1,
-//               tax: 1,
-//               shipping: 1,
-//               subTotal: 1,
-//               image: "$artWorkDetails.media.mainImage",
-//               artWorkName: "$artWorkDetails.artworkName",
-//               artistName: "$user.artistName",
-//               artistSurname1: "$user.artistSurname1",
-//               artistSurname2: "$user.artistSurname2",
-//               email: "$user.email",
-//               length: "$artWorkDetails.additionalInfo.length",
-//               height: "$artWorkDetails.additionalInfo.height",
-//               width: "$artWorkDetails.additionalInfo.width",
-//               orderID: 1,
-//               orderType: 1,
-//               createdAt: 1,
-//             },
-//           },
-//         ],
-//       },
-//     },
-//     { $sort: { createdAt: -1 } }, // Sort combined results by `createdAt`
-//   ]);
-
-//   return res.status(200).send({
-//     orders: combinedOrders,
-//     url: "https://dev.freshartclub.com/images",
-//   });
-// });
 
 const getArtistOrder = catchAsyncError(async (req, res, next) => {
   const loggedUserId = req.user._id;
@@ -730,6 +655,74 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
     .send({ data: order[0], url: "https://dev.freshartclub.com/images" });
 });
 
+const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  const { orderType, artworkId } = req.query;
+
+  if (!id || !orderType || !artworkId)
+    return res
+      .status(400)
+      .send({ message: "Please provide valid order id and order type" });
+
+  const OrderModel =
+    orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
+
+  const order = await OrderModel.aggregate([
+    {
+      $match: {
+        user: objectId(req.user._id),
+        _id: objectId(id),
+        "items.artWork": objectId(artworkId),
+      },
+    },
+    {
+      $unwind: "$items",
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artWork",
+        foreignField: "_id",
+        as: "artWorkData",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        orderID: 1,
+        status: 1,
+        tax: 1,
+        shipping: 1,
+        orderType: 1,
+        discount: 1,
+        subTotal: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        items: {
+          quantity: "$items.quantity",
+          evidenceImg: "$items.evidenceImg",
+          isCancelled: "$items.isCancelled",
+          cancelReason: "$items.cancelReason",
+          artWork: {
+            _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+            owner: { $arrayElemAt: ["$artWorkData.owner", 0] },
+            artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
+            media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
+            inventoryShipping: {
+              $arrayElemAt: ["$artWorkData.inventoryShipping", 0],
+            },
+            pricing: { $arrayElemAt: ["$artWorkData.pricing", 0] },
+          },
+        },
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .send({ data: order[0], url: "https://dev.freshartclub.com/images" });
+});
+
 const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   const { orderType } = req.query;
@@ -935,4 +928,5 @@ module.exports = {
   uploadEvedience,
   cancelParticularItemFromOrder,
   getAdminOrderDetails,
+  getUserSingleOrder,
 };

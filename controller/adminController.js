@@ -1327,7 +1327,7 @@ const activateArtist = async (req, res) => {
 
     const token = crypto.randomBytes(32).toString("hex");
 
-    if (artist.userId !== undefined) {
+    if (artist.password !== undefined) {
       await Artist.updateOne(
         { _id: req.params.id },
         {
@@ -1514,16 +1514,24 @@ const getArtistRequestList = async (req, res) => {
     }
 
     const artists = await Artist.aggregate([
+      // {
+      //   $match: {
+      //     isDeleted: false,
+      //     ...(!status
+      //       ? {
+      //           $or: [
+      //             { isArtistRequestStatus: { $in: searchStatus } },
+      //             { profileStatus: { $regex: "under-review", $options: "i" } },
+      //           ],
+      //         }
+      //       : statusFilter),
+      //   },
+      // },
       {
         $match: {
           isDeleted: false,
           ...(!status
-            ? {
-                $or: [
-                  { isArtistRequestStatus: { $in: searchStatus } },
-                  { profileStatus: { $regex: "under-review", $options: "i" } },
-                ],
-              }
+            ? { isArtistRequestStatus: { $regex: "pending", $options: "i" } }
             : statusFilter),
         },
       },
@@ -2166,7 +2174,7 @@ const changeArtistPassword = async (req, res) => {
         _id: id,
         isDeleted: false,
       },
-      { email: 1, artistName: 1 }
+      { email: 1, artistName: 1, gender: 1 }
     ).lean(true);
     if (!user) {
       return res.status(400).send({ message: "Artist not found" });
@@ -2186,6 +2194,8 @@ const changeArtistPassword = async (req, res) => {
     const mailVaribles = {
       "%fullName%": user.artistName,
       "%email%": user.email,
+      "%password%": newPassword,
+      "%gender%": user.gender === "Male" ? "Mr." : "Ms.",
     };
 
     await Promise.all([

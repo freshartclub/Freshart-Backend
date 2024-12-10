@@ -39,6 +39,12 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    if (!email || !password) {
+      return res
+        .status(400)
+        .send({ message: "Email and password is required" });
+    }
+
     const user = await Artist.findOne({
       email: email.toLowerCase(),
       isDeleted: false,
@@ -272,6 +278,7 @@ const verifyEmailOTP = async (req, res) => {
 const sendSMSOTP = async (req, res) => {
   try {
     const { phone, email } = req.body;
+
     const authHeader = Buffer.from(
       `${process.env.API_SMS_USER}:${process.env.API_SMS_PWD}`
     ).toString("base64");
@@ -625,17 +632,17 @@ const becomeArtist = async (req, res) => {
     }
 
     let documnets = [];
-    let documnet = {};
+    let discipline = {};
     let links = [];
 
-    documnet["discipline"] = req.body.discipline;
+    discipline["discipline"] = req.body.discipline;
     if (req.body.style) {
       if (typeof req.body.style === "string") {
-        documnet["style"] = [req.body.style];
+        discipline["style"] = [req.body.style];
       } else {
-        documnet["style"] = [];
+        discipline["style"] = [];
         for (let i = 0; i < req.body.style.length; i++) {
-          documnet["style"].push(req.body.style[i]);
+          discipline["style"].push(req.body.style[i]);
         }
       }
     }
@@ -645,8 +652,6 @@ const becomeArtist = async (req, res) => {
         documnets.push(fileData.data.uploadDocs[i].filename);
       }
     }
-
-    console.log(documnet);
 
     if (req.body?.socialMedia) {
       links.push({
@@ -681,7 +686,7 @@ const becomeArtist = async (req, res) => {
     }
 
     obj["aboutArtist"] = {
-      discipline: [documnet],
+      discipline: [discipline],
     };
 
     obj["links"] = links;

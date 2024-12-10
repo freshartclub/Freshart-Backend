@@ -25,6 +25,9 @@ const orderSchema = new mongoose.Schema(
     tax: {
       type: Number,
     },
+    billing: {
+      type: Object,
+    },
     shipping: {
       type: Number,
     },
