@@ -13,8 +13,6 @@ const TicketReply = require("../models/ticketReplyModel");
 const Ticket = require("../models/ticketModel");
 const md5 = require("md5");
 const objectId = require("mongoose").Types.ObjectId;
-const fs = require("fs");
-const path = require("path");
 const axios = require("axios");
 
 const isStrongPassword = (password) => {
@@ -114,16 +112,21 @@ const sendVerifyEmailOTP = async (req, res) => {
         });
       }
 
-      const isExist = await Artist.find(
+      const isExist = await Artist.aggregate([
         {
-          email: email.toLowerCase(),
-          isDeleted: false,
+          $match: {
+            email: email.toLowerCase(),
+            isDeleted: false,
+          },
         },
-        { userId: 1 }
-      ).lean(true);
+        {
+          $project: {
+            userId: 1,
+          },
+        },
+      ]);
 
-      const otp = await generateRandomOTP();
-      let nUser = true;
+      const otp = generateRandomOTP();
       const mailVaribles = {
         "%email%": email,
         "%otp%": otp,
@@ -135,7 +138,7 @@ const sendVerifyEmailOTP = async (req, res) => {
           {
             $set: {
               OTP: otp,
-              userId: generateRandomId(nUser),
+              userId: "UID-" + generateRandomId(true),
               role: "user",
               password: md5(password),
               pageCount: 0,
@@ -155,7 +158,7 @@ const sendVerifyEmailOTP = async (req, res) => {
       const user = await Artist.create({
         email: email.toLowerCase(),
         password: md5(password),
-        userId: generateRandomId(nUser),
+        userId: "UID-" + generateRandomId(true),
         role: "user",
         pageCount: 0,
         OTP: otp,
@@ -167,7 +170,7 @@ const sendVerifyEmailOTP = async (req, res) => {
         message: "OTP sent Successfully",
       });
     } else {
-      const otp = await generateRandomOTP();
+      const otp = generateRandomOTP();
       const mailVaribles = {
         "%email%": email,
         "%otp%": otp,
@@ -1093,7 +1096,7 @@ const createTicket = async (req, res) => {
 
     const fileData = await fileUploadFunc(req, res);
 
-    const { subject, message, region, ticketType } = req.body;
+    const { subject, message, region, ticketType, urgency, impact } = req.body;
 
     const randomNumber = Math.floor(100000 + Math.random() * 900000);
     const year = new Date().getFullYear();
@@ -1106,6 +1109,8 @@ const createTicket = async (req, res) => {
       region,
       ticketType: ticketType,
       ticketId: ticketId,
+      urgency,
+      impact,
       ticketImg:
         fileData.data?.ticketImg && fileData.data?.ticketImg?.length > 0
           ? fileData.data.ticketImg[0].filename
@@ -1131,13 +1136,30 @@ const ticketDetail = async (req, res) => {
 
     const [ticketData, replyData] = await Promise.all([
       Ticket.findOne({ _id: id }).lean(true),
-      TicketReply.find({ ticket: id }).lean(true),
+      TicketReply.aggregate([
+        { $match: { ticket: objectId(id) } },
+        {
+          $project: {
+            _id: 1,
+            user: 1,
+            userType: 1,
+            ticket: 1,
+            ticketType: 1,
+            ticketImg: 1,
+            status: 1,
+            message: 1,
+
+            createdAt: 1,
+          },
+        },
+        { $sort: { createdAt: -1 } },
+      ]),
     ]);
 
-    return res.status(201).json({
-      message: "Ticket details retrieved successfully",
+    return res.status(200).send({
       data: ticketData,
       reply: replyData,
+      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     console.error(error);
@@ -1147,9 +1169,30 @@ const ticketDetail = async (req, res) => {
 
 const getUserTickets = async (req, res) => {
   try {
-    const tickets = await Ticket.find({ user: req.user._id }).lean(true);
-    return res.status(201).json({
-      message: "Tickets retrieved successfully",
+    const tickets = await Ticket.aggregate([
+      {
+        $match: { user: objectId(req.user._id) },
+      },
+      {
+        $project: {
+          _id: 1,
+          ticketId: 1,
+          ticketType: 1,
+          ticketImg: 1,
+          subject: 1,
+          message: 1,
+          urgency: 1,
+          impact: 1,
+          status: 1,
+          ticketFeedback: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+    return res.status(200).send({
       data: tickets,
     });
   } catch (error) {
@@ -1161,6 +1204,7 @@ const getUserTickets = async (req, res) => {
 const replyTicketUser = async (req, res) => {
   try {
     const { id } = req.params;
+    const fileData = await fileUploadFunc(req, res);
     const { ticketType, status, message, userType } = req.body;
 
     const ticketData = await Ticket.countDocuments({ _id: id });
@@ -1180,6 +1224,9 @@ const replyTicketUser = async (req, res) => {
       ticketType,
       status,
       message,
+      ticketImg: fileData?.data?.ticketImg
+        ? fileData.data.ticketImg[0].filename
+        : null,
     });
 
     return res.status(201).json({
@@ -1215,7 +1262,7 @@ const ticketFeedback = async (req, res) => {
       }
     ).then();
 
-    return res.status(201).json({
+    return res.status(201).send({
       message: "Ticket feedback given successfully",
     });
   } catch (error) {
@@ -1429,23 +1476,124 @@ const getWishlistItems = async (req, res) => {
   }
 };
 
-const exportLanguageJSONFile = async (req, res) => {
+const getBillingAddresses = async (req, res) => {
   try {
-    const { language } = req.query;
-    if (!language) {
-      return res.status(400).send({ message: "Language parameter is missing" });
+    const data = await Artist.findOne(
+      { _id: req.user._id },
+      { billingInfo: 1 }
+    ).lean(true);
+
+    if (!data) {
+      return res.status(400).send({ message: "Artist not found" });
     }
 
-    const filePath = path.join(__dirname, `../utils/${language}.json`);
+    return res.status(200).send({ data: data.billingInfo });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
 
-    if (!fs.existsSync(filePath)) {
-      return res
-        .status(404)
-        .send({ message: "Requested language file not found" });
+const addBillingAddress = async (req, res) => {
+  try {
+    const artist = await Artist.findOne(
+      { _id: req.user._id },
+      { billingInfo: 1 }
+    ).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
     }
 
-    res.setHeader("Content-Type", "application/json");
-    res.sendFile(filePath);
+    let obj = {};
+    obj["billingDetails"] = {
+      billingFirstName: req.body.firstName,
+      billingLastName: req.body.lastName,
+      billingEmail: req.body.email,
+      billingCompanyName: req.body?.companyName ? req.body.companyName : "",
+      billingAddress: req.body.address,
+      billingAddressType: req.body.addressType,
+      billingCity: req.body.city,
+      billingState: req.body.state,
+      billingZipCode: req.body.zipCode,
+      billingCountry: req.body.country,
+      billingPhone: req.body.phone,
+    };
+
+    if (artist.billingInfo && artist.billingInfo.length == 0) {
+      obj["isDefault"] = true;
+    }
+
+    console.log(req.params.addressId);
+    if (req.params?.addressId) {
+      console.log("5367");
+      await Artist.updateOne(
+        { _id: req.user._id, "billingInfo._id": req.params.addressId },
+        { $set: obj }
+      );
+    } else {
+      await Artist.updateOne(
+        { _id: req.user._id },
+        { $push: { billingInfo: obj } }
+      );
+    }
+
+    return res.status(200).send({ message: "New Billing address added" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const removeBillingAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const artist = await Artist.findOne(
+      { _id: req.user._id },
+      { billingInfo: 1 }
+    ).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    await Artist.updateOne(
+      { _id: req.user._id },
+      { $pull: { billingInfo: { _id: addressId } } }
+    );
+
+    return res.status(200).send({ message: "Billing address removed" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const setDefaultBillingAddress = async (req, res) => {
+  try {
+    const { addressId } = req.params;
+
+    const artist = await Artist.findOne(
+      { _id: req.user._id, "billingInfo._id": addressId },
+      { billingInfo: 1 }
+    ).lean(true);
+
+    if (!artist) {
+      return res.status(404).send({ message: "Address not found" });
+    }
+
+    await Artist.updateOne(
+      { _id: req.user._id },
+      { $set: { "billingInfo.$[].isDefault": false } }
+    );
+
+    await Artist.updateOne(
+      { _id: req.user._id, "billingInfo._id": addressId },
+      { $set: { "billingInfo.$.isDefault": true } }
+    );
+
+    return res.status(200).send({ message: "Default Billing Address Updated" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1480,5 +1628,8 @@ module.exports = {
   addRemoveToWishlist,
   getCartItems,
   getWishlistItems,
-  exportLanguageJSONFile,
+  getBillingAddresses,
+  addBillingAddress,
+  removeBillingAddress,
+  setDefaultBillingAddress,
 };

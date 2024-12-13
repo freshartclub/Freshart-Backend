@@ -28,9 +28,6 @@ const ticketSchema = new mongoose.Schema(
     impact: {
       type: String,
     },
-    region: {
-      type: String,
-    },
     message: {
       type: String,
     },
@@ -39,7 +36,7 @@ const ticketSchema = new mongoose.Schema(
     },
     ticketFeedback: {
       isLiked: {
-        type: String,
+        type: Boolean,
       },
       message: {
         type: String,

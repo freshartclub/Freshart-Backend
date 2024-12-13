@@ -24,6 +24,9 @@ const ticketSchema = new mongoose.Schema(
     message: {
       type: String,
     },
+    ticketImg: {
+      type: String,
+    },
   },
   {
     timestamps: true,

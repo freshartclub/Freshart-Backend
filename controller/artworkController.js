@@ -261,7 +261,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (id !== "null") {
     artworkData = await ArtWork.findOne(
       { _id: id, isDeleted: false },
-      { media: 1, status: 1 }
+      { media: 1, status: 1, artworkId: 1 }
     ).lean(true);
 
     if (!artworkData) {
@@ -397,7 +397,10 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkSeries: req.body.artworkSeries,
     productDescription: req.body.productDescription,
     isArtProvider: req.body.isArtProvider,
-    artworkId: isArtwork ? artwork?.artworkId : "ARW-" + generateRandomId(),
+    artworkId:
+      artworkData === null
+        ? "ARW-" + generateRandomId()
+        : artworkData?.artworkId,
     owner: artist._id,
   };
 
@@ -552,34 +555,35 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const { nameEmail } = req.query;
-  const query = {};
 
-  if (nameEmail) {
-    query.$or = [
-      { artistName: { $regex: nameEmail, $options: "i" } },
-      { artistSurname1: { $regex: nameEmail, $options: "i" } },
-      { artistSurname2: { $regex: nameEmail, $options: "i" } },
-      { email: { $regex: nameEmail, $options: "i" } },
-    ];
-  }
-
-  const artists = await Artist.find(
+  const artists = await Artist.aggregate([
     {
-      isDeleted: false,
-      isActivated: true,
-      ...query,
+      $match: {
+        isDeleted: false,
+        isActivated: true,
+        $or: [
+          { artistName: { $regex: nameEmail, $options: "i" } },
+          { artistSurname1: { $regex: nameEmail, $options: "i" } },
+          { artistSurname2: { $regex: nameEmail, $options: "i" } },
+          { email: { $regex: nameEmail, $options: "i" } },
+        ],
+      },
     },
     {
-      email: 1,
-      artistName: 1,
-      artistSurname1: 1,
-      artistSurname2: 1,
-      artProvider: "$commercilization.artProvider",
-      artistId: 1,
-      userId: 1,
-      mainImage: "$profile.mainImage",
-    }
-  ).lean(true);
+      $project: {
+        email: 1,
+        artistName: 1,
+        nickName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        artProvider: "$commercilization.artProvider",
+        mainImage: "$profile.mainImage",
+        artistId: 1,
+        userId: 1,
+        _id: 1,
+      },
+    },
+  ]);
 
   res
     .status(200)
@@ -594,7 +598,10 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
 
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  let { s } = req.query;
+  let { s, status, days } = req.query;
+  if (status == "All") {
+    status = "";
+  }
 
   if (s == "undefined") {
     s = "";
@@ -602,11 +609,38 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
     s = "";
   }
 
+  if (days === "All") {
+    days = "";
+  }
+
+  let filter = {};
+  if (days) {
+    const dateLimit = new Date();
+
+    if (days === "1 Day") {
+      dateLimit.setDate(dateLimit.getDate() - 1);
+      filter["createdAt"] = { $gte: dateLimit };
+    } else if (days === "1 Week") {
+      dateLimit.setDate(dateLimit.getDate() - 7);
+      filter["createdAt"] = { $gte: dateLimit };
+    } else if (days === "1 Month") {
+      dateLimit.setMonth(dateLimit.getMonth() - 1);
+      filter["createdAt"] = { $gte: dateLimit };
+    } else if (days === "1 Quarter") {
+      dateLimit.setMonth(dateLimit.getMonth() - 3);
+      filter["createdAt"] = { $gte: dateLimit };
+    } else if (days === "1 Year") {
+      dateLimit.setFullYear(dateLimit.getFullYear() - 1);
+      filter["createdAt"] = { $gte: dateLimit };
+    }
+  }
+
   const artworkList = await ArtWork.aggregate([
     {
       $match: {
         isDeleted: false,
-        status: { $in: ["pending", "published", "rejected"] },
+        status: { $regex: status, $options: "i" },
+        ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
       },
     },
     {
@@ -961,20 +995,34 @@ const searchArtwork = catchAsyncError(async (req, res, next) => {
 
   const artworks = await ArtWork.aggregate([
     {
+      $lookup: {
+        from: "artists",
+        localField: "owner",
+        foreignField: "_id",
+        as: "artist",
+      },
+    },
+    {
       $match: {
         isDeleted: false,
         status: "published",
         $or: [
           { artworkName: { $regex: s, $options: "i" } },
           { artworkId: { $regex: s, $options: "i" } },
+          { "artist.artistName": { $regex: s, $options: "i" } },
         ],
       },
     },
+
     {
       $project: {
         artworkId: 1,
         artworkName: 1,
-        media: 1,
+        artistName: "$artist.artistName",
+        artistSurname1: "$artist.artistSurname1",
+        artistSurname2: "$artist.artistSurname2",
+        nickname: "$artist.nickName",
+        media: "$media.mainImage",
         inventoryShipping: 1,
       },
     },

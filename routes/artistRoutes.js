@@ -25,10 +25,13 @@ const {
   getCartItems,
   ticketFeedback,
   removeFromCart,
-  exportLanguageJSONFile,
   sendSMSOTP,
   verifySMSOTP,
   changePassword,
+  addBillingAddress,
+  removeBillingAddress,
+  getBillingAddresses,
+  setDefaultBillingAddress,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -91,6 +94,22 @@ router.patch("/add-series-to-artist/:id", validateToken, addSeriesToArtist);
 
 router.get("/get-series-list/:id", validateToken, getAllSeriesList);
 
+router.get("/get-billing-address", validateToken, getBillingAddresses);
+
+router.post("/add-billing-address/:addressId?", validateToken, addBillingAddress);
+
+router.patch(
+  "/remove-billing-address/:addressId",
+  validateToken,
+  removeBillingAddress
+);
+
+router.patch(
+  "/set-default-address/:addressId",
+  validateToken,
+  setDefaultBillingAddress
+);
+
 // -------------------artwork----------------------------
 
 router.get("/get-artist-artworks", validateToken, getArtistArtwork);
@@ -122,7 +141,5 @@ router.get("/get-wishlist", validateToken, getWishlistItems);
 router.get("/get-cart", validateToken, getCartItems);
 
 router.get("/get-all-incidents", validateToken, getAllIncident);
-
-router.get("/get-language", exportLanguageJSONFile);
 
 module.exports = router;

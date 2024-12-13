@@ -44,7 +44,7 @@ const {
   unBanArtistRequest,
   getReviewDetailArtist,
   approveArtistChanges,
-  rejectArtistChanges,
+  reValidateArtist,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -61,6 +61,7 @@ const {
 const {
   addIncident,
   getAllIncident,
+  getIncidentById,
 } = require("../controller/incidentController");
 const {
   addCatalog,
@@ -184,7 +185,9 @@ router.post("/reply-ticket/:id", validateAdminToken, replyTicket);
 
 router.get("/get-ticket-replies/:id", validateAdminToken, getTicketReplies);
 
-router.post("/add-incident", validateAdminToken, addIncident);
+router.post("/add-incident/:id?", validateAdminToken, addIncident);
+
+router.get("/get-incident-by-id/:id", validateAdminToken, getIncidentById);
 
 router.get("/get-all-incidents", validateAdminToken, getAllIncident);
 
@@ -198,7 +201,7 @@ router.get("/get-series-list/:id", validateAdminToken, getAllSeriesList);
 
 router.patch("/approve-changes/:id", validateAdminToken, approveArtistChanges);
 
-router.patch("/reject-changes/:id", validateAdminToken, rejectArtistChanges);
+router.patch("/revalidate-artist/:id", validateAdminToken, reValidateArtist);
 
 // ------------------- Artwork Routes ------------------------
 

@@ -1,10 +1,7 @@
 const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
-const Artist = require("../models/artistModel");
-const ArtWork = require("../models/artWorksModel");
 const { fileUploadFunc } = require("../functions/common");
 const Collection = require("../models/collectionModel");
-const objectId = require("mongoose").Types.ObjectId;
 
 const addCollection = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
@@ -162,7 +159,10 @@ const getCollectionById = catchAsyncError(async (req, res, next) => {
   const collection = await Collection.findOne({
     _id: req.params.id,
   })
-    .populate("artworkList.artworkId", "artworkName inventoryShipping.pCode")
+    .populate(
+      "artworkList.artworkId",
+      "artworkName artworkId inventoryShipping.pCode"
+    )
     .lean(true);
 
   res

@@ -10,6 +10,8 @@ const {
   deleteTechnic,
   deleteTheme,
   deleteMedia,
+  getGeneralKBList,
+  getFAQGeneralList,
 } = require("../controller/generalController");
 const {
   addDiscipline,
@@ -66,5 +68,9 @@ router.patch("/delete-technic/:id", validateAdminToken, deleteTechnic);
 router.patch("/delete-theme/:id", validateAdminToken, deleteTheme);
 
 router.patch("/delete-media/:id", validateAdminToken, deleteMedia);
+
+router.get("/get-general-kb-list", getGeneralKBList);
+
+router.get("/get-general-faq-list", getFAQGeneralList);
 
 module.exports = router;

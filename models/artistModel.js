@@ -158,6 +158,17 @@ const artistSchema = new mongoose.Schema(
       type: Object,
       publishingCatalog: [Object],
     },
+    billingInfo: [
+      {
+        billingDetails: {
+          type: Object,
+        },
+        isDefault: {
+          type: Boolean,
+          default: false,
+        },
+      },
+    ],
     logistics: {
       type: Object,
     },

@@ -53,9 +53,25 @@ const updatePicklistName = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   const { picklistName } = req.body;
 
-  const picklist = await PickList.findById(id).lean(true);
+  const picklist = await PickList.findOne(
+    { _id: id },
+    { picklistName: 1 }
+  ).lean();
+
   if (!picklist) {
     return res.status(400).send({ message: "Picklist not found" });
+  }
+
+  const existingPicklist = await PickList.findOne(
+    {
+      picklistName: picklistName,
+      _id: { $ne: id },
+    },
+    { picklistName: 1 }
+  ).lean();
+
+  if (existingPicklist) {
+    return res.status(400).send({ message: "Picklist name already exists" });
   }
 
   await PickList.updateOne(
@@ -183,4 +199,5 @@ module.exports = {
   getPickListById,
   updatePicklist,
   deletePicklist,
+  updatePicklistName,
 };

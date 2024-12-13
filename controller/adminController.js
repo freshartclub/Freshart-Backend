@@ -9,7 +9,6 @@ const Ticket = require("../models/ticketModel");
 const Discipline = require("../models/disciplineModel");
 const {
   createLog,
-  getListArtworks,
   fileUploadFunc,
   generateRandomOTP,
   generateRandomId,
@@ -138,7 +137,6 @@ const validateOTP = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -404,6 +402,10 @@ const artistRegister = async (req, res) => {
           state: req.body.state,
         };
 
+        if (artist && artist.pageCount === 0) {
+          obj["profileStatus"] = "inactive";
+        }
+
         if (req.body.count > artist?.pageCount) {
           obj["pageCount"] = req.body.count;
         }
@@ -548,8 +550,8 @@ const artistRegister = async (req, res) => {
               ? [req.body.extTags]
               : req.body.extTags,
         };
-        obj["profileStatus"] = req.body.profileStatus;
         obj["lastRevalidationDate"] = req.body.lastRevalidationDate;
+        obj["profileStatus"] = "active";
         obj["nextRevalidationDate"] = req.body.nextRevalidationDate;
         obj["extraInfo"] = {
           extraInfo1: req.body.extraInfo1,
@@ -1328,15 +1330,18 @@ const activateArtist = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
 
     if (artist.password !== undefined) {
-      await Artist.updateOne(
-        { _id: req.params.id },
-        {
-          $set: {
-            isActivated: true,
-            isArtistRequestStatus: "approved",
-          },
-        }
-      );
+      let obj = {
+        isActivated: true,
+        isArtistRequestStatus: "approved",
+      };
+
+      if (artist.userId == undefined) {
+        obj["userId"] = "UID-" + generateRandomId(true);
+      }
+
+      let condition = { $set: obj };
+
+      await Artist.updateOne({ _id: req.params.id }, condition);
     } else {
       await Artist.updateOne(
         { _id: req.params.id },
@@ -1380,13 +1385,22 @@ const getAllArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { s } = req.query;
+    let { s, date } = req.query;
+
+    let weeksAgo;
+    if (date === "All") {
+      date = "";
+    } else {
+      weeksAgo = new Date();
+      weeksAgo.setDate(weeksAgo.getDate() - Number(date * 7));
+    }
 
     const artists = await Artist.aggregate([
       {
         $match: {
           isDeleted: false,
           role: "artist",
+          ...(weeksAgo ? { nextRevalidationDate: { $lte: weeksAgo } } : {}),
           $or: [
             { artistId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
@@ -1405,9 +1419,12 @@ const getAllArtists = async (req, res) => {
           phone: 1,
           createdAt: 1,
           isActivated: 1,
+          profileStatus: 1,
           userId: 1,
           profile: 1,
           artistId: 1,
+          nextRevalidationDate: 1,
+          lastRevalidationDate: 1,
           city: "$address.city",
           country: "$address.country",
           state: "$address.state",
@@ -1503,42 +1520,23 @@ const getArtistRequestList = async (req, res) => {
     }
 
     const searchStatus = ["pending", "ban", "rejected"];
-    let statusFilter = {};
 
-    if (status === "under-review") {
-      statusFilter = { profileStatus: { $regex: status, $options: "i" } };
-    } else if (searchStatus.includes(status)) {
-      statusFilter = {
-        isArtistRequestStatus: { $regex: status, $options: "i" },
-      };
-    }
+    const statusFilter =
+      status && searchStatus.includes(status)
+        ? { isArtistRequestStatus: { $regex: status, $options: "i" } }
+        : { isArtistRequestStatus: { $in: searchStatus } };
 
     const artists = await Artist.aggregate([
-      // {
-      //   $match: {
-      //     isDeleted: false,
-      //     ...(!status
-      //       ? {
-      //           $or: [
-      //             { isArtistRequestStatus: { $in: searchStatus } },
-      //             { profileStatus: { $regex: "under-review", $options: "i" } },
-      //           ],
-      //         }
-      //       : statusFilter),
-      //   },
-      // },
       {
         $match: {
           isDeleted: false,
           ...(!status
             ? { isArtistRequestStatus: { $regex: "pending", $options: "i" } }
             : statusFilter),
-        },
-      },
-      {
-        $match: {
           $or: [
             { artistName: { $regex: s, $options: "i" } },
+            { artistSurname1: { $regex: s, $options: "i" } },
+            { artistSurname2: { $regex: s, $options: "i" } },
             { email: { $regex: s, $options: "i" } },
           ],
         },
@@ -1729,7 +1727,7 @@ const createNewUser = async (req, res) => {
             .send({ message: "User with this email already exists" });
         }
 
-        obj["userId"] = generateRandomId(nUser);
+        obj["userId"] = "UID-" + generateRandomId(nUser);
         obj["pageCount"] = isArtist ? 1 : 0;
         obj["role"] = isArtist ? "artist" : "user";
         isArtist && (obj["artistId"] = generateRandomId());
@@ -1741,11 +1739,11 @@ const createNewUser = async (req, res) => {
           .status(200)
           .send({ message: "User created successfully", id: user._id });
       } else {
-        obj["userId"] = generateRandomId(nUser);
+        obj["userId"] = "UID-" + generateRandomId(nUser);
         obj["pageCount"] = 1;
         obj["role"] = "artist";
         obj["isArtistRequestStatus"] = "processing";
-        obj["artistId"] = generateRandomId();
+        obj["artistId"] = "AID" + generateRandomId();
 
         let condition = { $set: obj };
         Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
@@ -1758,7 +1756,7 @@ const createNewUser = async (req, res) => {
       obj["pageCount"] = 1;
       obj["role"] = "artist";
       obj["isArtistRequestStatus"] = "processing";
-      obj["artistId"] = generateRandomId();
+      obj["artistId"] = "AID" + generateRandomId();
 
       let condition = { $set: obj };
       Artist.updateOne(
@@ -1909,13 +1907,15 @@ const serachUserByQueryInput = async (req, res) => {
           artistSurname1: 1,
           artistSurname2: 1,
           userId: 1,
-          avatar: 1,
+          mainImage: "$profile.mainImage",
           email: 1,
         },
       },
     ]);
 
-    return res.status(200).send({ data: artists });
+    return res
+      .status(200)
+      .send({ data: artists, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -2267,26 +2267,39 @@ const ticketList = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { search, status, days } = req.query;
+    let { search, status, days, filterType, filterOption } = req.query;
     if (status === "All") {
       status = "";
+    }
+
+    if (filterType === "All") {
+      filterType = "";
+    } else {
+      filterType = filterType.toLowerCase().split(" ")[1];
     }
 
     if (days === "All") {
       days = "";
     }
 
-    // page = parseInt(page) || 1;
-    // limit = parseInt(limit) || 10;
-    // const skip = (page - 1) * limit;
-
     let filter = {};
     if (days) {
-      const daysMatch = days.match(/^(\d+)\s+day(s)?$/);
-      if (daysMatch) {
-        const daysNumber = parseInt(daysMatch[1], 10);
-        const dateLimit = new Date();
-        dateLimit.setDate(dateLimit.getDate() - daysNumber);
+      const dateLimit = new Date();
+
+      if (days === "1 Day") {
+        dateLimit.setDate(dateLimit.getDate() - 1);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Week") {
+        dateLimit.setDate(dateLimit.getDate() - 7);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Month") {
+        dateLimit.setMonth(dateLimit.getMonth() - 1);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Quarter") {
+        dateLimit.setMonth(dateLimit.getMonth() - 3);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Year") {
+        dateLimit.setFullYear(dateLimit.getFullYear() - 1);
         filter["createdAt"] = { $gte: dateLimit };
       }
     }
@@ -2294,16 +2307,13 @@ const ticketList = async (req, res) => {
     const pipeline = [
       {
         $match: {
+          ...(filterType && filterOption ? { [filterType]: filterOption } : {}),
           ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
           ...(status ? { status: { $regex: status, $options: "i" } } : {}),
           ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
         },
       },
-      {
-        $sort: {
-          createdAt: -1,
-        },
-      },
+
       {
         $lookup: {
           from: "artists",
@@ -2336,27 +2346,18 @@ const ticketList = async (req, res) => {
           ticketImg: 1,
         },
       },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
     ];
-
-    // const totalItems = await Ticket.countDocuments({
-    //   isDeleted: false,
-    //   ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
-    // }).lean(true);
 
     const getData = await Ticket.aggregate(pipeline);
 
-    // const totalPages = Math.ceil(totalItems / limit);
-
-    return res.json({
-      message: "All tickets retrieved successfully.",
+    return res.status(200).send({
       data: getData,
       url: "https://dev.freshartclub.com/images",
-      // pagination: {
-      //   totalItems,
-      //   currentPage: page,
-      //   totalPages,
-      //   limit,
-      // },
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -2395,6 +2396,9 @@ const replyTicket = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
+    if (!id) return res.status(400).send({ message: `Ticket id not found` });
+
+    const fileData = await fileUploadFunc(req, res);
     const { ticketType, status, message, userType } = req.body;
 
     const ticketData = await Ticket.countDocuments({ _id: id });
@@ -2412,6 +2416,9 @@ const replyTicket = async (req, res) => {
       userType,
       ticket: id,
       ticketType,
+      ticketImg: fileData?.data?.ticketImg
+        ? fileData.data.ticketImg[0].filename
+        : null,
       status,
       message,
     });
@@ -2452,7 +2459,7 @@ const getTicketReplies = async (req, res) => {
       {
         $unwind: {
           path: "$ownerInfo",
-          preserveNullAndEmptyArrays: true, // Allow for null values if user is not found
+          preserveNullAndEmptyArrays: true,
         },
       },
       {
@@ -2462,9 +2469,9 @@ const getTicketReplies = async (req, res) => {
           createdAt: 1,
           artistName: {
             $cond: [
-              { $eq: ["$userType", "user"] }, // Check if userType is "user"
-              "$ownerInfo.artistName", // Get artistName if true
-              null, // Otherwise null
+              { $eq: ["$userType", "user"] },
+              "$ownerInfo.artistName",
+              null,
             ],
           },
           email: {
@@ -2474,6 +2481,7 @@ const getTicketReplies = async (req, res) => {
             $cond: [{ $eq: ["$userType", "user"] }, "$ownerInfo.avatar", null],
           },
           ticketType: 1,
+          ticketImg: 1,
           userType: 1,
           status: 1,
           message: 1,
@@ -2720,6 +2728,12 @@ const getKBById = async (req, res) => {
 
 const getReviewDetailArtist = async (req, res) => {
   try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
     const { id } = req.params;
 
     const artist = await Artist.findOne({
@@ -2733,6 +2747,7 @@ const getReviewDetailArtist = async (req, res) => {
     }
 
     const sendData = {
+      artistId: artist.artistId,
       artistName: artist.artistName,
       artistSurname1: artist.artistSurname1,
       artistSurname2: artist.artistSurname2,
@@ -2764,86 +2779,141 @@ const getReviewDetailArtist = async (req, res) => {
 
 const approveArtistChanges = async (req, res) => {
   try {
-    const { id } = req.params;
-    const artist = await Artist.findOne({
-      _id: id,
-      profileStatus: "under-review",
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
       isDeleted: false,
     }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const artist = await Artist.findOne(
+      {
+        _id: id,
+        profileStatus: "under-review",
+        isDeleted: false,
+      },
+      { email: 1, artistName: 1 }
+    ).lean(true);
 
     if (!artist) {
       return res.status(400).send({ message: "Artist not found" });
     }
 
-    if (artist.profileStatus !== "under-review") {
-      return res.status(400).send({ message: "Artist is already approved" });
+    const data = req.body;
+    if (!data.note)
+      return res.status(400).send({ message: "Note is required" });
+
+    let obj = {};
+
+    if (data.isApproved == true) {
+      obj = {
+        artistName: data.artistName,
+        artistSurname1: data.artistSurname2,
+        artistSurname2: data.artistSurname2,
+        nickName: data.nickName,
+        email: data.email,
+        gender: data.gender,
+        language: data.language,
+        phone: data.phone,
+        aboutArtist: data?.aboutArtist,
+        highlights: data?.highlights,
+        profile: data?.profile,
+        address: data?.address,
+        links: data?.links,
+        managerDetails: data?.managerDetails,
+        isManagerDetails: data?.isManagerDetails,
+        profileStatus: "active",
+      };
+    } else {
+      obj = {
+        profileStatus: "active",
+      };
     }
 
-    const data = req.body;
+    const addNote =
+      `Dear ${artist.artistName}, your artist profile changes have been ${
+        data.isApproved ? "Approved" : "Rejected"
+      } by Admin.` + `\n\nNote: ${data.note}`;
 
-    let obj = {
-      artistName: data.artistName,
-      artistSurname1: data.artistSurname2,
-      artistSurname2: data.artistSurname2,
-      nickName: data.nickName,
-      email: data.email,
-      gender: data.gender,
-      language: data.language,
-      phone: data.phoneNumber,
-      aboutArtist: data?.aboutArtist,
-      highlights: data?.highlights,
-      profile: data?.profile,
-      address: data?.address,
-      links: data?.links,
-      managerDetails: data?.managerDetails,
-      isManagerDetails: data?.isManagerDetails,
+    const mailVaribles = {
+      "%subject%": `Your Artist Profile ${
+        data.isApproved ? "Approved" : "Rejected"
+      }`,
+      "%email%": artist.email,
+      "%note": addNote,
     };
 
-    await Artist.updateOne(
-      { _id: id },
-      {
-        $set: {
-          profileStatus: "active",
-          ...obj,
-        },
-        $unset: {
-          reviewDetails: "",
-        },
-      }
-    );
-    return res.status(200).send({ message: "Artist Profile Changes Approved" });
+    await Promise.all([
+      sendMail("artist-changes-admin", mailVaribles, artist.email),
+      Artist.updateOne(
+        { _id: id },
+        {
+          $set: obj,
+          $unset: {
+            reviewDetails: "",
+          },
+        }
+      ),
+    ]);
+
+    return res.status(200).send({
+      message: `Artist Profile Changes ${
+        req.body.isApproved ? "Approved" : "Rejected"
+      }`,
+    });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
-const rejectArtistChanges = async (req, res) => {
+const reValidateArtist = async (req, res) => {
   try {
-    const { id } = req.params;
-    const artist = await Artist.findOne({
-      _id: id,
-      profileStatus: "under-review",
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
       isDeleted: false,
     }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const artist = await Artist.findOne(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { email: 1, artistName: 1 }
+    ).lean(true);
 
     if (!artist) {
       return res.status(400).send({ message: "Artist not found" });
     }
 
-    await Artist.updateOne(
-      { _id: id },
-      {
-        $set: {
-          profileStatus: "inactive",
-        },
-        $unset: {
-          reviewDetails: "",
-        },
-      }
-    );
+    const mailVaribles = {
+      "%subject%": "Artist Profile Re-Validation by Admin",
+      "%email%": artist.email,
+      "%note": `Dear ${
+        artist.artistName
+      }, your artist profile has been revalidated by Admin. Your next revalidation date is ${new Date(
+        new Date().setDate(new Date().getDate() + 30)
+      ).toLocaleDateString("en-GB")}`,
+    };
 
-    return res.status(200).send({ message: "Artist Profile Changes Rejected" });
+    await Promise.all([
+      sendMail("profile-revalidated", mailVaribles, artist.email),
+      Artist.updateOne(
+        { _id: id },
+        {
+          $set: {
+            lastRevalidationDate: new Date(),
+            nextRevalidationDate: new Date(
+              new Date().setDate(new Date().getDate() + 30)
+            ),
+          },
+        }
+      ),
+    ]);
+
+    return res.status(200).send({ message: `Artist Profile Re-validated` });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2903,5 +2973,5 @@ module.exports = {
   getKBById,
   getReviewDetailArtist,
   approveArtistChanges,
-  rejectArtistChanges,
+  reValidateArtist,
 };

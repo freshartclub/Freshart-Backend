@@ -9,6 +9,8 @@ const APIErrorLog = createLog("API_error_log");
 const Admin = require("../models/adminModel");
 const objectId = require("mongoose").Types.ObjectId;
 const moment = require("moment");
+const KB = require("../models/kbModel");
+const FAQ = require("../models/faqModel");
 
 const listArtworkStyle = async (req, res) => {
   try {
@@ -578,14 +580,93 @@ const getAllSeriesList = async (req, res) => {
     ]);
 
     return res.status(200).send({
-      seriesList: seriesList[0].artistSeriesList,
-      purchaseCatalog: seriesList[0].commercilization.filter(
-        (item) => item.catalogCommercialization === "Purchase"
-      )[0].details,
-      subscriptionCatalog: seriesList[0].commercilization.filter(
-        (item) => item.catalogCommercialization === "Subscription"
-      )[0].details,
-      vatAmount: seriesList[0].vatAmount,
+      seriesList: seriesList[0]?.artistSeriesList,
+      purchaseCatalog: seriesList[0].commercilization
+        ? seriesList[0].commercilization.filter(
+            (item) => item.catalogCommercialization === "Purchase"
+          )[0]?.details
+        : [],
+      subscriptionCatalog: seriesList[0].commercilization
+        ? seriesList[0].commercilization.filter(
+            (item) => item.catalogCommercialization === "Subscription"
+          )[0]?.details
+        : [],
+      vatAmount: seriesList[0]?.vatAmount,
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getGeneralKBList = async (req, res) => {
+  try {
+    let { s } = req.query;
+
+    if (s == "undefined") {
+      s = "";
+    } else if (typeof s === "undefined") {
+      s = "";
+    }
+
+    const kbList = await KB.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          // kbGrp: { $regex: grp, $options: "i" },
+          $or: [
+            { kbTitle: { $regex: s, $options: "i" } },
+            { tags: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          kbGrp: 1,
+          kbTitle: 1,
+          kbDesc: 1,
+          tags: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    res.status(200).send({ data: kbList });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getFAQGeneralList = async (req, res) => {
+  try {
+    const faqList = await FAQ.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          faqGrp: 1,
+          faqQues: 1,
+          faqAns: 1,
+          tags: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    res.status(201).send({
+      message: "FAQ list retrieved successfully",
+      data: faqList,
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -605,4 +686,6 @@ module.exports = {
   deleteTheme,
   deleteMedia,
   getAllSeriesList,
+  getGeneralKBList,
+  getFAQGeneralList,
 };
