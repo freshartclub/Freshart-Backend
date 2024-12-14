@@ -18,6 +18,9 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
   const { id } = req.query;
   const fileData = await fileUploadFunc(req, res);
 
+  console.log(req.body);
+  console.log(fileData);
+
   let obj = {
     catalogName: req.body.catalogName,
     catalogDesc: req.body.catalogDesc,

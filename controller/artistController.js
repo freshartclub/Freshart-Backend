@@ -916,6 +916,7 @@ const editArtistProfile = async (req, res) => {
     let accountArr = [];
     let additionalImages = [];
     let additionalVideos = [];
+    let disciplineArr = [];
 
     if (fileData.data?.additionalImage) {
       fileData.data?.additionalImage.forEach((element) => {
@@ -986,6 +987,26 @@ const editArtistProfile = async (req, res) => {
       }
     }
 
+    if (req.body.discipline) {
+      const disciplines = Array.isArray(req.body.discipline)
+        ? req.body.discipline.map((item) => JSON.parse(item))
+        : req.body.discipline;
+
+      disciplines.forEach((element) => {
+        const discipline = element.discipline;
+        const style = Array.isArray(element.style)
+          ? element.style.map((s) =>
+              typeof s === "object" && s.value ? s.value : s
+            )
+          : [];
+
+        disciplineArr.push({
+          discipline: discipline,
+          style: style,
+        });
+      });
+    }
+
     const processBodyImg = (img) => {
       if (img === "null") {
         return null;
@@ -1003,9 +1024,9 @@ const editArtistProfile = async (req, res) => {
       gender: req.body.gender,
       language: req.body.language,
       phone: req.body.phoneNumber,
-      // dob: req.body.dob,
       aboutArtist: {
         about: req.body.about,
+        discipline: disciplineArr,
       },
       highlights: {
         addHighlights: req.body.highlights.trim(),
@@ -1095,7 +1116,6 @@ const createTicket = async (req, res) => {
     }
 
     const fileData = await fileUploadFunc(req, res);
-
     const { subject, message, region, ticketType, urgency, impact } = req.body;
 
     const randomNumber = Math.floor(100000 + Math.random() * 900000);

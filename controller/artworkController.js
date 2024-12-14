@@ -4,6 +4,8 @@ const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
 const RecentlyView = require("../models/recentlyView");
 const { fileUploadFunc, generateRandomId } = require("../functions/common");
+const objectId = require("mongoose").Types.ObjectId;
+const Catalog = require("../models/catalogModel");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -25,7 +27,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne(
     { _id: artworkId, isDeleted: false },
-    { media: 1, status: 1, artworkId: 1 }
+    { media: 1, status: 1, artworkId: 1, commercialization: 1 }
   ).lean(true);
 
   const isArtwork = artwork ? true : false;
@@ -161,12 +163,12 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
       purchaseOption: req.body.purchaseOption,
-      subscriptionCatalog: req.body.subscriptionCatalog,
+      subscriptionCatalog: objectId(req.body.subscriptionCatalog),
     };
   } else {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
-      purchaseCatalog: req.body.purchaseCatalog,
+      purchaseCatalog: objectId(req.body.purchaseCatalog),
       purchaseType: req.body.purchaseType,
     };
   }
@@ -232,12 +234,45 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   if (artworkId) {
     ArtWork.updateOne({ _id: artworkId }, condition).then();
+
+    const newCatalogId =
+      req.body.activeTab === "subscription"
+        ? req.body.subscriptionCatalog
+        : req.body.purchaseCatalog;
+
+    const existingCatalogId =
+      artwork.commercialization?.purchaseCatalog ||
+      artwork.commercialization?.subscriptionCatalog;
+
+    if (newCatalogId !== existingCatalogId) {
+      Promise.all([
+        Catalog.updateOne(
+          { _id: existingCatalogId, artworkList: artworkId },
+          { $pull: { artworkList: artworkId } }
+        ),
+        Catalog.updateOne(
+          { _id: newCatalogId, artworkList: { $ne: artworkId } },
+          { $push: { artworkList: artworkId } }
+        ),
+      ]);
+    }
+
     return res.status(200).send({
       message: "Artwork Editted Sucessfully",
       data: { _id: artworkId },
     });
   } else {
     const artwork = await ArtWork.create(obj);
+
+    const catalogId = req.body.subscriptionCatalog
+      ? req.body.subscriptionCatalog
+      : req.body.purchaseCatalog;
+
+    await Catalog.updateOne(
+      { _id: catalogId },
+      { $push: { artworkList: artwork._id } }
+    );
+
     res
       .status(200)
       .send({ message: "Artwork Added Sucessfully", data: artwork });
@@ -451,12 +486,12 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
       purchaseOption: req.body.purchaseOption,
-      subscriptionCatalog: req.body.subscriptionCatalog,
+      subscriptionCatalog: objectId(req.body.subscriptionCatalog),
     };
   } else {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
-      purchaseCatalog: req.body.purchaseCatalog,
+      purchaseCatalog: objectId(req.body.purchaseCatalog),
       purchaseType: req.body.purchaseType,
     };
   }
@@ -518,9 +553,42 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   if (id !== "null") {
     ArtWork.updateOne({ _id: id }, condition).then();
+
+    const newCatalogId =
+      req.body.activeTab === "subscription"
+        ? req.body.subscriptionCatalog
+        : req.body.purchaseCatalog;
+
+    const existingCatalogId =
+      artworkData.commercialization?.purchaseCatalog ||
+      artworkData.commercialization?.subscriptionCatalog;
+
+    if (newCatalogId !== existingCatalogId) {
+      Promise.all([
+        Catalog.updateOne(
+          { _id: existingCatalogId, artworkList: artworkData._id },
+          { $pull: { artworkList: artworkData._id } }
+        ),
+        Catalog.updateOne(
+          { _id: newCatalogId, artworkList: { $ne: artworkData._id } },
+          { $push: { artworkList: artworkData._id } }
+        ),
+      ]);
+    }
+
     return res.status(200).send({ message: "Artwork Editted Sucessfully" });
   } else {
     artwork = await ArtWork.create(obj);
+
+    const catalogId = req.body.subscriptionCatalog
+      ? req.body.subscriptionCatalog
+      : req.body.purchaseCatalog;
+
+    await Catalog.updateOne(
+      { _id: catalogId },
+      { $push: { artworkList: artworkData._id } }
+    );
+
     return res
       .status(200)
       .send({ message: "Artwork Added Sucessfully", artwork });
