@@ -1858,6 +1858,7 @@ const serachUser = async (req, res) => {
         $or: [
           { userId: { $regex: userId, $options: "i" } },
           { artistName: { $regex: userId, $options: "i" } },
+          { artistSurname1: { $regex: userId, $options: "i" } },
           { email: { $regex: userId, $options: "i" } },
         ],
       };
