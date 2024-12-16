@@ -188,7 +188,6 @@ const listTechnic = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while get the list of the discipline");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };

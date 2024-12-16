@@ -270,7 +270,7 @@ const artistRegister = async (req, res) => {
 
     if (req.body?.uploadDocs) {
       if (typeof req.body?.uploadDocs === "string") {
-        if (!isNaN(element) && isFinite(element)) {
+        if (!isNaN(req.body?.uploadDocs) && isFinite(req.body?.uploadDocs)) {
           docsArr.push({
             documentName: req.body?.documentName,
             uploadDocs: uploadDocs,
@@ -1683,8 +1683,19 @@ const createNewUser = async (req, res) => {
 
     const isArtist = req.body?.isArtist === "true" ? true : false;
 
+    console.log(req.body);
+    console.log(fileData.data);
+
     let obj = {
       artistName: req.body.name
+        .toLowerCase()
+        .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+        .trim(),
+      artistSurname1: req.body.artistSurname1
+        .toLowerCase()
+        .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
+        .trim(),
+      artistSurname2: req.body.artistSurname2
         .toLowerCase()
         .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
         .trim(),

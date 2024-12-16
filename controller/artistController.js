@@ -202,7 +202,6 @@ const sendVerifyEmailOTP = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the artist");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -762,26 +761,126 @@ const logOut = async (req, res) => {
 
 const getArtistDetails = async (req, res) => {
   try {
-    const artist = await Artist.findOne({
-      _id: req.user._id,
-      isDeleted: false,
-    })
-      .populate("insignia", "credentialName insigniaImage")
-      .lean(true);
+    // const artist = await Artist.findOne({
+    //   _id: req.user._id,
+    //   isDeleted: false,
+    // })
+    //   .populate("insignia", "credentialName insigniaImage")
+    //   .lean(true);
 
-    if (!artist) {
-      return res.status(400).send({ message: "Artist/User not found" });
-    }
+    // if (!artist) {
+    //   return res.status(400).send({ message: "Artist/User not found" });
+    // }
+
+    const artist = await Artist.aggregate([
+      {
+        $match: {
+          _id: req.user._id,
+          isDeleted: false,
+        },
+      },
+      {
+        $lookup: {
+          from: "insignias",
+          localField: "insignia",
+          foreignField: "_id",
+          as: "insignia",
+        },
+      },
+      {
+        $unwind: {
+          path: "$commercilization.publishingCatalog.PublishingCatalog",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $lookup: {
+          from: "catalogs",
+          localField: "commercilization.publishingCatalog.PublishingCatalog",
+          foreignField: "_id",
+          as: "lookupCatalog",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          phone: 1,
+          email: 1,
+          aboutArtist: 1,
+          links: 1,
+          profile: 1,
+          highlights: 1,
+          publishingCatalog: 1,
+          address: 1,
+          insignia: {
+            credentialName: 1,
+            insigniaImage: 1,
+          },
+          links: 1,
+          language: 1,
+          logistics: 1,
+          managerDetails: 1,
+          nickName: 1,
+          aboutArtist: 1,
+          cart: 1,
+          createdAt: 1,
+          currency: 1,
+          documents: 1,
+          isArtistRequestStatus: 1,
+          profileStatus: 1,
+          lastRevalidationDate: 1,
+          nextRevalidationDate: 1,
+          billingInfo: 1,
+          emergencyInfo: 1,
+          commercilization: {
+            $mergeObjects: [
+              "$commercilization",
+              {
+                publishingCatalog: {
+                  $map: {
+                    input: "$lookupCatalog",
+                    as: "catalog",
+                    in: {
+                      ArtistFees: {
+                        $arrayElemAt: [
+                          "$commercilization.publishingCatalog.ArtistFees",
+                          { $indexOfArray: ["$lookupCatalog", "$$catalog"] },
+                        ],
+                      },
+                      catalogName: "$$catalog.catalogName",
+                      _id: "$$catalog._id",
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          extraInfo: 1,
+          gender: 1,
+          invoice: 1,
+          isActivated: 1,
+          isDeleted: 1,
+          isManagerDetails: 1,
+          role: 1,
+          userId: 1,
+          artistId: 1,
+          wishlist: 1,
+          otherTags: 1,
+        },
+      },
+    ]);
 
     res.status(200).send({
-      artist: artist,
+      artist: artist[0],
       url: "https://dev.freshartclub.com/images",
       message: `welcome ${artist.artistName ? artist.artistName : "Back"}`,
     });
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1544,7 +1643,6 @@ const addBillingAddress = async (req, res) => {
       obj["isDefault"] = true;
     }
 
-    console.log(req.params.addressId);
     if (req.params?.addressId) {
       console.log("5367");
       await Artist.updateOne(

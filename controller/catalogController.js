@@ -18,9 +18,6 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
   const { id } = req.query;
   const fileData = await fileUploadFunc(req, res);
 
-  console.log(req.body);
-  console.log(fileData);
-
   let obj = {
     catalogName: req.body.catalogName,
     catalogDesc: req.body.catalogDesc,
@@ -32,6 +29,13 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
     subPlan: req.body.subPlan,
     status: req.body.status,
     exclusiveCatalog: req.body.exclusiveCatalog,
+    details: {
+      maxPrice: Number(req.body.maxPrice),
+      maxHeight: Number(req.body.maxHeight),
+      maxWidth: Number(req.body.maxWidth),
+      maxDepth: Number(req.body.maxDepth),
+      maxWeight: Number(req.body.maxWeight),
+    },
   };
 
   if (fileData.data !== undefined) {

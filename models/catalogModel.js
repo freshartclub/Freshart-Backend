@@ -47,6 +47,9 @@ const catalogSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    details: {
+      type: Object,
+    },
   },
   {
     timestamps: true,

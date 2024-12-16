@@ -518,7 +518,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
     location: req.body.location,
-    commingSoon: req.body.commingSoon,
+    commingSoon: req.body.commingSoon === "true" ? true : false,
     packageMaterial: req.body.packageMaterial,
     packageWeight: req.body.packageWeight,
     packageLength: req.body.packageLength,
@@ -532,7 +532,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["promotions"] = {
     promotion: req.body.promotion,
-    promotionScore: req.body.promotionScore,
+    promotionScore: Number(req.body.promotionScore),
   };
 
   obj["restriction"] = {
@@ -544,6 +544,9 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     intTags: intTagsArr,
     extTags: extTagsArr,
   };
+
+  console.log(req.body, "body eend");
+  console.log(obj);
 
   let condition = {
     $set: obj,
