@@ -4,6 +4,7 @@ const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
 const { fileUploadFunc } = require("../functions/common");
 const Catalog = require("../models/catalogModel");
+const objectId = require("mongoose").Types.ObjectId;
 
 const addCatalog = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
@@ -121,16 +122,85 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Admin not found` });
   }
 
-  const catalog = await Catalog.findOne({
-    _id: req.params.id,
-  })
-    .populate("artworkList", "artworkName")
-    .populate("catalogCollection", "collectionName")
-    .lean(true);
+  const catalog = await Catalog.aggregate([
+    {
+      $match: {
+        _id: objectId(req.params.id),
+      },
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "artworkList",
+        foreignField: "_id",
+        as: "artworkList",
+      },
+    },
+    {
+      $lookup: {
+        from: "collections",
+        localField: "catalogCollection",
+        foreignField: "_id",
+        as: "catalogCollection",
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "artProvider",
+        foreignField: "_id",
+        as: "artProvider",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        catalogName: 1,
+        catalogImg: 1,
+        catalogDesc: 1,
+        catalogCollection: {
+          $map: {
+            input: "$catalogCollection",
+            as: "item",
+            in: {
+              _id: "$$item._id",
+              collectionName: "$$item.collectionName",
+            },
+          },
+        },
+        artworkList: {
+          $map: {
+            input: "$artworkList",
+            as: "item",
+            in: {
+              _id: "$$item._id",
+              artworkName: "$$item.artworkName",
+            },
+          },
+        },
+        artProvider: {
+          $map: {
+            input: "$artProvider",
+            as: "item",
+            in: {
+              _id: "$$item._id",
+              artistName: "$$item.artistName",
+              artistSurname1: "$$item.artistSurname1",
+              artistSurname2: "$$item.artistSurname2",
+              mainImage: "$$item.profile.mainImage",
+            },
+          },
+        },
+        subPlan: 1,
+        exclusiveCatalog: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
 
   res
     .status(200)
-    .send({ data: catalog, url: "https://dev.freshartclub.com/images" });
+    .send({ data: catalog[0], url: "https://dev.freshartclub.com/images" });
 });
 
 const getCatalogList = catchAsyncError(async (req, res, next) => {

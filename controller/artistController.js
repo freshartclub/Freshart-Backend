@@ -761,17 +761,6 @@ const logOut = async (req, res) => {
 
 const getArtistDetails = async (req, res) => {
   try {
-    // const artist = await Artist.findOne({
-    //   _id: req.user._id,
-    //   isDeleted: false,
-    // })
-    //   .populate("insignia", "credentialName insigniaImage")
-    //   .lean(true);
-
-    // if (!artist) {
-    //   return res.status(400).send({ message: "Artist/User not found" });
-    // }
-
     const artist = await Artist.aggregate([
       {
         $match: {
@@ -1116,7 +1105,7 @@ const editArtistProfile = async (req, res) => {
 
     let obj = {
       artistName: req.body.artistName,
-      artistSurname1: req.body.artistSurname2,
+      artistSurname1: req.body.artistSurname1,
       artistSurname2: req.body.artistSurname2,
       nickName: req.body.nickName,
       email: req.body.email,
@@ -1185,6 +1174,9 @@ const editArtistProfile = async (req, res) => {
     }
 
     obj["links"] = accountArr;
+
+    console.log(obj);
+    console.log(req.body);
 
     Artist.updateOne(
       { _id: artist._id, isDeleted: false },

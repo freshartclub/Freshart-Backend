@@ -103,7 +103,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   let obj = {
     artworkName: req.body.artworkName,
     artworkCreationYear: req.body.artworkCreationYear,
-    artworkSeries: req.body.artworkSeries,
+    artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
     isArtProvider: req.body.isArtProvider,
     artworkId: isArtwork ? artwork?.artworkId : "ARW-" + generateRandomId(),
@@ -429,7 +429,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   let obj = {
     artworkName: req.body.artworkName,
     artworkCreationYear: req.body.artworkCreationYear,
-    artworkSeries: req.body.artworkSeries,
+    artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
     isArtProvider: req.body.isArtProvider,
     artworkId:
@@ -530,11 +530,6 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkDiscipline: req.body.artworkDiscipline,
   };
 
-  obj["promotions"] = {
-    promotion: req.body.promotion,
-    promotionScore: Number(req.body.promotionScore),
-  };
-
   obj["restriction"] = {
     availableTo: req.body.availableTo,
     discountAcceptation: req.body.discountAcceptation,
@@ -589,7 +584,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
     await Catalog.updateOne(
       { _id: catalogId },
-      { $push: { artworkList: artworkData._id } }
+      { $push: { artworkList: artwork._id } }
     );
 
     return res

@@ -181,6 +181,7 @@ const artistSchema = new mongoose.Schema(
     nextRevalidationDate: {
       type: Date,
     },
+    previousRevalidationDate: [{ type: Object }],
     documents: {
       type: Array,
     },

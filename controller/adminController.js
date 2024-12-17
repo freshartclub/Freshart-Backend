@@ -25,6 +25,7 @@ const Theme = require("../models/themeModel");
 const MediaSupport = require("../models/mediaSupportModel");
 const FAQ = require("../models/faqModel");
 const KB = require("../models/kbModel");
+const Catalog = require("../models/catalogModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -55,10 +56,8 @@ const sendLoginOTP = async (req, res) => {
       });
     }
 
-    // Get user input
     const { email, password } = req.body;
 
-    // Validate if user exist in our database
     const admins = await Admin.findOne(
       { email: email.toLowerCase(), isDeleted: false, status: "active" },
       { email: 1, password: 1, roles: 1 }
@@ -89,7 +88,6 @@ const sendLoginOTP = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -112,7 +110,6 @@ const validateOTP = async (req, res) => {
     };
 
     if (admins && admins.OTP == otp) {
-      // Create token
       const token = jwt.sign(
         { user: adminField },
         process.env.ACCESS_TOKEN_SECERT,
@@ -241,6 +238,7 @@ const artistRegister = async (req, res) => {
           pageCount: 1,
           artistId: 1,
           profile: 1,
+          commercilization: 1,
         }
       ).lean(true);
     }
@@ -617,6 +615,23 @@ const artistRegister = async (req, res) => {
 
     if (id) {
       Artist.updateOne({ _id: req.params.id }, condition).then();
+
+      if (count === 5 && Array.isArray(req.body.PublishingCatalog)) {
+        const artistId = objectId(req.params.id);
+        await Promise.all(
+          req.body.PublishingCatalog.map(async (item) => {
+            await Catalog.updateMany(
+              { artProvider: artistId },
+              { $pull: { artProvider: artistId } }
+            );
+
+            await Catalog.updateOne(
+              { _id: item.PublishingCatalog },
+              { $addToSet: { artProvider: artistId } }
+            );
+          })
+        );
+      }
     } else {
       const isExistingAritst = await Artist.countDocuments({
         email: req.body.email.toLowerCase(),
@@ -629,12 +644,8 @@ const artistRegister = async (req, res) => {
           .send({ message: "Artist already exist with this email" });
       }
 
+      obj["isArtistRequestStatus"] = "processing";
       newArtist = await Artist.create(obj);
-
-      Artist.updateOne(
-        { _id: newArtist._id, isDeleted: false },
-        { $set: { isArtistRequestStatus: "processing" } }
-      ).then();
     }
 
     return res.status(200).send({
@@ -1357,7 +1368,6 @@ const activateArtist = async (req, res) => {
 
     const url = "https://test.freshartclub.com";
 
-    // const link = `${process.env.FRONTEND_URL}/reset-password?id=${artist._id}&token=${token}`;
     const link = `${url}/reset-password?id=${artist._id}&token=${token}`;
     const mailVaribles = {
       "%fullName%": artist.artistName,
@@ -1385,7 +1395,9 @@ const getAllArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { s, date } = req.query;
+    let { s, date, status } = req.query;
+
+    if (status === "All") status = "";
 
     let weeksAgo;
     if (date === "All") {
@@ -1401,6 +1413,7 @@ const getAllArtists = async (req, res) => {
           isDeleted: false,
           role: "artist",
           ...(weeksAgo ? { nextRevalidationDate: { $lte: weeksAgo } } : {}),
+          ...(status ? { profileStatus: status } : {}),
           $or: [
             { artistId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
@@ -1549,16 +1562,19 @@ const getArtistRequestList = async (req, res) => {
           profileStatus: 1,
           nickName: 1,
           artistSurname2: 1,
+          discipline: "$aboutArtist.discipline",
           avatar: 1,
           email: 1,
           phone: 1,
           createdAt: 1,
+          links: 1,
           isActivated: 1,
           documents: 1,
           userId: 1,
           artistId: 1,
           city: "$address.city",
           country: "$address.country",
+          zipCode: "$address.zipCode",
           state: "$address.state",
         },
       },
@@ -2852,7 +2868,7 @@ const approveArtistChanges = async (req, res) => {
         data.isApproved ? "Approved" : "Rejected"
       }`,
       "%email%": artist.email,
-      "%note": addNote,
+      "%note%": addNote,
     };
 
     await Promise.all([
@@ -2893,7 +2909,7 @@ const reValidateArtist = async (req, res) => {
         _id: id,
         isDeleted: false,
       },
-      { email: 1, artistName: 1 }
+      { email: 1, artistName: 1, nextRevalidationDate: 1 }
     ).lean(true);
 
     if (!artist) {
@@ -2903,11 +2919,16 @@ const reValidateArtist = async (req, res) => {
     const mailVaribles = {
       "%subject%": "Artist Profile Re-Validation by Admin",
       "%email%": artist.email,
-      "%note": `Dear ${
+      "%note%": `Dear ${
         artist.artistName
       }, your artist profile has been revalidated by Admin. Your next revalidation date is ${new Date(
         new Date().setDate(new Date().getDate() + 30)
       ).toLocaleDateString("en-GB")}`,
+    };
+
+    let obj = {
+      revalidateFixedDate: artist.nextRevalidationDate,
+      revalidatedOn: new Date(),
     };
 
     await Promise.all([
@@ -2921,6 +2942,7 @@ const reValidateArtist = async (req, res) => {
               new Date().setDate(new Date().getDate() + 30)
             ),
           },
+          $push: { previousRevalidationDate: obj },
         }
       ),
     ]);

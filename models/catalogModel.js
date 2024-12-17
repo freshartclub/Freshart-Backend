@@ -34,9 +34,12 @@ const catalogSchema = new mongoose.Schema(
         ref: "Collection",
       },
     ],
-    artProvider: {
-      type: Array,
-    },
+    artProvider: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Artist",
+      },
+    ],
     subPlan: {
       type: Array,
     },
