@@ -452,14 +452,20 @@ const artistRegister = async (req, res) => {
         obj["profile"] = {
           mainImage: fileData.data?.profileImage
             ? fileData.data.profileImage[0].filename
-            : artist?.profile?.mainImage,
+            : req.body?.hasMainImg === "true"
+            ? artist?.profile?.mainImage
+            : null,
           additionalImage: newImageArr,
           inProcessImage: fileData.data?.inProcessImage
             ? fileData.data.inProcessImage[0].filename
-            : artist?.profile?.inProcessImage,
+            : req.body?.hasInProcessImg === "true"
+            ? artist?.profile?.inProcessImage
+            : null,
           mainVideo: fileData.data?.mainVideo
             ? fileData.data.mainVideo[0].filename
-            : artist?.profile?.mainVideo,
+            : req.body?.hasMainVideo === "true"
+            ? artist?.profile?.mainVideo
+            : null,
           additionalVideo: newVideoArr,
         };
 

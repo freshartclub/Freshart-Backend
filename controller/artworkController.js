@@ -113,20 +113,29 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (req.body?.isArtProvider === "Yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
   }
+
   obj["media"] = {
-    backImage: fileData.data?.backImage
+    backImage: fileData.data?.backImage?.length
       ? fileData.data?.backImage[0].filename
-      : artwork?.media?.backImage,
+      : req.body?.hasBackImg === "true"
+      ? artwork?.media?.backImage
+      : null,
     images: newImageArr,
-    inProcessImage: fileData.data?.inProcessImage
+    inProcessImage: fileData.data?.inProcessImage?.length
       ? fileData.data?.inProcessImage[0].filename
-      : artwork?.media?.inProcessImage,
-    mainImage: fileData.data?.mainImage
+      : req.body?.hasInProcessImg === "true"
+      ? artwork?.media?.inProcessImage
+      : null,
+    mainImage: fileData.data?.mainImage?.length
       ? fileData.data?.mainImage[0].filename
-      : artwork?.media?.mainImage,
-    mainVideo: fileData.data?.mainVideo
+      : req.body?.hasMainImg === "true"
+      ? artwork?.media?.mainImage
+      : null,
+    mainVideo: fileData.data?.mainVideo?.length
       ? fileData.data?.mainVideo[0].filename
-      : artwork?.media?.mainVideo,
+      : req.body?.hasMainVideo === "true"
+      ? artwork?.media?.mainVideo
+      : null,
     otherVideo: newVideoArr,
   };
 
@@ -444,19 +453,27 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   obj["media"] = {
-    backImage: fileData.data?.backImage
+    backImage: fileData.data?.backImage?.length
       ? fileData.data?.backImage[0].filename
-      : artworkData?.media?.backImage,
+      : req.body?.hasBackImg === "true"
+      ? artworkData?.media?.backImage
+      : null,
     images: images,
-    inProcessImage: fileData.data?.inProcessImage
+    inProcessImage: fileData.data?.inProcessImage?.length
       ? fileData.data?.inProcessImage[0].filename
-      : artworkData?.media?.inProcessImage,
-    mainImage: fileData.data?.mainImage
+      : req.body?.hasInProcessImg === "true"
+      ? artworkData?.media?.inProcessImage
+      : null,
+    mainImage: fileData.data?.mainImage?.length
       ? fileData.data?.mainImage[0].filename
-      : artworkData?.media?.mainImage,
-    mainVideo: fileData.data?.mainVideo
+      : req.body?.hasMainImg === "true"
+      ? artworkData?.media?.mainImage
+      : null,
+    mainVideo: fileData.data?.mainVideo?.length
       ? fileData.data?.mainVideo[0].filename
-      : artworkData?.media?.mainVideo,
+      : req.body?.hasMainVideo === "true"
+      ? artworkData?.media?.mainVideo
+      : null,
     otherVideo: videos,
   };
 
@@ -539,9 +556,6 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     intTags: intTagsArr,
     extTags: extTagsArr,
   };
-
-  console.log(req.body, "body eend");
-  console.log(obj);
 
   let condition = {
     $set: obj,
@@ -798,15 +812,6 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
   if (!groupByField) {
     artworks = await ArtWork.aggregate([
       { $match: matchQuery },
-      // {
-      //   $lookup: {
-      //     from: "artists",
-      //     localField: "owner",
-      //     foreignField: "_id",
-      //     as: "ownerInfo",
-      //   },
-      // },
-      // { $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true } },
       {
         $project: {
           _id: 1,
@@ -831,14 +836,6 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
   } else {
     artworks = await ArtWork.aggregate([
       { $match: matchQuery },
-      // {
-      //   $lookup: {
-      //     from: "artists",
-      //     localField: "owner",
-      //     foreignField: "_id",
-      //     as: "ownerInfo",
-      //   },
-      // },
       { $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true } },
       {
         $group: {
@@ -878,6 +875,7 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
+  let { preview } = req.query;
 
   let artwork = null;
   let artworks = [];
@@ -903,9 +901,12 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
       })
       .lean(true);
 
-    artworks = await ArtWork.find({ owner: artwork.owner._id })
-      .sort({ createdAt: -1 })
-      .lean(true);
+    if (preview == "false") {
+      artworks = await ArtWork.find({ owner: artwork.owner._id })
+        .limit(7)
+        .sort({ createdAt: -1 })
+        .lean(true);
+    }
   }
 
   res.status(200).send({
