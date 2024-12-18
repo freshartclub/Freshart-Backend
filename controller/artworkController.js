@@ -881,25 +881,183 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
   let artworks = [];
 
   if (req.user?.roles && req.user?.roles === "superAdmin") {
-    artwork = await ArtWork.findOne({ _id: id })
-      .populate("owner", {
-        artistName: 1,
-        artistId: 1,
-        artistSurname1: 1,
-        artistSurname2: 1,
-      })
-      .lean(true);
+    // artwork = await ArtWork.findOne({ _id: id })
+    //   .populate("owner", {
+    //     artistName: 1,
+    //     artistId: 1,
+    //     artistSurname1: 1,
+    //     artistSurname2: 1,
+    //   })
+    //   .lean(true);
+
+    artwork = await ArtWork.aggregate([
+      {
+        $match: {
+          _id: objectId(id),
+        },
+      },
+      {
+        $set: {
+          catalogField: {
+            $ifNull: [
+              "$commercialization.purchaseCatalog",
+              "$commercialization.subscriptionCatalog",
+            ],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "owner",
+          foreignField: "_id",
+          as: "ownerInfo",
+        },
+      },
+      {
+        $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "catalogs",
+          localField: "catalogField",
+          foreignField: "_id",
+          as: "catalogInfo",
+        },
+      },
+      {
+        $unwind: { path: "$catalogInfo", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $project: {
+          _id: 1,
+          status: 1,
+          artworkId: 1,
+          isHighlighted: 1,
+          isArtProvider: 1,
+          provideArtistName: 1,
+          owner: {
+            artistName: "$ownerInfo.artistName",
+            artistId: "$ownerInfo.artistId",
+            artistSurname1: "$ownerInfo.artistSurname1",
+            artistSurname2: "$ownerInfo.artistSurname2",
+          },
+          rejectReason: 1,
+          artworkName: 1,
+          artworkCreationYear: 1,
+          artworkSeries: 1,
+          productDescription: 1,
+          collectionList: 1,
+          media: 1,
+          additionalInfo: 1,
+          commercialization: {
+            $mergeObjects: [
+              "$commercialization",
+              {
+                publishingCatalog: {
+                  _id: "$catalogInfo._id",
+                  catalogName: "$catalogInfo.catalogName",
+                },
+              },
+            ],
+          },
+          pricing: 1,
+          inventoryShipping: 1,
+          discipline: 1,
+          promotions: 1,
+          restriction: 1,
+          tags: 1,
+          catalogInfo: 1,
+          ownerInfo: 1,
+        },
+      },
+    ]);
   } else {
-    artwork = await ArtWork.findOne({ _id: id })
-      .populate("owner", {
-        artistName: 1,
-        artistSurname1: 1,
-        artistSurname2: 1,
-        address: 1,
-        aboutArtist: 1,
-        profile: 1,
-      })
-      .lean(true);
+    artwork = await ArtWork.aggregate([
+      {
+        $match: {
+          _id: objectId(id),
+        },
+      },
+      {
+        $set: {
+          catalogField: {
+            $ifNull: [
+              "$commercialization.purchaseCatalog",
+              "$commercialization.subscriptionCatalog",
+            ],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "owner",
+          foreignField: "_id",
+          as: "ownerInfo",
+        },
+      },
+      {
+        $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "catalogs",
+          localField: "catalogField",
+          foreignField: "_id",
+          as: "catalogInfo",
+        },
+      },
+      {
+        $unwind: { path: "$catalogInfo", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $project: {
+          _id: 1,
+          status: 1,
+          artworkId: 1,
+          isHighlighted: 1,
+          isArtProvider: 1,
+          provideArtistName: 1,
+          owner: {
+            artistName: "$ownerInfo.artistName",
+            artistId: "$ownerInfo.artistId",
+            artistSurname1: "$ownerInfo.artistSurname1",
+            artistSurname2: "$ownerInfo.artistSurname2",
+            address: "$ownerInfo.address",
+            aboutArtist: "$ownerInfo.aboutArtist",
+            profile: "$ownerInfo.profile",
+          },
+          rejectReason: 1,
+          artworkName: 1,
+          artworkCreationYear: 1,
+          artworkSeries: 1,
+          productDescription: 1,
+          collectionList: 1,
+          media: 1,
+          additionalInfo: 1,
+          commercialization: {
+            $mergeObjects: [
+              "$commercialization",
+              {
+                publishingCatalog: {
+                  _id: "$catalogInfo._id",
+                  catalogName: "$catalogInfo.catalogName",
+                },
+              },
+            ],
+          },
+          pricing: 1,
+          inventoryShipping: 1,
+          discipline: 1,
+          promotions: 1,
+          restriction: 1,
+          tags: 1,
+          catalogInfo: 1,
+          ownerInfo: 1,
+        },
+      },
+    ]);
 
     if (preview == "false") {
       artworks = await ArtWork.find({ owner: artwork.owner._id })
@@ -910,7 +1068,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
   }
 
   res.status(200).send({
-    data: artwork,
+    data: artwork[0],
     artworks: artworks,
     url: "https://dev.freshartclub.com/images",
   });

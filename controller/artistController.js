@@ -938,7 +938,6 @@ const getArtistDetailById = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -952,7 +951,7 @@ const completeProfile = async (req, res) => {
       return res.status(fileData.status).send({
         message:
           fileData?.type === "fileNotFound"
-            ? "Please upload the documents"
+            ? "Please upload the Image"
             : fileData.type,
       });
     }
@@ -964,6 +963,9 @@ const completeProfile = async (req, res) => {
       artistSurname2: req.body.artistSurname2,
       gender: req.body.gender,
       dob: req.body.dob,
+      profile: {
+        mainImage: fileData?.data.mainImage[0].filename,
+      },
       address: {
         country: req.body.country,
         zipCode: String(req.body.zipCode),
