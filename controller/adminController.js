@@ -1405,6 +1405,8 @@ const getAllArtists = async (req, res) => {
 
     if (status === "All") status = "";
 
+    console.log(req.query);
+
     let weeksAgo;
     if (date === "All") {
       date = "";
@@ -2842,7 +2844,7 @@ const approveArtistChanges = async (req, res) => {
     if (data.isApproved == true) {
       obj = {
         artistName: data.artistName,
-        artistSurname1: data.artistSurname2,
+        artistSurname1: data.artistSurname1,
         artistSurname2: data.artistSurname2,
         nickName: data.nickName,
         email: data.email,

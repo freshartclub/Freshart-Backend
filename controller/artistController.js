@@ -92,15 +92,42 @@ const login = async (req, res) => {
 
 const sendVerifyEmailOTP = async (req, res) => {
   try {
-    const { email, password, cpassword, isArtistRequest } = req.body;
-    if (!req.body.email) {
-      return res.status(400).send({ message: "Email is required" });
-    }
+    const { password, cpassword, isArtistRequest } = req.body;
+    let { email } = req.body;
+    if (!email) return res.status(400).send({ message: "Email is required" });
 
-    let becomeArtistRequest = false;
-    if (isArtistRequest) becomeArtistRequest = true;
+    email = email.toLowerCase();
 
-    if (!becomeArtistRequest) {
+    if (isArtistRequest == true) {
+      const otp = generateRandomOTP();
+      const mailVaribles = {
+        "%email%": email,
+        "%otp%": otp,
+      };
+
+      const isExist = await Artist.countDocuments({
+        email: email,
+        isDeleted: false,
+      });
+
+      if (isExist) {
+        await Artist.updateOne(
+          { email: email, isDeleted: false },
+          { $set: { OTP: otp } }
+        );
+      } else {
+        await Artist.create({
+          email: email,
+          pageCount: 0,
+          OTP: otp,
+        });
+      }
+
+      await sendMail("verify-email", mailVaribles, email);
+      return res.status(200).send({
+        message: "OTP sent Successfully",
+      });
+    } else {
       if (password !== cpassword) {
         return res.status(400).send({ message: "Password does not match" });
       }
@@ -112,19 +139,13 @@ const sendVerifyEmailOTP = async (req, res) => {
         });
       }
 
-      const isExist = await Artist.aggregate([
+      const isExist = await Artist.find(
         {
-          $match: {
-            email: email.toLowerCase(),
-            isDeleted: false,
-          },
+          email: email,
+          isDeleted: false,
         },
-        {
-          $project: {
-            userId: 1,
-          },
-        },
-      ]);
+        { userId: 1 }
+      ).lean(true);
 
       const otp = generateRandomOTP();
       const mailVaribles = {
@@ -132,9 +153,11 @@ const sendVerifyEmailOTP = async (req, res) => {
         "%otp%": otp,
       };
 
-      if (isExist.length === 1 && isExist[0].userId === undefined) {
-        Artist.updateOne(
-          { email: email.toLowerCase(), isDeleted: false },
+      if (isExist.length === 1 && isExist[0].userId) {
+        return res.status(400).send({ message: "Email already exist" });
+      } else if (isExist.length === 1 && !isExist[0].userId) {
+        await Artist.updateOne(
+          { email: email },
           {
             $set: {
               OTP: otp,
@@ -144,19 +167,17 @@ const sendVerifyEmailOTP = async (req, res) => {
               pageCount: 0,
             },
           }
-        ).then();
+        );
 
-        await sendMail("verify-email", mailVaribles, email.toLowerCase());
+        await sendMail("verify-email", mailVaribles, email);
         return res.status(200).send({
           id: isExist[0]._id,
           message: "OTP sent Successfully",
         });
-      } else if (isExist.length > 1) {
-        return res.status(400).send({ message: "Email already exist" });
       }
 
       const user = await Artist.create({
-        email: email.toLowerCase(),
+        email: email,
         password: md5(password),
         userId: "UID-" + generateRandomId(true),
         role: "user",
@@ -164,38 +185,9 @@ const sendVerifyEmailOTP = async (req, res) => {
         OTP: otp,
       });
 
-      await sendMail("verify-email", mailVaribles, email.toLowerCase());
+      await sendMail("verify-email", mailVaribles, email);
       return res.status(200).send({
         id: user._id,
-        message: "OTP sent Successfully",
-      });
-    } else {
-      const otp = generateRandomOTP();
-      const mailVaribles = {
-        "%email%": email,
-        "%otp%": otp,
-      };
-
-      const isExist = await Artist.countDocuments({
-        email: email.toLowerCase(),
-        isDeleted: false,
-      });
-
-      if (isExist) {
-        Artist.updateOne(
-          { email: email.toLowerCase(), isDeleted: false },
-          { $set: { OTP: otp } }
-        ).then();
-      } else {
-        await Artist.create({
-          email: req.body.email.toLowerCase(),
-          pageCount: 0,
-          OTP: otp,
-        });
-      }
-
-      await sendMail("verify-email", mailVaribles, email.toLowerCase());
-      return res.status(200).send({
         message: "OTP sent Successfully",
       });
     }
@@ -208,69 +200,72 @@ const sendVerifyEmailOTP = async (req, res) => {
 
 const verifyEmailOTP = async (req, res) => {
   try {
-    const { id, otp, isArtistRequest, email } = req.body;
+    const { id, otp, isArtistRequest } = req.body;
+    let { email } = req.body;
+    if (!otp) return res.status(400).send({ message: "OTP is required" });
 
-    if (isArtistRequest) {
-      const user = await Artist.findOne({
-        email: email.toLowerCase(),
-        isDeleted: false,
-      }).lean(true);
+    if (isArtistRequest == true) {
+      if (!email) return res.status(400).send({ message: "Email is required" });
+      email = email.toLowerCase();
 
-      if (!user) {
-        return res.status(400).send({ message: "User not found" });
-      }
+      const user = await Artist.findOne(
+        {
+          email: email,
+          isDeleted: false,
+        },
+        { OTP: 1 }
+      ).lean(true);
 
-      if (otp !== user.OTP) {
+      if (!user) return res.status(400).send({ message: "User not found" });
+      if (otp !== user.OTP)
         return res.status(400).send({ message: "Invalid OTP" });
-      }
 
-      Artist.updateOne(
-        { email: email.toLowerCase(), isDeleted: false },
+      await Artist.updateOne(
+        { email: email, isDeleted: false },
         { $unset: { OTP: "" } }
-      ).then();
+      );
 
       return res.status(200).send({
         message: "Email verified Successfully",
       });
+    } else {
+      const user = await Artist.findOne(
+        {
+          _id: id,
+          isDeleted: false,
+        },
+        { OTP: 1, role: 1, password: 1 }
+      ).lean(true);
+
+      if (!user) return res.status(400).send({ message: "User not found" });
+      if (otp !== user.OTP)
+        return res.status(400).send({ message: "Invalid OTP" });
+
+      const userField = {
+        _id: user._id,
+        role: user.role,
+        password: user.password,
+      };
+
+      const token = jwt.sign(
+        { user: userField },
+        process.env.ACCESS_TOKEN_SECERT,
+        { expiresIn: "30d" }
+      );
+
+      await Artist.updateOne(
+        { _id: user._id, isDeleted: false },
+        {
+          $unset: { OTP: "" },
+          $push: { tokens: token },
+          $set: { isEmailVerified: true },
+        }
+      );
+
+      return res
+        .status(200)
+        .send({ token, id: user._id, message: "Email verified Successfully" });
     }
-
-    const user = await Artist.findOne({
-      _id: id,
-      isDeleted: false,
-    }).lean(true);
-
-    if (!user) {
-      return res.status(400).send({ message: "User not found" });
-    }
-
-    if (otp !== user.OTP) {
-      return res.status(400).send({ message: "Invalid OTP" });
-    }
-
-    const userField = {
-      _id: user._id,
-      role: user.role,
-      password: user.password,
-    };
-
-    const token = jwt.sign(
-      { user: userField },
-      process.env.ACCESS_TOKEN_SECERT,
-      { expiresIn: "30d" }
-    );
-
-    Artist.updateOne(
-      { _id: user._id, isDeleted: false },
-      {
-        $unset: { OTP: "" },
-        $push: { tokens: token },
-        $set: { isEmailVerified: true },
-      }
-    ).then();
-
-    return res
-      .status(200)
-      .send({ token, id: user._id, message: "Email verified Successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -306,10 +301,10 @@ const sendSMSOTP = async (req, res) => {
 
     const response = await axios.post(url, data, { headers });
 
-    Artist.updateOne(
+    await Artist.updateOne(
       { email: email.toLowerCase(), isDeleted: false },
       { $set: { OTP: otp } }
-    ).then();
+    );
 
     return res.status(200).send({ message: "OTP sent Successfully" });
   } catch (error) {
@@ -327,10 +322,7 @@ const verifySMSOTP = async (req, res) => {
       isDeleted: false,
     }).lean(true);
 
-    if (!user) {
-      return res.status(400).send({ message: "User not found" });
-    }
-
+    if (!user) return res.status(400).send({ message: "User not found" });
     if (otp !== user.OTP) {
       return res.status(400).send({ message: "Invalid OTP" });
     }
@@ -383,7 +375,6 @@ const sendForgotPasswordOTP = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while register the artist information");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -938,6 +929,7 @@ const getArtistDetailById = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
+    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1082,19 +1074,24 @@ const editArtistProfile = async (req, res) => {
         ? req.body.discipline.map((item) => JSON.parse(item))
         : req.body.discipline;
 
-      disciplines.forEach((element) => {
-        const discipline = element.discipline;
-        const style = Array.isArray(element.style)
-          ? element.style.map((s) =>
-              typeof s === "object" && s.value ? s.value : s
-            )
-          : [];
+      if (typeof disciplines === "string") {
+        const obj = JSON.parse(disciplines);
+        disciplineArr.push(obj);
+      } else {
+        disciplines.forEach((element) => {
+          const discipline = element.discipline;
+          const style = Array.isArray(element.style)
+            ? element.style.map((s) =>
+                typeof s === "object" && s.value ? s.value : s
+              )
+            : [];
 
-        disciplineArr.push({
-          discipline: discipline,
-          style: style,
+          disciplineArr.push({
+            discipline: discipline,
+            style: style,
+          });
         });
-      });
+      }
     }
 
     const processBodyImg = (img) => {
@@ -1176,9 +1173,6 @@ const editArtistProfile = async (req, res) => {
     }
 
     obj["links"] = accountArr;
-
-    console.log(obj);
-    console.log(req.body);
 
     Artist.updateOne(
       { _id: artist._id, isDeleted: false },
@@ -1460,8 +1454,6 @@ const removeFromCart = async (req, res) => {
   try {
     const { id } = req.params;
     const { remove } = req.query;
-
-    console.log("remove", remove, id);
 
     if (remove && remove == "true") {
       await Artist.updateOne(
