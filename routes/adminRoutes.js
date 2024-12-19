@@ -68,6 +68,7 @@ const {
   getCatalog,
   getCatalogById,
   getCatalogList,
+  deleteCatalog,
 } = require("../controller/catalogController");
 const {
   addCollection,
@@ -228,6 +229,8 @@ router.get("/get-all-catalog", validateAdminToken, getCatalog);
 router.get("/get-catalog-by-id/:id", validateAdminToken, getCatalogById);
 
 router.get("/get-catalog-list", validateAdminToken, getCatalogList);
+
+router.patch("/delete-catalog/:id", validateAdminToken, deleteCatalog);
 
 // ------------------ collection routes ---------------------
 

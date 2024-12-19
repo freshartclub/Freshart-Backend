@@ -949,12 +949,10 @@ const completeProfile = async (req, res) => {
     }
 
     let obj = {
-      avatar: fileData?.data.avatar[0].filename,
       artistName: req.body.artistName,
-      artistSurname1: req.body.artistSurname2,
+      artistSurname1: req.body.artistSurname1,
       artistSurname2: req.body.artistSurname2,
       gender: req.body.gender,
-      dob: req.body.dob,
       profile: {
         mainImage: fileData?.data.mainImage[0].filename,
       },
@@ -977,7 +975,6 @@ const completeProfile = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };

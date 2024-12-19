@@ -22,11 +22,9 @@ const addCatalog = catchAsyncError(async (req, res, next) => {
   let obj = {
     catalogName: req.body.catalogName,
     catalogDesc: req.body.catalogDesc,
-    artworkList: req.body.artworkList,
     catalogCollection: req.body.catalogCollection,
     catalogCommercialization: req.body.catalogCommercialization,
     defaultArtistFee: req.body.defaultArtistFee,
-    artProvider: req.body.artProvider,
     subPlan: req.body.subPlan,
     status: req.body.status,
     exclusiveCatalog: req.body.exclusiveCatalog,
@@ -69,7 +67,6 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
   const catalog = await Catalog.aggregate([
     {
       $match: {
-        isDeleted: false,
         catalogName: { $regex: s, $options: "i" },
       },
     },
@@ -83,6 +80,7 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
     },
     {
       $project: {
+        isDeleted: 1,
         catalogName: 1,
         catalogImg: 1,
         catalogDesc: 1,
@@ -208,6 +206,14 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
     .send({ data: catalog[0], url: "https://dev.freshartclub.com/images" });
 });
 
+const deleteCatalog = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Catalog Id is required" });
+
+  await Catalog.updateOne({ _id: id }, { $set: { isDeleted: true } });
+  res.status(200).send({ message: "Catalog deleted successfully" });
+});
+
 const getCatalogList = catchAsyncError(async (req, res, next) => {
   const catalogs = await Catalog.find(
     {
@@ -221,4 +227,10 @@ const getCatalogList = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ data: catalogs });
 });
 
-module.exports = { addCatalog, getCatalog, getCatalogById, getCatalogList };
+module.exports = {
+  addCatalog,
+  getCatalog,
+  getCatalogById,
+  getCatalogList,
+  deleteCatalog,
+};

@@ -1405,8 +1405,6 @@ const getAllArtists = async (req, res) => {
 
     if (status === "All") status = "";
 
-    console.log(req.query);
-
     let weeksAgo;
     if (date === "All") {
       date = "";
@@ -1778,7 +1776,7 @@ const createNewUser = async (req, res) => {
         obj["pageCount"] = 1;
         obj["role"] = "artist";
         obj["isArtistRequestStatus"] = "processing";
-        obj["artistId"] = "AID" + generateRandomId();
+        obj["artistId"] = "AID-" + generateRandomId();
 
         let condition = { $set: obj };
         Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
@@ -1791,7 +1789,7 @@ const createNewUser = async (req, res) => {
       obj["pageCount"] = 1;
       obj["role"] = "artist";
       obj["isArtistRequestStatus"] = "processing";
-      obj["artistId"] = "AID" + generateRandomId();
+      obj["artistId"] = "AID-" + generateRandomId();
 
       let condition = { $set: obj };
       Artist.updateOne(
