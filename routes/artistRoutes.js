@@ -46,10 +46,7 @@ const {
   getRecentlyView,
   addSeriesToArtist,
 } = require("../controller/artworkController");
-const {
-  getAllIncident,
-  getActiveIncident,
-} = require("../controller/incidentController");
+const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
 
 router.post("/login", login);
