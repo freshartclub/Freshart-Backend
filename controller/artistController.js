@@ -1627,7 +1627,6 @@ const addBillingAddress = async (req, res) => {
     }
 
     if (req.params?.addressId) {
-      console.log("5367");
       await Artist.updateOne(
         { _id: req.user._id, "billingInfo._id": req.params.addressId },
         { $set: obj }
@@ -1701,6 +1700,50 @@ const setDefaultBillingAddress = async (req, res) => {
   }
 };
 
+const deleteArtistSeries = async (req, res) => {
+  try {
+    const artist = await Artist.findOne(
+      { _id: req.user._id },
+      { artistSeriesList: 1 }
+    ).lean(true);
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).send({ message: "Series name is required" });
+    }
+
+    if (!artist.artistSeriesList.includes(name)) {
+      return res
+        .status(400)
+        .send({ message: "Series not found in artist's series list" });
+    }
+
+    const existingArtwork = await Artwork.findOne(
+      { owner: artist._id, artworkSeries: name.trim() },
+      { _id: 1 }
+    ).lean(true);
+
+    if (existingArtwork) {
+      return res
+        .status(400)
+        .send({ message: "This Series exists in artwork. Can't be deleted" });
+    }
+
+    await Artist.updateOne(
+      { _id: req.user._id },
+      { $pull: { artistSeriesList: name.trim() } }
+    );
+
+    return res.status(200).send({ message: "Series deleted successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -1733,4 +1776,5 @@ module.exports = {
   addBillingAddress,
   removeBillingAddress,
   setDefaultBillingAddress,
+  deleteArtistSeries,
 };

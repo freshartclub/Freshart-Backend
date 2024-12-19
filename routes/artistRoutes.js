@@ -32,6 +32,7 @@ const {
   removeBillingAddress,
   getBillingAddresses,
   setDefaultBillingAddress,
+  deleteArtistSeries,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -45,7 +46,10 @@ const {
   getRecentlyView,
   addSeriesToArtist,
 } = require("../controller/artworkController");
-const { getAllIncident } = require("../controller/incidentController");
+const {
+  getAllIncident,
+  getActiveIncident,
+} = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
 
 router.post("/login", login);
@@ -90,13 +94,19 @@ router.patch("/ticket-feedback/:id", validateToken, ticketFeedback);
 
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
 
-router.patch("/add-series-to-artist/:id", validateToken, addSeriesToArtist);
+router.patch("/add-series-to-artist", validateToken, addSeriesToArtist);
 
-router.get("/get-series-list/:id", validateToken, getAllSeriesList);
+router.patch("/delete-series-to-artist", validateToken, deleteArtistSeries);
+
+router.get("/get-series-list", validateToken, getAllSeriesList);
 
 router.get("/get-billing-address", validateToken, getBillingAddresses);
 
-router.post("/add-billing-address/:addressId?", validateToken, addBillingAddress);
+router.post(
+  "/add-billing-address/:addressId?",
+  validateToken,
+  addBillingAddress
+);
 
 router.patch(
   "/remove-billing-address/:addressId",
@@ -140,6 +150,6 @@ router.get("/get-wishlist", validateToken, getWishlistItems);
 
 router.get("/get-cart", validateToken, getCartItems);
 
-router.get("/get-all-incidents", validateToken, getAllIncident);
+router.get("/get-all-incidents", validateToken, getActiveIncident);
 
 module.exports = router;

@@ -496,7 +496,8 @@ const deleteMedia = async (req, res) => {
 
 const getAllSeriesList = async (req, res) => {
   try {
-    const { id } = req.params;
+    let { id } = req.params;
+    if (!id) id = req.user._id;
 
     const seriesList = await Artist.aggregate([
       {

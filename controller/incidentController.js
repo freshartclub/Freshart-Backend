@@ -26,14 +26,14 @@ const addIncident = catchAsyncError(async (req, res, next) => {
   };
 
   if (id) {
-    await Incident.create(payload);
-  } else {
     await Incident.updateOne({ _id: id }, { $set: payload });
+  } else {
+    await Incident.create(payload);
   }
 
   res
     .status(200)
-    .send({ message: `Incident ${id ? "Added" : "Updated"} Sucessfully` });
+    .send({ message: `Incident ${id ? "Updated" : "Added"} Successfully` });
 });
 
 const getAllIncident = catchAsyncError(async (req, res, next) => {
@@ -92,8 +92,18 @@ const getIncidentById = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ data: incident });
 });
 
+const getActiveIncident = catchAsyncError(async (req, res, next) => {
+  const incident = await Incident.find({
+    isDeleted: false,
+    status: "Active",
+  });
+
+  res.status(200).send({ data: incident });
+});
+
 module.exports = {
   addIncident,
   getAllIncident,
   getIncidentById,
+  getActiveIncident,
 };

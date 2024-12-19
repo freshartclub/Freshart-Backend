@@ -1325,8 +1325,12 @@ const getArtworkList = catchAsyncError(async (req, res, next) => {
 });
 
 const addSeriesToArtist = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
+  let { id } = req.params;
+  if (!id) id = req.user._id;
   const { seriesName } = req.body;
+
+  if (!seriesName)
+    return res.status(400).send({ message: "Series name is required" });
 
   const artist = await Artist.findOne(
     { _id: id },
@@ -1344,7 +1348,7 @@ const addSeriesToArtist = catchAsyncError(async (req, res, next) => {
 
   await Artist.updateOne(
     { _id: id },
-    { $push: { artistSeriesList: seriesName } }
+    { $push: { artistSeriesList: seriesName.trim() } }
   );
 
   return res.status(200).send({ message: "Series added successfully" });
