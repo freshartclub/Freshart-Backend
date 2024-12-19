@@ -881,15 +881,6 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
   let artworks = [];
 
   if (req.user?.roles && req.user?.roles === "superAdmin") {
-    // artwork = await ArtWork.findOne({ _id: id })
-    //   .populate("owner", {
-    //     artistName: 1,
-    //     artistId: 1,
-    //     artistSurname1: 1,
-    //     artistSurname2: 1,
-    //   })
-    //   .lean(true);
-
     artwork = await ArtWork.aggregate([
       {
         $match: {
@@ -937,6 +928,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           isArtProvider: 1,
           provideArtistName: 1,
           owner: {
+            _id: "$ownerInfo._id",
             artistName: "$ownerInfo.artistName",
             artistId: "$ownerInfo.artistId",
             artistSurname1: "$ownerInfo.artistSurname1",
@@ -1020,6 +1012,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           isArtProvider: 1,
           provideArtistName: 1,
           owner: {
+            _id: "$ownerInfo._id",
             artistName: "$ownerInfo.artistName",
             artistId: "$ownerInfo.artistId",
             artistSurname1: "$ownerInfo.artistSurname1",
@@ -1053,14 +1046,12 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           promotions: 1,
           restriction: 1,
           tags: 1,
-          catalogInfo: 1,
-          ownerInfo: 1,
         },
       },
     ]);
 
     if (preview == "false") {
-      artworks = await ArtWork.find({ owner: artwork.owner._id })
+      artworks = await ArtWork.find({ owner: artwork[0].owner._id })
         .limit(7)
         .sort({ createdAt: -1 })
         .lean(true);

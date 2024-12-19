@@ -786,6 +786,7 @@ const getArtistDetails = async (req, res) => {
           _id: 1,
           artistName: 1,
           artistSurname1: 1,
+          isEmailVerified: 1,
           artistSurname2: 1,
           phone: 1,
           email: 1,
