@@ -159,10 +159,16 @@ const getCollectionById = catchAsyncError(async (req, res, next) => {
   const collection = await Collection.findOne({
     _id: req.params.id,
   })
-    .populate(
-      "artworkList.artworkId",
-      "artworkName artworkId inventoryShipping.pCode"
-    )
+
+    .populate({
+      path: "artworkList.artworkId",
+      select: "artworkName artworkId inventoryShipping.pCode owner media.mainImage",
+      populate: {
+        path: "owner",
+        model: "Artist",
+        select: "artistName artistSurname1 artistSurname2",
+      },
+    })
     .lean(true);
 
   res

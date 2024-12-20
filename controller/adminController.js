@@ -1549,9 +1549,7 @@ const getArtistRequestList = async (req, res) => {
       {
         $match: {
           isDeleted: false,
-          ...(!status
-            ? { isArtistRequestStatus: { $regex: "pending", $options: "i" } }
-            : statusFilter),
+          ...statusFilter,
           $or: [
             { artistName: { $regex: s, $options: "i" } },
             { artistSurname1: { $regex: s, $options: "i" } },
@@ -1704,9 +1702,6 @@ const createNewUser = async (req, res) => {
     const isfileData = fileData.data ? true : false;
 
     const isArtist = req.body?.isArtist === "true" ? true : false;
-
-    console.log(req.body);
-    console.log(fileData.data);
 
     let obj = {
       artistName: req.body.name
@@ -2960,6 +2955,55 @@ const reValidateArtist = async (req, res) => {
   }
 };
 
+const deleteArtistSeries = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const artist = await Artist.findOne(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { artistSeriesList: 1 }
+    ).lean(true);
+
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).send({ message: "Series name is required" });
+    }
+
+    if (!artist.artistSeriesList.includes(name)) {
+      return res
+        .status(400)
+        .send({ message: "Series not found in artist's series list" });
+    }
+
+    const existingArtwork = await Artwork.findOne(
+      { owner: artist._id, artworkSeries: name.trim() },
+      { _id: 1 }
+    ).lean(true);
+
+    if (existingArtwork) {
+      return res.status(400).send({ message: "Series used in other artworks" });
+    }
+
+    await Artist.updateOne(
+      { _id: req.user._id },
+      { $pull: { artistSeriesList: name.trim() } }
+    );
+
+    return res.status(200).send({ message: "Series deleted successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -3014,4 +3058,5 @@ module.exports = {
   getReviewDetailArtist,
   approveArtistChanges,
   reValidateArtist,
+  deleteArtistSeries,
 };

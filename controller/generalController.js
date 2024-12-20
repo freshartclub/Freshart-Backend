@@ -529,6 +529,7 @@ const getAllSeriesList = async (req, res) => {
       {
         $project: {
           artistSeriesList: 1,
+          discipline: "$aboutArtist.discipline",
           vatAmount: "$invoice.vatAmount",
           commercilization: {
             artistFees: "$commercilization.publishingCatalog.ArtistFees",
@@ -548,6 +549,7 @@ const getAllSeriesList = async (req, res) => {
           },
           artistSeriesList: { $first: "$artistSeriesList" },
           vatAmount: { $first: "$vatAmount" },
+          discipline: { $first: "$discipline" },
           commercilization: {
             $push: {
               _id: "$commercilization._id",
@@ -562,6 +564,7 @@ const getAllSeriesList = async (req, res) => {
           _id: "$_id.artistId",
           artistSeriesList: { $first: "$artistSeriesList" },
           vatAmount: { $first: "$vatAmount" },
+          discipline: { $first: "$discipline" },
           commercilization: {
             $push: {
               catalogCommercialization: "$_id.catalogCommercialization",
@@ -574,6 +577,7 @@ const getAllSeriesList = async (req, res) => {
         $project: {
           artistSeriesList: 1,
           commercilization: 1,
+          discipline: 1,
           vatAmount: 1,
         },
       },
@@ -581,6 +585,7 @@ const getAllSeriesList = async (req, res) => {
 
     return res.status(200).send({
       seriesList: seriesList[0]?.artistSeriesList,
+      discipline: seriesList[0]?.discipline,
       purchaseCatalog: seriesList[0].commercilization
         ? seriesList[0].commercilization.filter(
             (item) => item.catalogCommercialization === "Purchase"

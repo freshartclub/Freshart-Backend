@@ -691,9 +691,19 @@ const becomeArtist = async (req, res) => {
       zipCode: String(req.body.zipCode),
     };
 
+    const findFullName = (val) => {
+      let fullName = val?.artistName || "";
+
+      if (val?.nickName) fullName += " " + `"${val?.nickName}"`;
+      if (val?.artistSurname1) fullName += " " + val?.artistSurname1;
+      if (val?.artistSurname2) fullName += " " + val?.artistSurname2;
+
+      return fullName.trim();
+    };
+
     obj["documents"] = [
       {
-        documentName: "Document",
+        documentName: `Curriculum Vitae - ${findFullName(req.body)}`,
         uploadDocs: documnets[0],
       },
     ];
@@ -1605,7 +1615,7 @@ const addBillingAddress = async (req, res) => {
     ).lean(true);
 
     if (!artist) {
-      return res.status(400).send({ message: "Artist not found" });
+      return res.status(400).send({ message: "User not found" });
     }
 
     let obj = {};
@@ -1629,8 +1639,15 @@ const addBillingAddress = async (req, res) => {
 
     if (req.params?.addressId) {
       await Artist.updateOne(
-        { _id: req.user._id, "billingInfo._id": req.params.addressId },
-        { $set: obj }
+        {
+          _id: req.user._id,
+          "billingInfo._id": objectId(req.params.addressId),
+        },
+        {
+          $set: {
+            "billingInfo.$.billingDetails": obj.billingDetails,
+          },
+        }
       );
     } else {
       await Artist.updateOne(
@@ -1730,7 +1747,7 @@ const deleteArtistSeries = async (req, res) => {
     if (existingArtwork) {
       return res
         .status(400)
-        .send({ message: "This Series exists in artwork. Can't be deleted" });
+        .send({ message: "Series used in other artworks" });
     }
 
     await Artist.updateOne(

@@ -25,6 +25,8 @@ const createOrder = catchAsyncError(async (req, res, next) => {
     });
   }
 
+  const orderType = req.body.orderType;
+
   const OrderModel =
     orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
 
@@ -163,6 +165,9 @@ const getAllSubscriptionOrder = catchAsyncError(async (req, res, next) => {
         "user.email": 1,
       },
     },
+    {
+      $sort: { createdAt: -1 },
+    },
   ]);
 
   return res
@@ -241,6 +246,9 @@ const getAllPurchaseOrder = catchAsyncError(async (req, res, next) => {
         "user.artistSurname2": 1,
         "user.email": 1,
       },
+    },
+    {
+      $sort: { createdAt: -1 },
     },
   ]);
 

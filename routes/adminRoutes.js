@@ -45,6 +45,7 @@ const {
   getReviewDetailArtist,
   approveArtistChanges,
   reValidateArtist,
+  deleteArtistSeries,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -199,6 +200,8 @@ router.patch(
 );
 
 router.get("/get-series-list/:id", validateAdminToken, getAllSeriesList);
+
+router.patch("/delete-series/:id", validateAdminToken, deleteArtistSeries);
 
 router.patch("/approve-changes/:id", validateAdminToken, approveArtistChanges);
 

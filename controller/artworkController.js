@@ -509,7 +509,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     obj["commercialization"] = {
       activeTab: req.body.activeTab,
       purchaseCatalog: objectId(req.body.purchaseCatalog),
-      purchaseType: req.body.purchaseType?.value,
+      purchaseType: req.body.purchaseType,
     };
   }
 
