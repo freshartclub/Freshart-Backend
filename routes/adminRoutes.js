@@ -76,6 +76,7 @@ const {
   getCollectionById,
   getAllCollections,
   searchCollection,
+  deleteArtworkFromCollection,
 } = require("../controller/collectionController");
 const { getAllSeriesList } = require("../controller/generalController");
 
@@ -244,6 +245,12 @@ router.get("/get-all-collection", validateAdminToken, getAllCollections);
 router.get("/get-collection-by-id/:id", validateAdminToken, getCollectionById);
 
 router.get("/get-search-collection", validateAdminToken, searchCollection);
+
+router.patch(
+  "/delete-artwork-from-collection/:id",
+  validateAdminToken,
+  deleteArtworkFromCollection
+);
 
 // ------------------ faq routes ---------------------
 

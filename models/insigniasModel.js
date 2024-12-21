@@ -8,6 +8,7 @@ const insigniaSchema = new mongoose.Schema(
     },
     credentialName: {
       type: String,
+      trim: true,
     },
     credentialGroup: {
       type: String,

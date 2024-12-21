@@ -22,12 +22,7 @@ const listArtworkStyle = async (req, res) => {
       s = "";
     }
 
-    const data = await Style.aggregate([
-      {
-        $match: {
-          styleName: { $regex: s, $options: "i" },
-        },
-      },
+    let data = await Style.aggregate([
       {
         $lookup: {
           from: "disciplines",
@@ -37,11 +32,18 @@ const listArtworkStyle = async (req, res) => {
         },
       },
       {
+        $match: {
+          $or: [
+            { styleName: { $regex: s, $options: "i" } },
+            { "discipline.disciplineName": { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
         $project: {
           styleName: 1,
           isDeleted: 1,
           createdAt: 1,
-          spanishStyleName: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
             $map: {
@@ -65,6 +67,8 @@ const listArtworkStyle = async (req, res) => {
         elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
       }
     }
+
+    data = data.sort((a, b) => (a.isDeleted > b.isDeleted ? 1 : -1));
 
     return res.status(200).send({
       data: data,
@@ -86,7 +90,7 @@ const listDiscipline = async (req, res) => {
       s = "";
     }
 
-    const data = await Discipline.aggregate([
+    let data = await Discipline.aggregate([
       {
         $match: {
           disciplineName: { $regex: s, $options: "i" },
@@ -98,7 +102,6 @@ const listDiscipline = async (req, res) => {
           createdAt: 1,
           isDeleted: 1,
           disciplineImage: 1,
-          disciplineSpanishName: 1,
           disciplineDescription: 1,
         },
       },
@@ -113,15 +116,15 @@ const listDiscipline = async (req, res) => {
       }
     }
 
+    data = data.sort((a, b) => (a.isDeleted > b.isDeleted ? 1 : -1));
+
     return res.status(200).send({
       data: data,
       url: "https://dev.freshartclub.com/images",
-      message: "Discipline List successfully received",
     });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the discipline");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -136,13 +139,7 @@ const listTechnic = async (req, res) => {
       s = "";
     }
 
-    const data = await Technic.aggregate([
-      {
-        $match: {
-          // isDeleted: false,
-          technicName: { $regex: s, $options: "i" },
-        },
-      },
+    let data = await Technic.aggregate([
       {
         $lookup: {
           from: "disciplines",
@@ -152,11 +149,18 @@ const listTechnic = async (req, res) => {
         },
       },
       {
+        $match: {
+          $or: [
+            { technicName: { $regex: s, $options: "i" } },
+            { "discipline.disciplineName": { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
         $project: {
           technicName: 1,
           createdAt: 1,
           isDeleted: 1,
-          spanishTechnicName: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
             $map: {
@@ -180,6 +184,8 @@ const listTechnic = async (req, res) => {
         elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
       }
     }
+
+    data = data.sort((a, b) => (a.isDeleted > b.isDeleted ? 1 : -1));
 
     return res.status(200).send({
       data: data,
@@ -202,13 +208,7 @@ const listTheme = async (req, res) => {
       s = "";
     }
 
-    const data = await Theme.aggregate([
-      {
-        $match: {
-          // isDeleted: false,
-          themeName: { $regex: s, $options: "i" },
-        },
-      },
+    let data = await Theme.aggregate([
       {
         $lookup: {
           from: "disciplines",
@@ -218,11 +218,18 @@ const listTheme = async (req, res) => {
         },
       },
       {
+        $match: {
+          $or: [
+            { themeName: { $regex: s, $options: "i" } },
+            { "discipline.disciplineName": { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
         $project: {
           themeName: 1,
           createdAt: 1,
           isDeleted: 1,
-          spanishThemeName: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
             $map: {
@@ -246,6 +253,8 @@ const listTheme = async (req, res) => {
         elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
       }
     }
+
+    data = data.sort((a, b) => (a.isDeleted > b.isDeleted ? 1 : -1));
 
     return res.status(200).send({
       data: data,
@@ -269,12 +278,7 @@ const listMediaSupport = async (req, res) => {
       s = "";
     }
 
-    const data = await MediaSupport.aggregate([
-      {
-        $match: {
-          mediaName: { $regex: s, $options: "i" },
-        },
-      },
+    let data = await MediaSupport.aggregate([
       {
         $lookup: {
           from: "disciplines",
@@ -284,10 +288,17 @@ const listMediaSupport = async (req, res) => {
         },
       },
       {
+        $match: {
+          $or: [
+            { mediaName: { $regex: s, $options: "i" } },
+            { "discipline.disciplineName": { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
         $project: {
           mediaName: 1,
           createdAt: 1,
-          spanishMediaName: 1,
           isDeleted: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
@@ -312,6 +323,8 @@ const listMediaSupport = async (req, res) => {
         elem["createdAt"] = moment(elem.createdAt).format("DD MMM YYYY");
       }
     }
+
+    data = data.sort((a, b) => (a.isDeleted > b.isDeleted ? 1 : -1));
 
     return res.status(200).send({
       data: data,
@@ -535,6 +548,7 @@ const getAllSeriesList = async (req, res) => {
             artistFees: "$commercilization.publishingCatalog.ArtistFees",
             _id: "$publishCatalog._id",
             catalogName: "$publishCatalog.catalogName",
+            details: "$publishCatalog.details",
             catalogCommercialization:
               "$publishCatalog.catalogCommercialization",
           },
@@ -553,6 +567,7 @@ const getAllSeriesList = async (req, res) => {
           commercilization: {
             $push: {
               _id: "$commercilization._id",
+              details: "$commercilization.details",
               artistFees: "$commercilization.artistFees",
               catalogName: "$commercilization.catalogName",
             },

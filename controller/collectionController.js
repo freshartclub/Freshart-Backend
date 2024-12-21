@@ -162,7 +162,7 @@ const getCollectionById = catchAsyncError(async (req, res, next) => {
 
     .populate({
       path: "artworkList.artworkId",
-      select: "artworkName artworkId inventoryShipping.pCode owner media.mainImage",
+      select: "artworkName artworkId owner media.mainImage",
       populate: {
         path: "owner",
         model: "Artist",
@@ -209,9 +209,40 @@ const searchCollection = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const deleteArtworkFromCollection = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const { id } = req.params;
+  const { artworkId } = req.body;
+
+  if (!id || !artworkId) {
+    return res.status(400).send({ message: "Please provide collection id" });
+  }
+
+  const collection = await Collection.countDocuments({
+    _id: id,
+  }).lean(true);
+
+  if (!collection) {
+    return res.status(400).send({ message: "Collection not found" });
+  }
+
+  await Collection.updateOne(
+    { _id: id },
+    { $pull: { artworkList: { artworkId: artworkId } } }
+  );
+
+  res.status(200).send({ message: "Artwork removed from collection" });
+});
+
 module.exports = {
   addCollection,
   getAllCollections,
   getCollectionById,
   searchCollection,
+  deleteArtworkFromCollection,
 };

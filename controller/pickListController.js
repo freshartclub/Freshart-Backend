@@ -1,6 +1,7 @@
 const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
 const PickList = require("../models/pickListModel");
+const Insignia = require("../models/insigniasModel");
 
 const addPickList = catchAsyncError(async (req, res, next) => {
   const admin = await Admin.countDocuments({
@@ -8,12 +9,9 @@ const addPickList = catchAsyncError(async (req, res, next) => {
     isDeleted: false,
   }).lean(true);
 
-  if (!admin) {
-    return res.status(400).send({ message: `Admin not found` });
-  }
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const { picklistName, name } = req.body;
-
   const picklist = await PickList.findOne({
     picklistName: picklistName,
   }).lean(true);
@@ -120,9 +118,7 @@ const updatePicklist = catchAsyncError(async (req, res, next) => {
     isDeleted: false,
   }).lean(true);
 
-  if (!admin) {
-    return res.status(400).send({ message: `Admin not found` });
-  }
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const { id } = req.params;
   const { name: queryName } = req.query;
@@ -139,7 +135,14 @@ const updatePicklist = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Requested field not found" });
   }
 
-  PickList.updateOne(
+  if (picklist.picklistName == "Insignia Group") {
+    await Insignia.updateMany(
+      { credentialGroup: queryName },
+      { $set: { credentialGroup: name } }
+    );
+  }
+
+  await PickList.updateOne(
     {
       _id: id,
       "picklist.name": queryName,
@@ -149,7 +152,7 @@ const updatePicklist = catchAsyncError(async (req, res, next) => {
         "picklist.$.name": name,
       },
     }
-  ).then();
+  );
 
   return res.status(200).send({ message: "Picklist updated successfully" });
 });

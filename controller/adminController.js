@@ -26,6 +26,7 @@ const MediaSupport = require("../models/mediaSupportModel");
 const FAQ = require("../models/faqModel");
 const KB = require("../models/kbModel");
 const Catalog = require("../models/catalogModel");
+const ArtWork = require("../models/artWorksModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -2972,10 +2973,11 @@ const deleteArtistSeries = async (req, res) => {
       { artistSeriesList: 1 }
     ).lean(true);
 
-    const { name } = req.body;
+    let { name } = req.body;
     if (!name) {
       return res.status(400).send({ message: "Series name is required" });
     }
+    name = name.trim();
 
     if (!artist.artistSeriesList.includes(name)) {
       return res
@@ -2983,7 +2985,7 @@ const deleteArtistSeries = async (req, res) => {
         .send({ message: "Series not found in artist's series list" });
     }
 
-    const existingArtwork = await Artwork.findOne(
+    const existingArtwork = await ArtWork.findOne(
       { owner: artist._id, artworkSeries: name.trim() },
       { _id: 1 }
     ).lean(true);
@@ -2992,10 +2994,7 @@ const deleteArtistSeries = async (req, res) => {
       return res.status(400).send({ message: "Series used in other artworks" });
     }
 
-    await Artist.updateOne(
-      { _id: req.user._id },
-      { $pull: { artistSeriesList: name.trim() } }
-    );
+    await Artist.updateOne({ _id: id }, { $pull: { artistSeriesList: name } });
 
     return res.status(200).send({ message: "Series deleted successfully" });
   } catch (error) {
