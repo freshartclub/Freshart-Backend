@@ -305,7 +305,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (id !== "null") {
     artworkData = await ArtWork.findOne(
       { _id: id, isDeleted: false },
-      { media: 1, status: 1, artworkId: 1 }
+      { media: 1, status: 1, artworkId: 1, lastModified: 1 }
     ).lean(true);
 
     if (!artworkData) {
@@ -313,9 +313,12 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  if (artworkData && artworkData.status !== "draft") {
-    return res.status(400).send({ message: `You cannot edit this artwork` });
+  if (artworkData && artworkData.status === "modified") {
+    return res.status(400).send({
+      message: `You already modified this artwork. Wait for admin approval`,
+    });
   }
+
   const fileData = await fileUploadFunc(req, res);
 
   let images = [];
@@ -556,6 +559,18 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     intTags: intTagsArr,
     extTags: extTagsArr,
   };
+
+  let date = [];
+
+  if (artworkData && artworkData.lastModified) {
+    date = [...artworkData.lastModified];
+  }
+  date.push(new Date());
+
+  if (artworkData && artworkData.status === "published") {
+    obj["status"] = "modified";
+    obj["lastModified"] = date;
+  }
 
   let condition = {
     $set: obj,

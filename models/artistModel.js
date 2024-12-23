@@ -33,7 +33,7 @@ const artistSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      unique: true,
+      unique: [true, "Email already exists"],
       trim: true,
     },
     artistSurname1: {

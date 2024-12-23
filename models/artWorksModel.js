@@ -14,6 +14,8 @@ const artWorkSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+
+    lastModified: [{ type: Date }],
     artworkId: { type: String },
     isHighlighted: { type: Boolean },
     isArtProvider: { type: String },
