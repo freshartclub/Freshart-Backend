@@ -1745,9 +1745,7 @@ const deleteArtistSeries = async (req, res) => {
     ).lean(true);
 
     if (existingArtwork) {
-      return res
-        .status(400)
-        .send({ message: "Series used in other artworks" });
+      return res.status(400).send({ message: "Series used in other artworks" });
     }
 
     await Artist.updateOne(
@@ -1756,6 +1754,59 @@ const deleteArtistSeries = async (req, res) => {
     );
 
     return res.status(200).send({ message: "Series deleted successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const artistReValidate = async (req, res) => {
+  try {
+    const id = req.user._id;
+    const artist = await Artist.findOne(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { email: 1, artistName: 1, nextRevalidationDate: 1 }
+    ).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const mailVaribles = {
+      "%subject%": "Profile Re-validated",
+      "%email%": artist.email,
+      "%note%": `Dear ${
+        artist.artistName
+      }, you have successfully revalidated your artist profile. Your next revalidation date is ${new Date(
+        new Date().setDate(new Date().getDate() + 30)
+      ).toLocaleDateString("en-GB")}`,
+    };
+
+    let obj = {
+      revalidateFixedDate: artist.nextRevalidationDate,
+      revalidatedOn: new Date(),
+    };
+
+    await Promise.all([
+      sendMail("profile-revalidated", mailVaribles, artist.email),
+      Artist.updateOne(
+        { _id: id },
+        {
+          $set: {
+            lastRevalidationDate: new Date(),
+            nextRevalidationDate: new Date(
+              new Date().setDate(new Date().getDate() + 30)
+            ),
+          },
+          $push: { previousRevalidationDate: obj },
+        }
+      ),
+    ]);
+
+    return res.status(200).send({ message: `Artist Profile Re-validated` });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1795,4 +1846,5 @@ module.exports = {
   removeBillingAddress,
   setDefaultBillingAddress,
   deleteArtistSeries,
+  artistReValidate,
 };

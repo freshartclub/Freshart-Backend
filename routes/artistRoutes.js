@@ -33,6 +33,7 @@ const {
   getBillingAddresses,
   setDefaultBillingAddress,
   deleteArtistSeries,
+  artistReValidate,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -116,6 +117,8 @@ router.patch(
   validateToken,
   setDefaultBillingAddress
 );
+
+router.patch("/revalidate-profile", validateToken, artistReValidate);
 
 // -------------------artwork----------------------------
 
