@@ -105,7 +105,9 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   let obj = {
     artworkName: req.body.artworkName,
-    artworkCreationYear: req.body.artworkCreationYear,
+    artworkCreationYear: req.body.artworkCreationYear
+      ? req.body.artworkCreationYear
+      : new Date().getFullYear(),
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
     isArtProvider: req.body.isArtProvider,
