@@ -58,6 +58,7 @@ const {
   getAdminArtworkList,
   searchArtwork,
   addSeriesToArtist,
+  moveArtworkToPending,
 } = require("../controller/artworkController");
 const {
   addIncident,
@@ -223,6 +224,8 @@ router.patch("/publish-artwork/:id", validateAdminToken, publishArtwork);
 router.patch("/validate-artwork/:id", validateAdminToken, validateArtwork);
 
 router.get("/get-search-artwork", validateAdminToken, searchArtwork);
+
+router.patch("/move-to-pending/:id", validateAdminToken, moveArtworkToPending);
 
 // ------------------- Catalog Routes ------------------------
 

@@ -815,10 +815,38 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
 
 const removeArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Artwork Id is required" });
+
+  const artwork = await ArtWork.findOne({ _id: id }).lean(true);
+  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
+
+  if (artwork.status === "rejected") {
+    return res
+      .status(400)
+      .send({ message: "Artwork already rejected or removed" });
+  }
 
   await ArtWork.updateOne({ _id: id }, { $set: { status: "rejected" } });
 
   res.status(200).send({ message: "Artwork Removed Sucessfully" });
+});
+
+const moveArtworkToPending = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Artwork Id is required" });
+
+  const artwork = await ArtWork.findOne({ _id: id }).lean(true);
+  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
+
+  if (artwork.status !== "rejected") {
+    return res
+      .status(400)
+      .send({ message: "Artwork already in pending status" });
+  }
+
+  await ArtWork.updateOne({ _id: id }, { $set: { status: "pending" } });
+
+  res.status(200).send({ message: "Artwork Moved to Pending Sucessfully" });
 });
 
 const getArtistArtwork = catchAsyncError(async (req, res, next) => {
@@ -1391,4 +1419,5 @@ module.exports = {
   validateArtwork,
   searchArtwork,
   addSeriesToArtist,
+  moveArtworkToPending,
 };
