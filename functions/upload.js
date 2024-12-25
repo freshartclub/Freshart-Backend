@@ -154,7 +154,7 @@ const upload = multer({
   { name: "insigniaImage", maxCount: 1 },
   { name: "avatar", maxCount: 1 },
   { name: "images", maxCount: 5 },
-  { name: "otherVideo", maxCount: 1 },
+  { name: "otherVideo", maxCount: 5 },
   { name: "backImage", maxCount: 1 },
   { name: "ticketImg", maxCount: 1 },
   { name: "catalogImg", maxCount: 1 },

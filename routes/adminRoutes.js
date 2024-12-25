@@ -46,6 +46,8 @@ const {
   approveArtistChanges,
   reValidateArtist,
   deleteArtistSeries,
+  approveArtworkChanges,
+  getReviewDetailArtwork,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -179,6 +181,12 @@ router.get(
   getReviewDetailArtist
 );
 
+router.get(
+  "/get-review-artwork/:id",
+  validateAdminToken,
+  getReviewDetailArtwork
+);
+
 router.post("/add-ticket", validateAdminToken, addTicket);
 
 router.get("/get-all-tickets", validateAdminToken, ticketList);
@@ -214,6 +222,12 @@ router.patch("/revalidate-artist/:id", validateAdminToken, reValidateArtist);
 router.post("/add-artwork/:id?", validateAdminToken, adminCreateArtwork);
 
 router.get("/get-artwork-list", validateAdminToken, getAdminArtworkList);
+
+router.patch(
+  "/approve-artwork-changes/:id",
+  validateAdminToken,
+  approveArtworkChanges
+);
 
 router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 

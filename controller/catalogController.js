@@ -173,6 +173,8 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
             in: {
               _id: "$$item._id",
               artworkName: "$$item.artworkName",
+              artworkId: "$$item.artworkId",
+              mainImage: "$$item.media.mainImage",
             },
           },
         },
@@ -182,6 +184,7 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
             as: "item",
             in: {
               _id: "$$item._id",
+              artistId: "$$item.artistId",
               artistName: "$$item.artistName",
               artistSurname1: "$$item.artistSurname1",
               artistSurname2: "$$item.artistSurname2",

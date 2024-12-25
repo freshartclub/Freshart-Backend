@@ -46,6 +46,7 @@ const {
   addToRecentView,
   getRecentlyView,
   addSeriesToArtist,
+  artistModifyArtwork,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
@@ -125,6 +126,8 @@ router.patch("/revalidate-profile", validateToken, artistReValidate);
 router.get("/get-artist-artworks", validateToken, getArtistArtwork);
 
 router.post("/add-artwork/:id?", validateToken, artistCreateArtwork);
+
+router.patch("/modify-artwork/:id", validateToken, artistModifyArtwork);
 
 router.get("/get-all-artists", validateToken, getActivedArtists);
 

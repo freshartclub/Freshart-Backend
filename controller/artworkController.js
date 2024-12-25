@@ -329,9 +329,9 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  if (artworkData && artworkData.status === "modified") {
+  if (artworkData && artworkData.status !== "draft") {
     return res.status(400).send({
-      message: `You already modified this artwork. Wait for admin approval`,
+      message: `You already published/modified this artwork.`,
     });
   }
 
@@ -636,6 +636,290 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       .status(200)
       .send({ message: "Artwork Added Sucessfully", artwork });
   }
+});
+
+const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
+  const artist = await Artist.findOne(
+    { _id: req.user._id, isDeleted: false },
+    { isActivated: 1 }
+  ).lean(true);
+  if (!artist) return res.status(400).send({ message: `Artist not found` });
+
+  const { id } = req.params;
+
+  if (!artist.isActivated) {
+    return res.status(400).send({ message: `Artist not activated` });
+  }
+
+  let artworkData = await ArtWork.findOne(
+    { _id: id, isDeleted: false },
+    { media: 1, status: 1, artworkId: 1, lastModified: 1 }
+  ).lean(true);
+
+  if (!artworkData) {
+    return res.status(400).send({ message: `Artwork not found` });
+  }
+
+  if (artworkData.status === "modified") {
+    return res.status(400).send({
+      message: `You already modified this artwork. Wait for admin approval`,
+    });
+  }
+
+  if (artworkData.status !== "published") {
+    return res.status(400).send({
+      message: `You cannot modify this artwork.`,
+    });
+  }
+
+  const fileData = await fileUploadFunc(req, res);
+
+  let images = [];
+  let videos = [];
+
+  if (fileData.data?.images) {
+    fileData.data?.images.forEach((element) => {
+      images.push(element.filename);
+    });
+  }
+
+  if (fileData.data?.otherVideo) {
+    fileData.data?.otherVideo.forEach((element) => {
+      videos.push(element.filename);
+    });
+  }
+
+  const cleanArray = (inputArray) => {
+    if (!Array.isArray(inputArray)) return inputArray;
+    return inputArray.map((image) => image.replace(/^"|"$/g, ""));
+  };
+
+  if (req?.body?.existingImage) {
+    if (typeof req?.body?.existingImage === "string") {
+      images.push(req?.body?.existingImage.replace(/^"|"$/g, ""));
+    } else {
+      const cleanedImages = cleanArray(req?.body?.existingImage);
+      images = [...images, ...cleanedImages];
+    }
+  }
+
+  if (req?.body?.existingVideo) {
+    if (typeof req?.body?.existingVideo === "string") {
+      videos.push(req?.body?.existingVideo.replace(/^"|"$/g, ""));
+    } else {
+      const cleanedVideo = cleanArray(req?.body?.existingVideo);
+      videos = [...videos, ...cleanedVideo];
+    }
+  }
+
+  let styleArr = [];
+  let colorsArr = [];
+  let emotionsArr = [];
+  let intTagsArr = [];
+  let extTagsArr = [];
+
+  if (req.body.emotions) {
+    const emotions = Array.isArray(req.body.emotions)
+      ? req.body.emotions.map((item) => JSON.parse(item))
+      : req.body.emotions;
+
+    if (typeof emotions === "string") {
+      const obj = JSON.parse(emotions);
+      emotionsArr.push(obj.value);
+    } else {
+      emotions.forEach((element) => {
+        emotionsArr.push(element.value);
+      });
+    }
+  }
+
+  if (req.body.intTags) {
+    const intTags = Array.isArray(req.body.intTags)
+      ? req.body.intTags.map((item) => JSON.parse(item))
+      : req.body.intTags;
+
+    if (typeof intTags === "string") {
+      intTagsArr.push(intTags.replace(/^"|"$/g, ""));
+    } else {
+      intTags.forEach((element) => {
+        intTagsArr.push(element);
+      });
+    }
+  }
+
+  if (req.body.extTags) {
+    const extTags = Array.isArray(req.body.extTags)
+      ? req.body.extTags.map((item) => JSON.parse(item))
+      : req.body.extTags;
+
+    if (typeof extTags === "string") {
+      extTagsArr.push(extTags.replace(/^"|"$/g, ""));
+    } else {
+      extTags.forEach((element) => {
+        extTagsArr.push(element);
+      });
+    }
+  }
+
+  if (req.body.artworkStyleType) {
+    const styleType = Array.isArray(req.body.artworkStyleType)
+      ? req.body.artworkStyleType.map((item) => JSON.parse(item))
+      : req.body.artworkStyleType;
+
+    if (typeof styleType === "string") {
+      const obj = JSON.parse(styleType);
+      styleArr.push(obj.value);
+    } else {
+      styleType.forEach((element) => {
+        styleArr.push(element.value);
+      });
+    }
+  }
+
+  if (req.body.colors) {
+    const colors = Array.isArray(req.body.colors)
+      ? req.body.colors.map((item) => JSON.parse(item))
+      : req.body.colors;
+
+    if (typeof colors === "string") {
+      const obj = JSON.parse(colors);
+      colorsArr.push(obj.value);
+    } else {
+      colors.forEach((element) => {
+        colorsArr.push(element.value);
+      });
+    }
+  }
+
+  let obj = {
+    artworkName: req.body.artworkName,
+    artworkCreationYear: req.body.artworkCreationYear,
+    artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
+    productDescription: req.body.productDescription,
+    isArtProvider: req.body.isArtProvider,
+  };
+
+  if (req.body?.isArtProvider === "Yes") {
+    obj["provideArtistName"] = req.body.provideArtistName;
+  }
+
+  obj["media"] = {
+    backImage: fileData.data?.backImage?.length
+      ? fileData.data?.backImage[0].filename
+      : req.body?.hasBackImg === "true"
+      ? artworkData?.media?.backImage
+      : null,
+    images: images,
+    inProcessImage: fileData.data?.inProcessImage?.length
+      ? fileData.data?.inProcessImage[0].filename
+      : req.body?.hasInProcessImg === "true"
+      ? artworkData?.media?.inProcessImage
+      : null,
+    mainImage: fileData.data?.mainImage?.length
+      ? fileData.data?.mainImage[0].filename
+      : req.body?.hasMainImg === "true"
+      ? artworkData?.media?.mainImage
+      : null,
+    mainVideo: fileData.data?.mainVideo?.length
+      ? fileData.data?.mainVideo[0].filename
+      : req.body?.hasMainVideo === "true"
+      ? artworkData?.media?.mainVideo
+      : null,
+    otherVideo: videos,
+  };
+
+  obj["additionalInfo"] = {
+    artworkTechnic: req.body.artworkTechnic,
+    artworkTheme: req.body.artworkTheme,
+    artworkOrientation: req.body.artworkOrientation,
+    material: req.body.material,
+    weight: req.body.weight,
+    length: req.body.length,
+    height: req.body.height,
+    width: req.body.width,
+    hangingAvailable: req.body.hangingAvailable,
+    hangingDescription: req.body.hangingDescription,
+    framed: req.body.framed,
+    framedDescription: req.body.framedDescription,
+    frameHeight: req.body.frameHeight,
+    frameLength: req.body.frameLength,
+    frameWidth: req.body.frameWidth,
+    artworkStyle: styleArr,
+    emotions: emotionsArr,
+    colors: colorsArr,
+    offensive: req.body.offensive,
+  };
+
+  if (req?.body?.activeTab === "subscription") {
+    obj["commercialization"] = {
+      activeTab: req.body.activeTab,
+      purchaseOption: req.body.purchaseOption,
+      subscriptionCatalog: objectId(req.body.subscriptionCatalog),
+    };
+  } else {
+    obj["commercialization"] = {
+      activeTab: req.body.activeTab,
+      purchaseCatalog: objectId(req.body.purchaseCatalog),
+      purchaseType: req.body.purchaseType,
+    };
+  }
+
+  if (req.body?.activeTab === "subscription") {
+    obj["pricing"] = {
+      currency: req.body.currency,
+      basePrice: req.body.basePrice,
+      dpersentage: Number(req.body.dpersentage),
+      vatAmount: Number(req.body.vatAmount),
+      artistFees: req.body.artistFees,
+    };
+  } else {
+    obj["pricing"] = {
+      currency: req.body.currency,
+      basePrice: req.body.basePrice,
+      acceptOfferPrice: req.body.acceptOfferPrice,
+      dpersentage: Number(req.body.dpersentage),
+      vatAmount: Number(req.body.vatAmount),
+      artistFees: req.body.artistFees,
+    };
+  }
+
+  obj["inventoryShipping"] = {
+    pCode: req.body.pCode,
+    location: req.body.location,
+    commingSoon: req.body.commingSoon === "true" ? true : false,
+    packageMaterial: req.body.packageMaterial,
+    packageWeight: req.body.packageWeight,
+    packageLength: req.body.packageLength,
+    packageHeight: req.body.packageHeight,
+    packageWidth: req.body.packageWidth,
+  };
+
+  obj["discipline"] = {
+    artworkDiscipline: req.body.artworkDiscipline,
+  };
+
+  obj["restriction"] = {
+    availableTo: req.body.availableTo,
+    discountAcceptation: req.body.discountAcceptation,
+  };
+
+  obj["tags"] = {
+    intTags: intTagsArr,
+    extTags: extTagsArr,
+  };
+
+  let date = [];
+  if (artworkData.lastModified) date = [...artworkData.lastModified];
+  date.push(new Date());
+
+  obj["lastModified"] = date;
+
+  ArtWork.updateOne(
+    { _id: id, isDeleted: false },
+    { $set: { reviewDetails: obj, status: "modified" } }
+  ).then();
+
+  return res.status(200).send({ message: "Artwork Modified Sucessfully" });
 });
 
 const publishArtwork = catchAsyncError(async (req, res, next) => {
@@ -944,6 +1228,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
       {
         $match: {
           _id: objectId(id),
+          isDeleted: false,
         },
       },
       {
@@ -1019,7 +1304,6 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           restriction: 1,
           tags: 1,
           catalogInfo: 1,
-          ownerInfo: 1,
         },
       },
     ]);
@@ -1420,4 +1704,5 @@ module.exports = {
   searchArtwork,
   addSeriesToArtist,
   moveArtworkToPending,
+  artistModifyArtwork,
 };

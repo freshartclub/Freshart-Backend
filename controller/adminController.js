@@ -2897,6 +2897,307 @@ const approveArtistChanges = async (req, res) => {
   }
 };
 
+const getReviewDetailArtwork = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+
+    let artwork = await ArtWork.aggregate([
+      {
+        $match: {
+          _id: objectId(id),
+          status: "modified",
+          isDeleted: false,
+        },
+      },
+      {
+        $set: {
+          catalogField: {
+            $ifNull: [
+              "$commercialization.purchaseCatalog",
+              "$commercialization.subscriptionCatalog",
+            ],
+          },
+        },
+      },
+      {
+        $set: {
+          catalogReviewField: {
+            $ifNull: [
+              "$reviewDetails.commercialization.purchaseCatalog",
+              "$reviewDetails.commercialization.subscriptionCatalog",
+            ],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "owner",
+          foreignField: "_id",
+          as: "ownerInfo",
+        },
+      },
+      {
+        $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $lookup: {
+          from: "catalogs",
+          localField: "catalogField",
+          foreignField: "_id",
+          as: "catalogInfo",
+        },
+      },
+      {
+        $lookup: {
+          from: "catalogs",
+          localField: "catalogReviewField",
+          foreignField: "_id",
+          as: "catalogReviewInfo",
+        },
+      },
+      {
+        $unwind: { path: "$catalogInfo", preserveNullAndEmptyArrays: true },
+      },
+      {
+        $unwind: {
+          path: "$catalogReviewInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          status: 1,
+          artworkId: 1,
+          isArtProvider: 1,
+          provideArtistName: 1,
+          owner: {
+            _id: "$ownerInfo._id",
+            artistName: "$ownerInfo.artistName",
+            artistId: "$ownerInfo.artistId",
+            artistSurname1: "$ownerInfo.artistSurname1",
+            artistSurname2: "$ownerInfo.artistSurname2",
+          },
+          artworkName: 1,
+          artworkCreationYear: 1,
+          artworkSeries: 1,
+          productDescription: 1,
+          collectionList: 1,
+          media: 1,
+          additionalInfo: 1,
+          commercialization: {
+            $mergeObjects: [
+              "$commercialization",
+              {
+                publishingCatalog: {
+                  _id: "$catalogInfo._id",
+                  catalogName: "$catalogInfo.catalogName",
+                },
+              },
+            ],
+          },
+          pricing: 1,
+          inventoryShipping: 1,
+          discipline: 1,
+          promotions: 1,
+          restriction: 1,
+          tags: 1,
+          reviewDetails: 1,
+          catalogReviewInfo: 1,
+        },
+      },
+    ]);
+
+    if (artwork.length == 0) {
+      return res.status(400).send({ message: "Artwork not found" });
+    }
+
+    artwork = artwork[0];
+
+    const sendData = {
+      status: artwork.status,
+      owner: artwork.owner,
+      artworkId: artwork.artworkId,
+      artworkName: artwork.artworkName,
+      reviewDetails: artwork.reviewDetails,
+      catalogReviewInfo: artwork.catalogReviewInfo.catalogName,
+      commercialization: artwork.commercialization,
+      isArtProvider: artwork.isArtProvider,
+      provideArtistName: artwork.provideArtistName,
+      artworkName: artwork.artworkName,
+      artworkCreationYear: artwork.artworkCreationYear,
+      artworkSeries: artwork.artworkSeries,
+      productDescription: artwork.productDescription,
+      collectionList: artwork.collectionList,
+      media: artwork.media,
+      additionalInfo: artwork.additionalInfo,
+      pricing: artwork.pricing,
+      inventoryShipping: artwork.inventoryShipping,
+      discipline: artwork.discipline,
+      promotions: artwork.promotions,
+      tags: artwork.tags,
+    };
+
+    return res
+      .status(200)
+      .send({ data: sendData, url: "https://dev.freshartclub.com/images" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const approveArtworkChanges = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+    const artwork = await ArtWork.findOne(
+      {
+        _id: id,
+        status: "modified",
+        isDeleted: false,
+      },
+      {
+        owner: 1,
+        artworkId: 1,
+        artworkName: 1,
+        reviewDetails: 1,
+        commercialization: 1,
+      }
+    ).lean(true);
+
+    if (!artwork) {
+      return res.status(400).send({ message: "Artwork not found" });
+    }
+
+    const artist = await Artist.findOne(
+      {
+        _id: artwork.owner,
+        isDeleted: false,
+      },
+      { email: 1, artistName: 1 }
+    ).lean(true);
+
+    if (!artist) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const data = req.body;
+    if (!data.note)
+      return res.status(400).send({ message: "Note is required" });
+
+    let obj = {};
+
+    if (data.isApproved == true) {
+      obj = {
+        artworkName: data.artworkName,
+        artworkCreationYear: data.artworkCreationYear,
+        artworkSeries: data.artworkSeries,
+        productDescription: data.productDescription,
+        isArtProvider: data.isArtProvider,
+        media: data.media,
+        additionalInfo: data.additionalInfo,
+        pricing: data.pricing,
+        inventoryShipping: data.inventoryShipping,
+        discipline: data.discipline,
+        restriction: data.restriction,
+        tags: data.tags,
+        lastModified: data?.lastModified,
+        status: "published",
+      };
+
+      if (data?.commercialization?.activeTab === "subscription") {
+        obj["commercialization"] = {
+          activeTab: data?.commercialization?.activeTab,
+          purchaseOption: data?.commercialization?.purchaseOption,
+          subscriptionCatalog: objectId(
+            data?.commercialization?.subscriptionCatalog
+          ),
+        };
+      } else {
+        obj["commercialization"] = {
+          activeTab: data?.commercialization?.activeTab,
+          purchaseCatalog: objectId(data?.commercialization?.purchaseCatalog),
+          purchaseType: data?.commercialization?.purchaseType,
+        };
+      }
+
+      const newCatalogId =
+        data.commercialization?.activeTab === "subscription"
+          ? data.commercialization?.subscriptionCatalog
+          : data.commercialization?.purchaseCatalog;
+
+      const existingCatalogId =
+        artwork.commercialization?.purchaseCatalog ||
+        artwork.commercialization?.subscriptionCatalog;
+
+      if (newCatalogId !== existingCatalogId) {
+        Promise.all([
+          Catalog.updateOne(
+            { _id: existingCatalogId, artworkList: artwork._id },
+            { $pull: { artworkList: artwork._id } }
+          ),
+          Catalog.updateOne(
+            { _id: newCatalogId, artworkList: { $ne: artwork._id } },
+            { $push: { artworkList: artwork._id } }
+          ),
+        ]);
+      }
+    } else {
+      obj = {
+        status: "published",
+      };
+    }
+
+    const addNote =
+      `Dear ${artist.artistName}, your artwork (${artwork.artworkName} - ${
+        artwork.artworkId
+      }) changes have been ${
+        data.isApproved ? "Approved" : "Rejected"
+      } by Admin.` + `\n\nNote By Admin: ${data.note}`;
+
+    const mailVaribles = {
+      "%subject%": `Your Artwork changes ${
+        data.isApproved ? "Approved" : "Rejected"
+      }`,
+      "%email%": artist.email,
+      "%note%": addNote,
+    };
+
+    await Promise.all([
+      sendMail("artist-changes-admin", mailVaribles, artist.email),
+      ArtWork.updateOne(
+        { _id: artwork._id },
+        {
+          $set: obj,
+          $unset: {
+            reviewDetails: "",
+          },
+        }
+      ),
+    ]);
+
+    return res.status(200).send({
+      message: `Artwork Changes ${data.isApproved ? "Approved" : "Rejected"}`,
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const reValidateArtist = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
@@ -3056,6 +3357,8 @@ module.exports = {
   getKBById,
   getReviewDetailArtist,
   approveArtistChanges,
+  getReviewDetailArtwork,
+  approveArtworkChanges,
   reValidateArtist,
   deleteArtistSeries,
 };

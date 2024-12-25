@@ -35,6 +35,7 @@ const artWorkSchema = new mongoose.Schema(
     promotions: { type: Object },
     restriction: { type: Object },
     tags: { type: Object },
+    reviewDetails: { type: Object },
   },
   {
     timestamps: true,
