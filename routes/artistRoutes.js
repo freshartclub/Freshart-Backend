@@ -47,6 +47,7 @@ const {
   getRecentlyView,
   addSeriesToArtist,
   artistModifyArtwork,
+  getAllArtworks,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
@@ -154,5 +155,7 @@ router.get("/get-wishlist", validateToken, getWishlistItems);
 router.get("/get-cart", validateToken, getCartItems);
 
 router.get("/get-all-incidents", validateToken, getActiveIncident);
+
+router.get("/get-all-artworks", validateToken, getAllArtworks);
 
 module.exports = router;

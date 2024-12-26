@@ -27,6 +27,7 @@ const FAQ = require("../models/faqModel");
 const KB = require("../models/kbModel");
 const Catalog = require("../models/catalogModel");
 const ArtWork = require("../models/artWorksModel");
+const { profile } = require("console");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -1518,7 +1519,6 @@ const getAllCompletedArtists = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1573,6 +1573,7 @@ const getArtistRequestList = async (req, res) => {
           phone: 1,
           createdAt: 1,
           links: 1,
+          profile: 1,
           isActivated: 1,
           documents: 1,
           userId: 1,
@@ -1690,9 +1691,11 @@ const createNewUser = async (req, res) => {
 
     let checkUser = null;
     if (id !== "null") {
-      const checkUser = await Artist.findOne({ _id: id }, { profile: 1 }).lean(
-        true
-      );
+      checkUser = await Artist.findOne(
+        { _id: id },
+        { profile: 1, isArtistRequestStatus: 1, pageCount: 1 }
+      ).lean(true);
+      
       if (checkUser.pageCount > 0)
         return res
           .status(400)

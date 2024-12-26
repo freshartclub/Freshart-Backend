@@ -796,7 +796,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     artworkCreationYear: req.body.artworkCreationYear,
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
-    isArtProvider: req.body.isArtProvider,
+    isArtProvider: req.body.isArtProvider ? req.body.isArtProvider : "No",
   };
 
   if (req.body?.isArtProvider === "Yes") {
@@ -1688,6 +1688,112 @@ const addSeriesToArtist = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ message: "Series added successfully" });
 });
 
+const getAllArtworks = catchAsyncError(async (req, res, next) => {
+  const artist = await Artist.findOne(
+    { _id: req.user._id },
+    { role: 1 }
+  ).lean();
+  if (!artist) return res.status(400).send({ message: "Artist not found" });
+
+  let {
+    type,
+    page = 1,
+    limit = 10,
+    search,
+    discipline,
+    theme,
+    technic,
+  } = req.query;
+
+  if (!type)
+    return res.status(400).send({ message: "Artwork Type is required" });
+  type = type.toLowerCase();
+  search = search ? search : "";
+
+  const pageNum = parseInt(page, 10) || 1;
+  const limitNum = parseInt(limit, 10) || 10;
+
+  if (pageNum < 1 || limitNum < 1) {
+    return res
+      .status(400)
+      .send({ message: "Page and limit must be positive integers" });
+  }
+
+  const totalItems = await ArtWork.countDocuments({
+    isDeleted: false,
+    "commercialization.activeTab": type,
+  });
+
+  const totalPages = Math.ceil(totalItems / limitNum);
+
+  const artworks = await ArtWork.aggregate([
+    {
+      $lookup: {
+        from: "artists",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$ownerInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $match: {
+        isDeleted: false,
+        status: "published",
+        "commercialization.activeTab": type,
+        $or: [
+          { "ownerInfo.artistName": { $regex: search, $options: "i" } },
+          { "ownerInfo.artistSurname1": { $regex: search, $options: "i" } },
+          { "ownerInfo.artistSurname2": { $regex: search, $options: "i" } },
+          { artworkName: { $regex: search, $options: "i" } },
+        ],
+        ...(discipline && { "discipline.artworkDiscipline": discipline }),
+        ...(theme && { "additionalInfo.artworkTheme": theme }),
+        ...(technic && { "additionalInfo.artworkTechnic": technic }),
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        artworkName: 1,
+        artistName: "$ownerInfo.artistName",
+        artistSurname1: "$ownerInfo.artistSurname1",
+        artistSurname2: "$ownerInfo.artistSurname2",
+        provideArtistName: "$provideArtistName",
+        media: "$media.mainImage",
+        artworkId: 1,
+        artworkCreationYear: 1,
+        artworkSeries: 1,
+        discipline: "$discipline.artworkDiscipline",
+        pricing: 1,
+        artworkTechnic: 1,
+        additionalInfo: 1,
+        commercialization: 1,
+        owner: 1,
+        status: 1,
+      },
+    },
+    { $skip: (pageNum - 1) * limitNum },
+    { $limit: limitNum },
+    { $sort: { createdAt: -1 } },
+  ]);
+
+  res.status(200).send({
+    data: artworks,
+    pagination: {
+      currentPage: pageNum,
+      totalPages,
+      totalItems,
+    },
+    url: "https://dev.freshartclub.com/images",
+  });
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
@@ -1705,4 +1811,5 @@ module.exports = {
   addSeriesToArtist,
   moveArtworkToPending,
   artistModifyArtwork,
+  getAllArtworks,
 };
