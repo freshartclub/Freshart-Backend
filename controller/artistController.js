@@ -51,7 +51,7 @@ const login = async (req, res) => {
       .lean(true);
 
     if (!user) {
-      return res.status(400).send({ message: "Artist not found" });
+      return res.status(400).send({ message: "User suspended/not found" });
     }
 
     if (user.password !== md5(password)) {

@@ -1695,7 +1695,7 @@ const createNewUser = async (req, res) => {
         { _id: id },
         { profile: 1, isArtistRequestStatus: 1, pageCount: 1 }
       ).lean(true);
-      
+
       if (checkUser.pageCount > 0)
         return res
           .status(400)
@@ -2013,15 +2013,26 @@ const suspendArtist = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const user = await Artist.findOne({ _id: req.params.id }).lean(true);
-    if (!user) return res.status(400).send({ message: `User not found` });
-    if (user.isDeleted)
-      return res.status(400).send({ message: `User already suspended` });
+    const artist = await Artist.findOne(
+      { _id: req.params.id },
+      { isDeleted: 1, email: 1, artistName: 1 }
+    ).lean(true);
+    if (!artist) return res.status(400).send({ message: `artist not found` });
+    if (artist.isDeleted)
+      return res.status(400).send({ message: `Artist already suspended` });
 
     Artist.updateOne(
       { _id: req.params.id },
       { $set: { isDeleted: true } }
     ).then();
+
+    const mailVaribles = {
+      "%subject%": "Artist Suspended by Admin",
+      "%email%": artist.email,
+      "%note%": `Dear ${artist.artistName}, your artist profile has been suspended by Admin. You will not be able to login to your account. If you think this is a mistake, please contact us.`,
+    };
+
+    sendMail("profile-revalidated", mailVaribles, artist.email);
 
     return res.status(200).send({ message: "Artist suspended successfully" });
   } catch (error) {
@@ -2039,15 +2050,26 @@ const unSuspendArtist = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const user = await Artist.findOne({ _id: req.params.id }).lean(true);
-    if (!user) return res.status(400).send({ message: `User not found` });
-    if (!user.isDeleted)
-      return res.status(400).send({ message: `User already unsuspended` });
+    const artist = await Artist.findOne(
+      { _id: req.params.id },
+      { isDeleted: 1, email: 1, artistName: 1 }
+    ).lean(true);
+    if (!artist) return res.status(400).send({ message: `artist not found` });
+    if (!artist.isDeleted)
+      return res.status(400).send({ message: `artist already unsuspended` });
 
     Artist.updateOne(
       { _id: req.params.id },
       { $set: { isDeleted: false } }
     ).then();
+
+    const mailVaribles = {
+      "%subject%": "Artist Unsuspended by Admin",
+      "%email%": artist.email,
+      "%note%": `Dear ${artist.artistName}, your artist profile has been unsuspended by Admin. You can now login to your account.`,
+    };
+
+    sendMail("profile-revalidated", mailVaribles, artist.email);
 
     return res.status(200).send({ message: "Artist unsuspended successfully" });
   } catch (error) {
