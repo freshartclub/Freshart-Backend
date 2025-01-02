@@ -2377,6 +2377,7 @@ const ticketList = async (req, res) => {
           message: 1,
           region: 1,
           ticketImg: 1,
+          ticketFeedback: 1,
         },
       },
       {

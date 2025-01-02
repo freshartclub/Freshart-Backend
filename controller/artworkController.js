@@ -209,7 +209,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
     location: req.body.location,
-    commingSoon: Boolean(req.body.commingSoon),
+    comingSoon: Boolean(req.body.comingSoon),
     packageMaterial: req.body.packageMaterial,
     packageWeight: req.body.packageWeight,
     packageLength: req.body.packageLength,
@@ -554,7 +554,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
     location: req.body.location,
-    commingSoon: req.body.commingSoon === "true" ? true : false,
+    comingSoon: req.body.comingSoon === "true" ? true : false,
     packageMaterial: req.body.packageMaterial,
     packageWeight: req.body.packageWeight,
     packageLength: req.body.packageLength,
@@ -886,7 +886,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
     location: req.body.location,
-    commingSoon: req.body.commingSoon === "true" ? true : false,
+    comingSoon: req.body.comingSoon === "true" ? true : false,
     packageMaterial: req.body.packageMaterial,
     packageWeight: req.body.packageWeight,
     packageLength: req.body.packageLength,
@@ -919,7 +919,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     { $set: { reviewDetails: obj, status: "modified" } }
   ).then();
 
-  return res.status(200).send({ message: "Artwork Modified Sucessfully" });
+  return res.status(200).send({ message: "Artwork Modified Successfully" });
 });
 
 const publishArtwork = catchAsyncError(async (req, res, next) => {

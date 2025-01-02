@@ -1188,8 +1188,7 @@ const editArtistProfile = async (req, res) => {
     ).then();
 
     return res.status(200).send({
-      message:
-        "Changes saved successfully. Your profile is currently under review",
+      message: "Profile saved and Pending to be Validated by Fresh Art Club",
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -1263,7 +1262,7 @@ const ticketDetail = async (req, res) => {
             ticketImg: 1,
             status: 1,
             message: 1,
-
+            ticketFeedback: 1,
             createdAt: 1,
           },
         },
