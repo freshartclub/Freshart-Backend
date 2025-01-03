@@ -27,7 +27,7 @@ const FAQ = require("../models/faqModel");
 const KB = require("../models/kbModel");
 const Catalog = require("../models/catalogModel");
 const ArtWork = require("../models/artWorksModel");
-const { profile } = require("console");
+const EmailType = require("../models/emailTypeModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -62,18 +62,25 @@ const sendLoginOTP = async (req, res) => {
 
     const admins = await Admin.findOne(
       { email: email.toLowerCase(), isDeleted: false, status: "active" },
-      { email: 1, password: 1, roles: 1 }
+      { email: 1, password: 1, roles: 1, firstName: 1 }
     );
 
     if (admins && admins.password === md5(password)) {
       const otp = await generateRandomOTP();
+
+      const findEmail = await EmailType.findOne({
+        emailType: "send-admin-login-otp",
+      }).lean(true);
+
       const mailVaribles = {
-        "%fullName%": admins.firstName,
+        "%head%": findEmail.emailHead,
         "%email%": admins.email,
+        "%msg%": findEmail.emailDesc,
+        "%name%": admins.firstName,
         "%otp%": otp,
       };
 
-      await sendMail("send-admin-otp", mailVaribles, admins.email);
+      sendMail("sample-email", mailVaribles, admins.email);
 
       await Admin.updateOne(
         { _id: admins._id, isDeleted: false },
@@ -151,13 +158,20 @@ const resendOTP = async (req, res) => {
 
     if (admins) {
       const otp = await generateRandomOTP();
+
+      const findEmail = await EmailType.findOne({
+        emailType: "send-admin-login-otp",
+      }).lean(true);
+
       const mailVaribles = {
-        "%fullName%": admins.firstName,
+        "%head%": findEmail.emailHead,
         "%email%": admins.email,
+        "%msg%": findEmail.emailDesc,
+        "%name%": admins.firstName,
         "%otp%": otp,
       };
 
-      await sendMail("send-admin-otp", mailVaribles, admins.email);
+      sendMail("sample-email", mailVaribles, admins.email);
 
       await Admin.updateOne(
         { _id: admins._id, isDeleted: false },
@@ -1375,22 +1389,26 @@ const activateArtist = async (req, res) => {
     }
 
     const url = "https://test.freshartclub.com";
-
     const link = `${url}/reset-password?id=${artist._id}&token=${token}`;
-    const mailVaribles = {
-      "%fullName%": artist.artistName,
+
+    const findEmail = await EmailType.findOne({
+      emailType: "become-an-artist",
+      isDeleted: false,
+    }).lean(true);
+
+    const mailVariable = {
+      "%head%": findEmail.emailHead,
+      "%msg%": findEmail.emailDesc,
       "%email%": artist.email,
-      "%phone%": artist.phone,
+      "%name%": artist.artistName,
       "%link%": link,
     };
 
-    await sendMail("Become-an-artist-credentials", mailVaribles, artist.email);
+    await sendMail("sample-email", mailVariable, artist.email);
 
     return res.status(200).send({ message: "Artist activated successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -1740,9 +1758,15 @@ const createNewUser = async (req, res) => {
       zipCode: String(req.body.zipCode),
     };
 
+    const findEmail = await EmailType.findOne({
+      emailType: "admin-create-user",
+    }).lean(true);
+
     const mailVaribles = {
-      "%fullName%": obj.artistName,
+      "%head%": findEmail.emailHead,
       "%email%": obj.email,
+      "%msg%": findEmail.emailDesc,
+      "%name%": obj.artistName,
       "%phone%": obj.phone,
     };
 
@@ -1765,7 +1789,7 @@ const createNewUser = async (req, res) => {
         isArtist && (obj["artistId"] = generateRandomId());
 
         const user = await Artist.create(obj);
-        await sendMail("create-user-mail", mailVaribles, user.email);
+        sendMail("sample-email", mailVaribles, user.email);
 
         return res
           .status(200)
@@ -2026,13 +2050,18 @@ const suspendArtist = async (req, res) => {
       { $set: { isDeleted: true } }
     ).then();
 
+    const findEmail = await EmailType.findOne({
+      emailType: "artist-suspended-mail",
+    }).lean(true);
+
     const mailVaribles = {
-      "%subject%": "Artist Suspended by Admin",
+      "%head%": findEmail.emailHead,
       "%email%": artist.email,
-      "%note%": `Dear ${artist.artistName}, your artist profile has been suspended by Admin. You will not be able to login to your account. If you think this is a mistake, please contact us.`,
+      "%msg%": findEmail.emailDesc,
+      "%name%": artist.artistName,
     };
 
-    sendMail("profile-revalidated", mailVaribles, artist.email);
+    sendMail("sample-email", mailVaribles, artist.email);
 
     return res.status(200).send({ message: "Artist suspended successfully" });
   } catch (error) {
@@ -2063,13 +2092,18 @@ const unSuspendArtist = async (req, res) => {
       { $set: { isDeleted: false } }
     ).then();
 
+    const findEmail = await EmailType.findOne({
+      emailType: "artist-unsuspended-mail",
+    }).lean(true);
+
     const mailVaribles = {
-      "%subject%": "Artist Unsuspended by Admin",
+      "%head%": findEmail.emailHead,
       "%email%": artist.email,
-      "%note%": `Dear ${artist.artistName}, your artist profile has been unsuspended by Admin. You can now login to your account.`,
+      "%msg%": findEmail.emailDesc,
+      "%name%": artist.artistName,
     };
 
-    sendMail("profile-revalidated", mailVaribles, artist.email);
+    sendMail("sample-email", mailVaribles, artist.email);
 
     return res.status(200).send({ message: "Artist unsuspended successfully" });
   } catch (error) {
@@ -2246,11 +2280,16 @@ const changeArtistPassword = async (req, res) => {
       return res.status(400).send({ message: "Password does not match" });
     }
 
+    const findEmail = await EmailType.findOne({
+      emailType: "admin-changed-passsword",
+    }).lean(true);
+
     const mailVaribles = {
-      "%fullName%": user.artistName,
+      "%head%": findEmail.emailHead,
       "%email%": user.email,
+      "%msg%": findEmail.emailDesc,
       "%password%": newPassword,
-      "%gender%": user.gender === "Male" ? "Mr." : "Ms.",
+      "%name%": user.artistName,
     };
 
     await Promise.all([
@@ -2258,7 +2297,7 @@ const changeArtistPassword = async (req, res) => {
         { _id: id, isDeleted: false },
         { $set: { password: md5(newPassword) } }
       ),
-      sendMail("change-password-admin", mailVaribles, user.email),
+      sendMail("sample-email", mailVaribles, user.email),
     ]);
 
     return res.status(200).send({ message: "Password changed successfully" });
@@ -2886,21 +2925,21 @@ const approveArtistChanges = async (req, res) => {
       };
     }
 
-    const addNote =
-      `Dear ${artist.artistName}, your artist profile changes have been ${
-        data.isApproved ? "Approved" : "Rejected"
-      } by Admin.` + `\n\nNote: ${data.note}`;
+    const findEmail = await EmailType.findOne({
+      emailType: "admin-artist-profile-status-change",
+    }).lean(true);
 
     const mailVaribles = {
-      "%subject%": `Your Artist Profile ${
-        data.isApproved ? "Approved" : "Rejected"
-      }`,
+      "%head%": findEmail.emailHead,
       "%email%": artist.email,
-      "%note%": addNote,
+      "%msg%": findEmail.emailDesc,
+      "%name%": artist.artistName,
+      "%note%": data.note,
+      "%status%": data.isApproved ? "Approved" : "Rejected",
     };
 
     await Promise.all([
-      sendMail("artist-changes-admin", mailVaribles, artist.email),
+      sendMail("sample-email", mailVaribles, artist.email),
       Artist.updateOne(
         { _id: id },
         {
@@ -3187,23 +3226,24 @@ const approveArtworkChanges = async (req, res) => {
       };
     }
 
-    const addNote =
-      `Dear ${artist.artistName}, your artwork (${artwork.artworkName} - ${
-        artwork.artworkId
-      }) changes have been ${
-        data.isApproved ? "Approved" : "Rejected"
-      } by Admin.` + `\n\nNote By Admin: ${data.note}`;
+    const artName = artwork.artworkName + " (" + artwork.artworkId + ")";
+
+    const findEmail = await EmailType.findOne({
+      emailType: "admin-artwork-status-change",
+    }).lean(true);
 
     const mailVaribles = {
-      "%subject%": `Your Artwork changes ${
-        data.isApproved ? "Approved" : "Rejected"
-      }`,
+      "%head%": findEmail.emailHead,
       "%email%": artist.email,
-      "%note%": addNote,
+      "%msg%": findEmail.emailDesc,
+      "%name%": artist.artistName,
+      "%artwork%": artName,
+      "%note%": data.note,
+      "%status%": data.isApproved ? "Approved" : "Rejected",
     };
 
     await Promise.all([
-      sendMail("artist-changes-admin", mailVaribles, artist.email),
+      sendMail("sample-email", mailVaribles, artist.email),
       ArtWork.updateOne(
         { _id: artwork._id },
         {
@@ -3245,14 +3285,18 @@ const reValidateArtist = async (req, res) => {
       return res.status(400).send({ message: "Artist not found" });
     }
 
+    const findEmail = await EmailType.findOne({
+      emailType: "profile-revalidated",
+    }).lean(true);
+
     const mailVaribles = {
-      "%subject%": "Artist Profile Re-Validation by Admin",
+      "%head%": findEmail.emailHead,
       "%email%": artist.email,
-      "%note%": `Dear ${
-        artist.artistName
-      }, your artist profile has been revalidated by Admin. Your next revalidation date is ${new Date(
+      "%msg%": findEmail.emailDesc,
+      "%name%": artist.artistName,
+      "%newDate%": new Date(
         new Date().setDate(new Date().getDate() + 30)
-      ).toLocaleDateString("en-GB")}`,
+      ).toLocaleDateString("en-GB"),
     };
 
     let obj = {
@@ -3261,7 +3305,7 @@ const reValidateArtist = async (req, res) => {
     };
 
     await Promise.all([
-      sendMail("profile-revalidated", mailVaribles, artist.email),
+      sendMail("sample-email", mailVaribles, artist.email),
       Artist.updateOne(
         { _id: id },
         {

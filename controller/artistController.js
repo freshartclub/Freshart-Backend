@@ -14,6 +14,7 @@ const Ticket = require("../models/ticketModel");
 const md5 = require("md5");
 const objectId = require("mongoose").Types.ObjectId;
 const axios = require("axios");
+const EmailType = require("../models/emailTypeModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -98,10 +99,17 @@ const sendVerifyEmailOTP = async (req, res) => {
 
     email = email.toLowerCase();
 
+    const findEmail = await EmailType.findOne({
+      emailType: "verify-email-otp",
+    }).lean(true);
+
     if (isArtistRequest == true) {
       const otp = generateRandomOTP();
+
       const mailVaribles = {
+        "%head%": findEmail.emailHead,
         "%email%": email,
+        "%msg%": findEmail.emailDesc,
         "%otp%": otp,
       };
 
@@ -123,7 +131,7 @@ const sendVerifyEmailOTP = async (req, res) => {
         });
       }
 
-      await sendMail("verify-email", mailVaribles, email);
+      await sendMail("sample-email", mailVaribles, email);
       return res.status(200).send({
         message: "OTP sent Successfully",
       });
@@ -149,7 +157,9 @@ const sendVerifyEmailOTP = async (req, res) => {
 
       const otp = generateRandomOTP();
       const mailVaribles = {
+        "%head%": findEmail.emailHead,
         "%email%": email,
+        "%msg%": findEmail.emailDesc,
         "%otp%": otp,
       };
 
@@ -169,7 +179,7 @@ const sendVerifyEmailOTP = async (req, res) => {
           }
         );
 
-        await sendMail("verify-email", mailVaribles, email);
+        await sendMail("sample-email", mailVaribles, email);
         return res.status(200).send({
           id: isExist[0]._id,
           message: "OTP sent Successfully",
@@ -185,7 +195,7 @@ const sendVerifyEmailOTP = async (req, res) => {
         OTP: otp,
       });
 
-      await sendMail("verify-email", mailVaribles, email);
+      await sendMail("sample-email", mailVaribles, email);
       return res.status(200).send({
         id: user._id,
         message: "OTP sent Successfully",
@@ -355,13 +365,19 @@ const sendForgotPasswordOTP = async (req, res) => {
     }
 
     const otp = await generateRandomOTP();
+    const findEmail = await EmailType.findOne({
+      emailType: "send-forgot-password-otp",
+    }).lean(true);
+
     const mailVaribles = {
-      "%fullName%": user.firstName,
+      "%head%": findEmail.emailHead,
       "%email%": user.email,
+      "%msg%": findEmail.emailDesc,
+      "%name%": user.artistName,
       "%otp%": otp,
     };
 
-    await sendMail("send-forgotpassword-otp", mailVaribles, user.email);
+    await sendMail("sample-email", mailVaribles, user.email);
 
     Artist.updateOne(
       { _id: user._id, isDeleted: false },
@@ -724,12 +740,19 @@ const becomeArtist = async (req, res) => {
     const name = req.body.artistName;
     const email = req.body.email.toLowerCase();
 
+    const findEmail = await EmailType.findOne({
+      emailType: "become-artist-request",
+      isDeleted: false,
+    }).lean(true);
+
     const mailVariable = {
-      "%fullName%": name,
+      "%head%": findEmail.emailHead,
       "%email%": email,
+      "%msg%": findEmail.emailDesc,
+      "%name%": name,
     };
 
-    await sendMail("become-an-artist", mailVariable, email);
+    await sendMail("sample-email", mailVariable, email);
 
     return res
       .status(200)
@@ -1770,18 +1793,20 @@ const artistReValidate = async (req, res) => {
       { email: 1, artistName: 1, nextRevalidationDate: 1 }
     ).lean(true);
 
-    if (!artist) {
-      return res.status(400).send({ message: "Artist not found" });
-    }
+    if (!artist) return res.status(400).send({ message: "Artist not found" });
+
+    const findEmail = await EmailType.findOne({
+      emailType: "artist-profile-revalidated",
+    }).lean(true);
 
     const mailVaribles = {
-      "%subject%": "Profile Re-validated",
+      "%head%": findEmail.emailHead,
       "%email%": artist.email,
-      "%note%": `Dear ${
-        artist.artistName
-      }, you have successfully revalidated your artist profile. Your next revalidation date is ${new Date(
+      "%msg%": findEmail.emailDesc,
+      "%name%": artist.artistName,
+      "%newDate%": new Date(
         new Date().setDate(new Date().getDate() + 30)
-      ).toLocaleDateString("en-GB")}`,
+      ).toLocaleDateString("en-GB"),
     };
 
     let obj = {
@@ -1790,7 +1815,7 @@ const artistReValidate = async (req, res) => {
     };
 
     await Promise.all([
-      sendMail("profile-revalidated", mailVaribles, artist.email),
+      sendMail("sample-email", mailVaribles, artist.email),
       Artist.updateOne(
         { _id: id },
         {

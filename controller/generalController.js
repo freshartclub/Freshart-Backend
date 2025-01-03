@@ -75,9 +75,7 @@ const listArtworkStyle = async (req, res) => {
       message: "Style List successfully received",
     });
   } catch (error) {
-    APIErrorLog.error("Error while registered the artist by admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
