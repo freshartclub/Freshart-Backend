@@ -48,6 +48,7 @@ const {
   addSeriesToArtist,
   artistModifyArtwork,
   getAllArtworks,
+  getArtworkGroupBySeries,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
@@ -157,5 +158,11 @@ router.get("/get-cart", validateToken, getCartItems);
 router.get("/get-all-incidents", validateToken, getActiveIncident);
 
 router.get("/get-all-artworks", validateToken, getAllArtworks);
+
+router.get(
+  "/get-artist-artworks-by-series/:id",
+  validateToken,
+  getArtworkGroupBySeries
+);
 
 module.exports = router;

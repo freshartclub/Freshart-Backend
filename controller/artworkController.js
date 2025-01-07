@@ -1192,7 +1192,6 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
               discipline: "$discipline",
               artworkName: "$artworkName",
               artworkTechnic: "$additionalInfo.artworkTechnic",
-              discipline: "$discipline",
               artworkSeries: "$artworkSeries",
               createdAt: "$createdAt",
             },
@@ -1794,6 +1793,50 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const getArtworkGroupBySeries = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Artist Id is required" });
+
+  const artworks = await ArtWork.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        owner: objectId(id),
+        status: "published",
+      },
+    },
+    {
+      $group: {
+        _id: "$artworkSeries",
+        // artworks: { $push: "$$ROOT" },
+        artworks: {
+          $push: {
+            _id: "$_id",
+            status: "$status",
+            media: "$media.mainImage",
+            artworkName: "$artworkName",
+            artworkSeries: "$artworkSeries",
+            createdAt: "$createdAt",
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        groupName: "$_id",
+        artworks: 1,
+        _id: 0,
+      },
+    },
+    { $sort: { groupName: 1 } },
+  ]);
+  
+  res.status(200).send({
+    data: artworks,
+    url: "https://dev.freshartclub.com/images",
+  });
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
@@ -1812,4 +1855,5 @@ module.exports = {
   moveArtworkToPending,
   artistModifyArtwork,
   getAllArtworks,
+  getArtworkGroupBySeries,
 };

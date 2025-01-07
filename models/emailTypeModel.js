@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const faqSchema = new mongoose.Schema(
+const emailTypeSchema = new mongoose.Schema(
   {
     isDeleted: {
       type: Boolean,
@@ -21,4 +21,4 @@ const faqSchema = new mongoose.Schema(
   }
 );
 
-module.exports = mongoose.model("EmailType", faqSchema);
+module.exports = mongoose.model("EmailType", emailTypeSchema);

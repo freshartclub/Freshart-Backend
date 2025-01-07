@@ -1786,7 +1786,7 @@ const createNewUser = async (req, res) => {
         obj["userId"] = "UID-" + generateRandomId(nUser);
         obj["pageCount"] = isArtist ? 1 : 0;
         obj["role"] = isArtist ? "artist" : "user";
-        isArtist && (obj["artistId"] = generateRandomId());
+        isArtist && (obj["artistId"] = "AID-" + generateRandomId());
 
         const user = await Artist.create(obj);
         sendMail("sample-email", mailVaribles, user.email);

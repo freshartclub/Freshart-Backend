@@ -320,6 +320,9 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
         "items.artWork.pricing": 1,
       },
     },
+    {
+      $sort: { createdAt: -1 },
+    },
   ];
 
   const purchaseOrdersPipeline = [
@@ -383,6 +386,9 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
         "items.artWork.inventoryShipping": 1,
         "items.artWork.pricing": 1,
       },
+    },
+    {
+      $sort: { createdAt: -1 },
     },
   ];
 
@@ -682,7 +688,6 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
       $match: {
         user: objectId(req.user._id),
         _id: objectId(id),
-        "items.artWork": objectId(artworkId),
       },
     },
     {
@@ -715,6 +720,7 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
           cancelReason: "$items.cancelReason",
           artWork: {
             _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+            artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
             owner: { $arrayElemAt: ["$artWorkData.owner", 0] },
             artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
             media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
@@ -728,9 +734,17 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  return res
-    .status(200)
-    .send({ data: order[0], url: "https://dev.freshartclub.com/images" });
+  const getArtwork = order.find((item) => item.items.artWork._id == artworkId);
+
+  const getOtherArtwork = order.filter(
+    (item) => item.items.artWork._id != artworkId
+  );
+
+  return res.status(200).send({
+    foundArt: getArtwork,
+    otherArt: getOtherArtwork,
+    url: "https://dev.freshartclub.com/images",
+  });
 });
 
 const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {

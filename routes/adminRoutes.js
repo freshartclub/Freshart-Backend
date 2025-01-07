@@ -82,6 +82,11 @@ const {
   deleteArtworkFromCollection,
 } = require("../controller/collectionController");
 const { getAllSeriesList } = require("../controller/generalController");
+const {
+  addPlan,
+  getPlans,
+  getPlanById,
+} = require("../controller/planController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -284,5 +289,13 @@ router.post("/add-kb", validateAdminToken, addKB);
 router.get("/get-all-kb", validateAdminToken, getKBList);
 
 router.get("/get-kb-by-id/:id", validateAdminToken, getKBById);
+
+// ------------------ plan routes ---------------------------
+
+router.post("/add-plan/:id?", validateAdminToken, addPlan);
+
+router.get("/get-all-plans", validateAdminToken, getPlans);
+
+router.get("/get-plan-by-id/:id", validateAdminToken, getPlanById);
 
 module.exports = router;
