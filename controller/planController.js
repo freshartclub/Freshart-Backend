@@ -62,7 +62,51 @@ const getPlans = catchAsyncError(async (req, res) => {
     return res.status(400).send({ message: `Admin not found` });
   }
 
-  const plans = await Plan.find({}).lean(true);
+  // const plans = await Plan.find({}).lean(true);
+
+  const plans = await Plan.aggregate([
+    {
+      $lookup: {
+        from: "catalogs",
+        localField: "planGrp",
+        foreignField: "_id",
+        as: "catData",
+      },
+    },
+    {
+      $unwind: {
+        path: "$catData",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        planGrp: {
+          _id: "$catData._id",
+          catalogName: "$catData.catalogName",
+        },
+        planName: 1,
+        planDesc: 1,
+        standardPrice: 1,
+        standardYearlyPrice: 1,
+        currentPrice: 1,
+        currentYearlyPrice: 1,
+        defaultArtistFees: 1,
+        numArtworks: 1,
+        individualShipment: 1,
+        logCarrierSubscription: 1,
+        logCarrierPurchase: 1,
+        purchaseDiscount: 1,
+        limitPurchaseDiscount: 1,
+        discountSubscription: 1,
+        monthsDiscountSubscription: 1,
+        planData: 1,
+        status: 1,
+      },
+    },
+  ]);
+
   res
     .status(200)
     .send({ data: plans, url: "https://dev.freshartclub.com/images" });

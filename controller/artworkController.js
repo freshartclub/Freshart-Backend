@@ -1481,12 +1481,12 @@ const addToRecentView = catchAsyncError(async (req, res, next) => {
       if (recentView.artworks.length < 15) {
         await RecentlyView.updateOne(
           { owner: req.user._id },
-          { $push: { artworks: id } }
+          { $push: { artworks: objectId(id) } }
         );
       } else {
         await RecentlyView.updateOne(
           { owner: req.user._id },
-          { $pop: { artworks: -1 }, $push: { artworks: id } }
+          { $pop: { artworks: -1 }, $push: { artworks: objectId(id) } }
         );
       }
     }
@@ -1830,7 +1830,7 @@ const getArtworkGroupBySeries = catchAsyncError(async (req, res, next) => {
     },
     { $sort: { groupName: 1 } },
   ]);
-  
+
   res.status(200).send({
     data: artworks,
     url: "https://dev.freshartclub.com/images",

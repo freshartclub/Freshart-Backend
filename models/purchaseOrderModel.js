@@ -22,6 +22,12 @@ const orderSchema = new mongoose.Schema(
     discount: {
       type: Number,
     },
+    billingAddress: {
+      type: Object,
+    },
+    shippingAddress: {
+      type: Object,
+    },
     tax: {
       type: Number,
     },
@@ -40,6 +46,9 @@ const orderSchema = new mongoose.Schema(
     items: [{ type: Object }],
     evidence: {
       type: Object,
+    },
+    note: {
+      type: String,
     },
   },
   {

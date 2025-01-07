@@ -25,30 +25,44 @@ const createOrder = catchAsyncError(async (req, res, next) => {
     });
   }
 
+  let subTotal = 0;
+  let totalDiscount = 0;
+
+  for (const item of items) {
+    const artWork = await ArtWork.findOne(
+      { _id: item.artWork },
+      { pricing: 1 }
+    ).lean(true);
+
+    if (!artWork) {
+      return res.status(400).send({ message: "Artwork not found" });
+    }
+
+    const itemTotal = Number(artWork.pricing.basePrice) * item.quantity;
+    const itemDiscount = (artWork.pricing.dpersentage / 100) * itemTotal;
+    subTotal += itemTotal;
+    totalDiscount += itemDiscount;
+  }
+
+  const total = subTotal - totalDiscount + req.body.tax + req.body.shipping;
   const orderType = req.body.orderType;
 
   const OrderModel =
     orderType === "subscription" ? SubscriptionOrder : PurchaseOrder;
-
-  // let price = 0;
-  // for (let i = 0; i < items.length; i++) {
-  //   const artWork = await ArtWork.findOne(
-  //     { _id: items[i].artWork },
-  //     { pricing: 1 }
-  //   ).lean(true);
-  //   price += artWork.price * items[i].quantity;
-  // }
 
   const order = await OrderModel.create({
     orderID: orderID,
     user: user._id,
     status: "pending",
     tax: req.body.tax,
+    billingAddress: req.body.billingAddress,
+    shippingAddress: req.body.shippingAddress,
     shipping: req.body.shipping,
-    discount: req.body.discount,
-    subTotal: req.body.subTotal,
-    total: req.body.total,
+    discount: totalDiscount,
+    subTotal: subTotal,
+    total: total,
     items: items,
+    note: req.body.note,
   });
 
   const itemIds = items.map((item) => objectId(item.artWork));
@@ -392,7 +406,6 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
     },
   ];
 
-  // Execute pipelines
   const [subOrders, purchaseOrders] = await Promise.all([
     SubscriptionOrder.aggregate(subOrdersPipeline),
     PurchaseOrder.aggregate(purchaseOrdersPipeline),
@@ -713,6 +726,9 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
         subTotal: 1,
         createdAt: 1,
         updatedAt: 1,
+        shippingAddress: 1,
+        billingAddress: 1,
+        note: 1,
         items: {
           quantity: "$items.quantity",
           evidenceImg: "$items.evidenceImg",
@@ -828,6 +844,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         shipping: { $first: "$shipping" },
         discount: { $first: "$discount" },
         subTotal: { $first: "$subTotal" },
+        total: { $first: "$total" },
         createdAt: { $first: "$createdAt" },
         updatedAt: { $first: "$updatedAt" },
         user: { $first: "$userData" },
@@ -861,6 +878,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         orderType: 1,
         discount: 1,
         subTotal: 1,
+        total: 1,
         createdAt: 1,
         updatedAt: 1,
         items: 1,
