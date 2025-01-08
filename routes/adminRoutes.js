@@ -48,6 +48,7 @@ const {
   deleteArtistSeries,
   approveArtworkChanges,
   getReviewDetailArtwork,
+  downloadArtworkDataCSV,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -297,5 +298,13 @@ router.post("/add-plan/:id?", validateAdminToken, addPlan);
 router.get("/get-all-plans", validateAdminToken, getPlans);
 
 router.get("/get-plan-by-id/:id", validateAdminToken, getPlanById);
+
+// -----------------doenload CSV -----------------------------
+
+router.get(
+  "/download-artwork-list",
+  validateAdminToken,
+  downloadArtworkDataCSV
+);
 
 module.exports = router;

@@ -1303,6 +1303,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           restriction: 1,
           tags: 1,
           catalogInfo: 1,
+          createdAt: 1,
         },
       },
     ]);

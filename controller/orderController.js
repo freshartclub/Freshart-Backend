@@ -140,6 +140,7 @@ const getAllSubscriptionOrder = catchAsyncError(async (req, res, next) => {
         tax: { $first: "$tax" },
         shipping: { $first: "$shipping" },
         discount: { $first: "$discount" },
+        total: { $first: "$total" },
         subTotal: { $first: "$subTotal" },
         createdAt: { $first: "$createdAt" },
         updatedAt: { $first: "$updatedAt" },
@@ -149,6 +150,7 @@ const getAllSubscriptionOrder = catchAsyncError(async (req, res, next) => {
             quantity: "$items.quantity",
             artWork: {
               _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+              artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
               artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
               media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
               inventoryShipping: {
@@ -168,6 +170,7 @@ const getAllSubscriptionOrder = catchAsyncError(async (req, res, next) => {
         status: 1,
         tax: 1,
         shipping: 1,
+        total: 1,
         discount: 1,
         subTotal: 1,
         createdAt: 1,
@@ -223,6 +226,7 @@ const getAllPurchaseOrder = catchAsyncError(async (req, res, next) => {
         shipping: { $first: "$shipping" },
         discount: { $first: "$discount" },
         subTotal: { $first: "$subTotal" },
+        total: { $first: "$total" },
         createdAt: { $first: "$createdAt" },
         updatedAt: { $first: "$updatedAt" },
         user: { $first: "$userData" },
@@ -231,6 +235,7 @@ const getAllPurchaseOrder = catchAsyncError(async (req, res, next) => {
             quantity: "$items.quantity",
             artWork: {
               _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+              artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
               artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
               media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
               inventoryShipping: {
@@ -250,6 +255,7 @@ const getAllPurchaseOrder = catchAsyncError(async (req, res, next) => {
         status: 1,
         tax: 1,
         shipping: 1,
+        total: 1,
         discount: 1,
         subTotal: 1,
         createdAt: 1,
@@ -327,6 +333,7 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
         createdAt: 1,
         updatedAt: 1,
         "items.quantity": 1,
+        "item.artWorkId": 1,
         "items.artWork._id": 1,
         "items.artWork.artworkName": 1,
         "items.artWork.media.mainImage": 1,
@@ -394,6 +401,7 @@ const getAllUserOrder = catchAsyncError(async (req, res, next) => {
         createdAt: 1,
         updatedAt: 1,
         "items.quantity": 1,
+        "item.artWorkId": 1,
         "items.artWork._id": 1,
         "items.artWork.artworkName": 1,
         "items.artWork.media.mainImage": 1,
@@ -844,6 +852,8 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         shipping: { $first: "$shipping" },
         discount: { $first: "$discount" },
         subTotal: { $first: "$subTotal" },
+        shippingAddress: { $first: "$shippingAddress" },
+        billingAddress: { $first: "$billingAddress" },
         total: { $first: "$total" },
         createdAt: { $first: "$createdAt" },
         updatedAt: { $first: "$updatedAt" },
@@ -857,6 +867,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
 
             artWork: {
               _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+              artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
               artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
               media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
               inventoryShipping: {
@@ -879,6 +890,8 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         discount: 1,
         subTotal: 1,
         total: 1,
+        shippingAddress: 1,
+        billingAddress: 1,
         createdAt: 1,
         updatedAt: 1,
         items: 1,

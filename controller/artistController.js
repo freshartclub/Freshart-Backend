@@ -298,7 +298,7 @@ const sendSMSOTP = async (req, res) => {
     const data = {
       to: phoneArr,
       text: `To verify your phone number, use OTP - ${otp}`,
-      from: "57575757111",
+      from: "FreshArtC",
     };
 
     const url = "https://dashboard.wausms.com/Api/rest/message";

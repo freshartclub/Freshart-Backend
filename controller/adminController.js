@@ -1,4 +1,5 @@
 const { validationResult } = require("express-validator");
+const ExcelJS = require("exceljs");
 const jwt = require("jsonwebtoken");
 const md5 = require("md5");
 const moment = require("moment");
@@ -3374,6 +3375,152 @@ const deleteArtistSeries = async (req, res) => {
   }
 };
 
+const downloadArtworkDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Artwork List");
+
+    worksheet.columns = [
+      { header: "Artwork Name", key: "artworkName", width: 25 },
+      { header: "Artwork ID", key: "artworkId", width: 25 },
+      { header: "Artist Name", key: "artistName", width: 25 },
+      { header: "Discipline", key: "discipline", width: 25 },
+      { header: "Commercialization", key: "commercialization", width: 25 },
+      { header: "Created At", key: "createdAt", width: 25 },
+      { header: "Status", key: "status", width: 25 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s, status, days } = req.query;
+    if (status == "All") {
+      status = "";
+    }
+
+    if (s == "undefined") {
+      s = "";
+    } else if (typeof s === "undefined") {
+      s = "";
+    }
+
+    if (days === "All") {
+      days = "";
+    }
+
+    let filter = {};
+    if (days) {
+      const dateLimit = new Date();
+
+      if (days === "1 Day") {
+        dateLimit.setDate(dateLimit.getDate() - 1);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Week") {
+        dateLimit.setDate(dateLimit.getDate() - 7);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Month") {
+        dateLimit.setMonth(dateLimit.getMonth() - 1);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Quarter") {
+        dateLimit.setMonth(dateLimit.getMonth() - 3);
+        filter["createdAt"] = { $gte: dateLimit };
+      } else if (days === "1 Year") {
+        dateLimit.setFullYear(dateLimit.getFullYear() - 1);
+        filter["createdAt"] = { $gte: dateLimit };
+      }
+    }
+
+    const artworkList = await ArtWork.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          status: { $regex: status, $options: "i" },
+          ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
+        },
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "owner",
+          foreignField: "_id",
+          as: "ownerInfo",
+        },
+      },
+      {
+        $unwind: {
+          path: "$ownerInfo",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { artworkName: { $regex: s, $options: "i" } },
+            { artworkId: { $regex: s, $options: "i" } },
+            { "ownerInfo.artistName": { $regex: s, $options: "i" } },
+            { "ownerInfo.artistId": { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          artworkId: 1,
+          artworkName: 1,
+          artistName: "$ownerInfo.artistName",
+          artistSurname1: "$ownerInfo.artistSurname1",
+          artistSurname2: "$ownerInfo.artistSurname2",
+          discipline: "$discipline.artworkDiscipline",
+          commercialization: "$commercialization.activeTab",
+          createdAt: 1,
+          status: 1,
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ]);
+    artworkList.forEach((item) => {
+      const fullArtistName = [
+        item.artistName,
+        item.artistSurname1 || "",
+        item.artistSurname2 || "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      worksheet.addRow({
+        artworkName: item.artworkName || "N/A",
+        artworkId: item.artworkId || "N/A",
+        artistName: fullArtistName || "Unknown Artist",
+        discipline: item.discipline || "N/A",
+        commercialization: item.commercialization || "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+        status: item.status || "N/A",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Artwork_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -3431,4 +3578,5 @@ module.exports = {
   approveArtworkChanges,
   reValidateArtist,
   deleteArtistSeries,
+  downloadArtworkDataCSV,
 };
