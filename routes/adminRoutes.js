@@ -49,6 +49,11 @@ const {
   approveArtworkChanges,
   getReviewDetailArtwork,
   downloadArtworkDataCSV,
+  downloadArtistDataCSV,
+  downloadDisciplineDataCSV,
+  downloadCategoryDataCSV,
+  downloadPicklistDataCSV,
+  downloadInsigniaDataCSV,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -305,6 +310,36 @@ router.get(
   "/download-artwork-list",
   validateAdminToken,
   downloadArtworkDataCSV
+);
+
+router.get(
+  "/download-all-artist-list",
+  validateAdminToken,
+  downloadArtistDataCSV
+);
+
+router.get(
+  "/download-discipline-list",
+  validateAdminToken,
+  downloadDisciplineDataCSV
+);
+
+router.get(
+  "/download-category-list",
+  validateAdminToken,
+  downloadCategoryDataCSV
+);
+
+router.get(
+  "/download-picklist",
+  validateAdminToken,
+  downloadPicklistDataCSV
+);
+
+router.get(
+  "/download-insignia-list",
+  validateAdminToken,
+  downloadInsigniaDataCSV
 );
 
 module.exports = router;

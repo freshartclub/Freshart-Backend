@@ -7,6 +7,7 @@ const Admin = require("../models/adminModel");
 const Insignia = require("../models/insigniasModel");
 const Artist = require("../models/artistModel");
 const Ticket = require("../models/ticketModel");
+const PickList = require("../models/pickListModel");
 const Discipline = require("../models/disciplineModel");
 const {
   createLog,
@@ -26,6 +27,7 @@ const Theme = require("../models/themeModel");
 const MediaSupport = require("../models/mediaSupportModel");
 const FAQ = require("../models/faqModel");
 const KB = require("../models/kbModel");
+const mongoose = require("mongoose");
 const Catalog = require("../models/catalogModel");
 const ArtWork = require("../models/artWorksModel");
 const EmailType = require("../models/emailTypeModel");
@@ -3521,6 +3523,429 @@ const downloadArtworkDataCSV = async (req, res) => {
   }
 };
 
+const downloadArtistDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("All Artist List");
+
+    worksheet.columns = [
+      { header: "Artist Name", key: "artistName", width: 30 },
+      { header: "Email", key: "email", width: 30 },
+      { header: "Artist ID", key: "artistId", width: 18 },
+      { header: "User ID", key: "userId", width: 18 },
+      { header: "Phone No.", key: "phone", width: 15 },
+      { header: "City", key: "city", width: 15 },
+      { header: "Province", key: "province", width: 15 },
+      { header: "Country", key: "country", width: 15 },
+      { header: "Suspended", key: "suspended", width: 15 },
+      { header: "Created At", key: "createdAt", width: 25 },
+      { header: "Status", key: "status", width: 25 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s, date, status } = req.query;
+
+    if (status === "All") status = "";
+
+    let weeksAgo;
+    if (date === "All") {
+      date = "";
+    } else {
+      weeksAgo = new Date();
+      weeksAgo.setDate(weeksAgo.getDate() - Number(date * 7));
+    }
+
+    const artists = await Artist.aggregate([
+      {
+        $match: {
+          role: "artist",
+          ...(weeksAgo ? { nextRevalidationDate: { $lte: weeksAgo } } : {}),
+          ...(status ? { profileStatus: status } : {}),
+          $or: [
+            { artistId: { $regex: s, $options: "i" } },
+            { artistName: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          nickName: 1,
+          artistSurname2: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          userId: 1,
+          profile: 1,
+          artistId: 1,
+          isDeleted: 1,
+          city: "$address.city",
+          country: "$address.country",
+          state: "$address.state",
+          isActivated: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    artists.forEach((item) => {
+      const fullArtistName = [
+        item.artistName,
+        item.nickName ? `"${item.nickName}"` : "",
+        item.artistSurname1 || "",
+        item.artistSurname2 || "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      worksheet.addRow({
+        artistName: fullArtistName || "Unknown Artist",
+        email: item.email || "N/A",
+        artistId: item.artistId || "N/A",
+        userId: item.userId || "N/A",
+        phone: item.phone || "N/A",
+        city: item.city || "N/A",
+        province: item.state || "N/A",
+        country: item.country || "N/A",
+        suspended: item.isDeleted ? "Suspended" : "No",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+        status: item.isActivated ? "Active" : "Inactive",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="All_Artist_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const downloadDisciplineDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Discipline List");
+
+    worksheet.columns = [
+      { header: "Discipline Name", key: "disciplineName", width: 20 },
+      { header: "Description", key: "disciplineDescription", width: 30 },
+      { header: "Created At", key: "createdAt", width: 25 },
+      { header: "Status", key: "status", width: 25 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s } = req.query;
+    if (typeof s === "undefined") {
+      s = "";
+    }
+
+    let disciplineList = await Discipline.aggregate([
+      {
+        $match: {
+          disciplineName: { $regex: s, $options: "i" },
+        },
+      },
+      {
+        $project: {
+          disciplineName: 1,
+          createdAt: 1,
+          isDeleted: 1,
+          disciplineDescription: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    disciplineList.forEach((item) => {
+      worksheet.addRow({
+        disciplineName: item.disciplineName || "N/A",
+        disciplineDescription: item.disciplineDescription || "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+        status: item.isDeleted ? "In-Active" : "Active",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Discipline_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const downloadCategoryDataCSV = async (req, res) => {
+  try {
+    const { fieldName, type } = req.query;
+    let { s } = req.query;
+
+    if (!fieldName || !type) {
+      return res.status(400).send({ message: "Invalid request data" });
+    }
+
+    s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
+    const Model = mongoose.models[type];
+    if (!Model) {
+      return res.status(400).send({ message: "Invalid model type" });
+    }
+
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet(`${type} List`);
+
+    worksheet.columns = [
+      { header: `${type} Name`, key: `${fieldName}`, width: 20 },
+      { header: "Discipline", key: "discipline", width: 50 },
+      { header: "Created At", key: "createdAt", width: 25 },
+      { header: "Status", key: "status", width: 25 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    const categoryList = await Model.aggregate([
+      {
+        $lookup: {
+          from: "disciplines",
+          localField: "discipline",
+          foreignField: "_id",
+          as: "discipline",
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { [fieldName]: { $regex: s, $options: "i" } },
+            { "discipline.disciplineName": { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          [fieldName]: 1,
+          isDeleted: 1,
+          createdAt: 1,
+          discipline: {
+            $map: {
+              input: "$discipline",
+              as: "disc",
+              in: {
+                disciplineName: "$$disc.disciplineName",
+              },
+            },
+          },
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    categoryList.forEach((item) => {
+      worksheet.addRow({
+        [fieldName]: item[fieldName] || "N/A",
+        discipline:
+          item.discipline.map((d) => d.disciplineName).join(", \n") || "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+        status: item.isDeleted ? "In-Active" : "Active",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Discipline_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const downloadPicklistDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Picklist");
+
+    worksheet.columns = [
+      { header: "Picklist Name", key: "picklistName", width: 35 },
+      { header: "Picklist Items", key: "picklist", width: 60 },
+      { header: "Created At", key: "createdAt", width: 25 },
+      { header: "Status", key: "status", width: 25 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s } = req.query;
+    s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
+    if (s === "All") s = "";
+
+    let picklist = await PickList.aggregate([
+      {
+        $match: {
+          picklistName: { $regex: s, $options: "i" },
+        },
+      },
+      {
+        $project: {
+          picklistName: 1,
+          createdAt: 1,
+          isDeleted: 1,
+          picklist: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    picklist.forEach((item) => {
+      worksheet.addRow({
+        picklistName: item.picklistName || "N/A",
+        picklist: item.picklist.map((d) => d.name).join(", \n") || "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+        status: item.isDeleted ? "In-Active" : "Active",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Picklist_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const downloadInsigniaDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Insignia List");
+
+    worksheet.columns = [
+      { header: "Insignia Name", key: "credentialName", width: 20 },
+      { header: "Insignia Group", key: "credentialGroup", width: 20 },
+      { header: "Insignia Priority", key: "credentialPriority", width: 20 },
+      { header: "Created At", key: "createdAt", width: 20 },
+      { header: "Status", key: "status", width: 20 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s } = req.query;
+    s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
+    const insigniaList = await Insignia.aggregate([
+      {
+        $match: {
+          $or: [
+            { credentialName: { $regex: s, $options: "i" } },
+            { credentialGroup: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          credentialName: 1,
+          credentialGroup: 1,
+          credentialPriority: 1,
+
+          isDeleted: 1,
+
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    insigniaList.forEach((item) => {
+      worksheet.addRow({
+        credentialName: item.credentialName || "N/A",
+        credentialGroup: item.credentialGroup || "N/A",
+        credentialPriority: item.credentialPriority || "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+        status: item.isDeleted ? "In-Active" : "Active",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Insignia_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -3579,4 +4004,9 @@ module.exports = {
   reValidateArtist,
   deleteArtistSeries,
   downloadArtworkDataCSV,
+  downloadArtistDataCSV,
+  downloadDisciplineDataCSV,
+  downloadCategoryDataCSV,
+  downloadPicklistDataCSV,
+  downloadInsigniaDataCSV,
 };
