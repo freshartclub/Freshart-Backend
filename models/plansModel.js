@@ -7,9 +7,14 @@ const planSchema = new mongoose.Schema(
       default: false,
     },
     planGrp: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Catalog",
+      type: String,
     },
+    catalogs: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Catalog",
+      },
+    ],
     planName: {
       type: String,
     },
@@ -50,9 +55,6 @@ const planSchema = new mongoose.Schema(
       type: String,
     },
     limitPurchaseDiscount: {
-      type: String,
-    },
-    discountSubscription: {
       type: String,
     },
     monthsDiscountSubscription: {

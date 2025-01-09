@@ -40,9 +40,12 @@ const catalogSchema = new mongoose.Schema(
         ref: "Artist",
       },
     ],
-    subPlan: {
-      type: Array,
-    },
+    subPlan: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Plan",
+      },
+    ],
     status: {
       type: String,
     },

@@ -930,6 +930,7 @@ const getArtistDetailById = async (req, res) => {
       {
         $match: {
           isDeleted: false,
+          status: "published",
           owner: objectId(req.params.id),
         },
       },
@@ -961,9 +962,7 @@ const getArtistDetailById = async (req, res) => {
       url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
-    APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };

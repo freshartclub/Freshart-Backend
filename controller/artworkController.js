@@ -1466,36 +1466,31 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
 });
 
 const addToRecentView = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
+  try {
+    const { id } = req.params;
 
-  const artwork = await ArtWork.countDocuments({ _id: id }).lean(true);
-  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
-
-  const recentView = await RecentlyView.findOne({ owner: req.user._id }).lean(
-    true
-  );
-
-  if (recentView) {
-    if (recentView.artworks.includes(id)) {
-      return res.status(200).send({ message: "Artwork Already Added" });
-    } else {
-      if (recentView.artworks.length < 15) {
-        await RecentlyView.updateOne(
-          { owner: req.user._id },
-          { $push: { artworks: objectId(id) } }
-        );
-      } else {
-        await RecentlyView.updateOne(
-          { owner: req.user._id },
-          { $pop: { artworks: -1 }, $push: { artworks: objectId(id) } }
-        );
-      }
+    const artworkExists = await ArtWork.exists({ _id: id });
+    if (!artworkExists) {
+      return res.status(400).send({ message: "Artwork not found" });
     }
-  } else {
-    await RecentlyView.create({ owner: req.user._id, artworks: [id] });
-  }
 
-  res.status(200).send({ message: "Artwork Added to Recent View" });
+    await RecentlyView.updateOne(
+      { owner: req.user._id },
+      {
+        $pull: { artworks: id },
+        $push: {
+          artworks: {
+            $each: [id],
+            $position: 0,
+          },
+        },
+        $slice: 15,
+      },
+      { upsert: true }
+    );
+  } catch (error) {
+    return res.status(400).send({ message: "Something went wrong" });
+  }
 });
 
 const getRecentlyView = catchAsyncError(async (req, res, next) => {

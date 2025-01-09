@@ -2,6 +2,8 @@ const Plan = require("../models/plansModel");
 const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
 const { fileUploadFunc } = require("../functions/common");
+const Catalog = require("../models/catalogModel");
+const objectId = require("mongoose").Types.ObjectId;
 
 const addPlan = catchAsyncError(async (req, res) => {
   const admin = await Admin.countDocuments({
@@ -20,6 +22,7 @@ const addPlan = catchAsyncError(async (req, res) => {
     planGrp: req.body.planGrp,
     planName: req.body.planName,
     planDesc: req.body.planDesc,
+    catalogs: req.body.catalogs,
     standardPrice: req.body.standardPrice,
     standardYearlyPrice: req.body.standardYearlyPrice,
     currentPrice: req.body.currentPrice,
@@ -31,7 +34,6 @@ const addPlan = catchAsyncError(async (req, res) => {
     logCarrierPurchase: req.body.logCarrierPurchase,
     purchaseDiscount: req.body.purchaseDiscount,
     limitPurchaseDiscount: req.body.limitPurchaseDiscount,
-    discountSubscription: req.body.discountSubscription,
     monthsDiscountSubscription: req.body.monthsDiscountSubscription,
     planData: req.body.planData,
     status: req.body.status,
@@ -41,13 +43,56 @@ const addPlan = catchAsyncError(async (req, res) => {
     payload["planImg"] = fileData.data.planImg[0].filename;
   }
 
-  const condition = { $set: payload };
+  if (!id) {
+    const newPlan = await Plan.create(payload);
 
-  if (id === undefined) {
-    await Plan.create(payload);
-    return res.status(200).send({ message: "Plan added successfully" });
+    if (req.body.catalogs) {
+      await Catalog.updateMany(
+        { _id: { $in: req.body.catalogs } },
+        { $addToSet: { subPlan: newPlan._id } }
+      );
+    }
+
+    return res
+      .status(201)
+      .send({ message: "Plan added successfully", data: newPlan });
   } else {
-    Plan.updateOne({ _id: id }, condition).then();
+    await Plan.updateOne({ _id: id }, { $set: payload });
+
+    if (req.body.catalogs) {
+      const catalogsToUpdate = req.body.catalogs;
+
+      const existingCatalogs = await Catalog.find(
+        { subPlan: id },
+        { _id: 1 }
+      ).lean();
+
+      const existingCatalogIds = existingCatalogs.map((catalog) =>
+        catalog._id.toString()
+      );
+
+      const catalogsToAdd = catalogsToUpdate.filter(
+        (catalogId) => !existingCatalogIds.includes(catalogId)
+      );
+      const catalogsToRemove = existingCatalogIds.filter(
+        (catalogId) => !catalogsToUpdate.includes(catalogId)
+      );
+
+      if (catalogsToAdd.length > 0) {
+        await Catalog.updateMany(
+          { _id: { $in: catalogsToAdd } },
+          { $addToSet: { subPlan: id } }
+        );
+      }
+
+      if (catalogsToRemove.length > 0) {
+        await Catalog.updateMany(
+          { _id: { $in: catalogsToRemove } },
+          { $pull: { subPlan: id } }
+        );
+      }
+    }
+
     return res.status(200).send({ message: "Plan updated successfully" });
   }
 });
@@ -58,35 +103,23 @@ const getPlans = catchAsyncError(async (req, res) => {
     isDeleted: false,
   }).lean(true);
 
-  if (!admin) {
-    return res.status(400).send({ message: `Admin not found` });
-  }
-
-  // const plans = await Plan.find({}).lean(true);
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const plans = await Plan.aggregate([
-    {
-      $lookup: {
-        from: "catalogs",
-        localField: "planGrp",
-        foreignField: "_id",
-        as: "catData",
-      },
-    },
-    {
-      $unwind: {
-        path: "$catData",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
+    // {
+    //   $lookup: {
+    //     from: "catalogs",
+    //     localField: "catalogs",
+    //     foreignField: "_id",
+    //     as: "catData",
+    //   },
+    // },
     {
       $project: {
         _id: 1,
-        planGrp: {
-          _id: "$catData._id",
-          catalogName: "$catData.catalogName",
-        },
         planName: 1,
+        planImg: 1,
+        planGrp: 1,
         planDesc: 1,
         standardPrice: 1,
         standardYearlyPrice: 1,
@@ -97,9 +130,19 @@ const getPlans = catchAsyncError(async (req, res) => {
         individualShipment: 1,
         logCarrierSubscription: 1,
         logCarrierPurchase: 1,
+        // catalogs: {
+        //   $map: {
+        //     input: "$catData",
+        //     as: "item",
+        //     in: {
+        //       _id: "$$item._id",
+        //       catalogName: "$$item.catalogName",
+        //       catalogImg: "$$item.catalogImg",
+        //     },
+        //   },
+        // },
         purchaseDiscount: 1,
         limitPurchaseDiscount: 1,
-        discountSubscription: 1,
         monthsDiscountSubscription: 1,
         planData: 1,
         status: 1,
@@ -107,9 +150,7 @@ const getPlans = catchAsyncError(async (req, res) => {
     },
   ]);
 
-  res
-    .status(200)
-    .send({ data: plans, url: "https://dev.freshartclub.com/images" });
+  res.status(200).send({ data: plans });
 });
 
 const getPlanById = catchAsyncError(async (req, res) => {
@@ -124,9 +165,7 @@ const getPlanById = catchAsyncError(async (req, res) => {
 
   const { id } = req.params;
   const plan = await Plan.findOne({ _id: id }).lean(true);
-  res
-    .status(200)
-    .send({ data: plan, url: "https://dev.freshartclub.com/images" });
+  res.status(200).send({ data: plan });
 });
 
 module.exports = { addPlan, getPlans, getPlanById };

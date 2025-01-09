@@ -79,6 +79,14 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "plans",
+        localField: "subPlan",
+        foreignField: "_id",
+        as: "planlist",
+      },
+    },
+    {
       $project: {
         isDeleted: 1,
         catalogName: 1,
@@ -95,7 +103,17 @@ const getCatalog = catchAsyncError(async (req, res, next) => {
             },
           },
         },
-        subPlan: 1,
+        subPlan: {
+          $map: {
+            input: "$planlist",
+            as: "item",
+            in: {
+              _id: "$$item._id",
+              planName: "$$item.planName",
+              planGrp: "$$item.planGrp",
+            },
+          },
+        },
         exclusiveCatalog: 1,
         createdAt: 1,
       },
@@ -151,6 +169,14 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
       },
     },
     {
+      $lookup: {
+        from: "plans",
+        localField: "subPlan",
+        foreignField: "_id",
+        as: "planlist",
+      },
+    },
+    {
       $project: {
         _id: 1,
         catalogName: 1,
@@ -195,7 +221,18 @@ const getCatalogById = catchAsyncError(async (req, res, next) => {
         status: 1,
         exclusiveCatalog: 1,
         details: 1,
-        subPlan: 1,
+        subPlan: {
+          $map: {
+            input: "$planlist",
+            as: "item",
+            in: {
+              _id: "$$item._id",
+              planGrp: "$$item.planGrp",
+              planName: "$$item.planName",
+              planImg: "$$item.planImg",
+            },
+          },
+        },
         catalogCommercialization: 1,
         defaultArtistFee: 1,
         exclusiveCatalog: 1,
