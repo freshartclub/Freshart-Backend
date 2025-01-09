@@ -219,9 +219,7 @@ const deleteCatalog = catchAsyncError(async (req, res, next) => {
 
 const getCatalogList = catchAsyncError(async (req, res, next) => {
   const catalogs = await Catalog.find(
-    {
-      isDeleted: false,
-    },
+    { isDeleted: false },
     { catalogName: 1, defaultArtistFee: 1, catalogImg: 1 }
   )
     .sort({ createdAt: -1 })

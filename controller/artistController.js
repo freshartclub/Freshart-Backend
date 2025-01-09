@@ -1209,7 +1209,6 @@ const editArtistProfile = async (req, res) => {
       { _id: artist._id, isDeleted: false },
       { $set: { reviewDetails: obj, profileStatus: "under-review" } }
     ).then();
-
     return res.status(200).send({
       message: "Profile saved and Pending to be Validated by Fresh Art Club",
     });

@@ -2,7 +2,12 @@ const nodemailer = require("nodemailer");
 const smtpTransport = require("nodemailer-smtp-transport");
 const MailTemplate = require("../models/mailTemplates");
 
-module.exports.sendMail = (templateName, mailVariable, email) => {
+module.exports.sendMail = (
+  templateName,
+  mailVariable,
+  email,
+  fromEmail = "hello@freshartclub.com"
+) => {
   return new Promise(async function (resolve, reject) {
     try {
       const template = await MailTemplate.findOne({
@@ -10,24 +15,25 @@ module.exports.sendMail = (templateName, mailVariable, email) => {
         isDeleted: false,
         active: true,
       }).lean(true);
+
+      if (!template) return reject(new Error("Mail template not found"));
+
       let subject = template?.subject;
       let html = template?.htmlBody;
       let text = template?.textBody;
 
-      // When mail template found
       const transporter = nodemailer.createTransport(
         smtpTransport({
-          pool: true,
-          host: "smtp.gmail.com",
-          port: 465,
+          host: "smtp.office365.com",
+          port: 587,
+          secure: false,
           auth: {
-            user: "frac.test.2024@gmail.com",
-            pass: "wemu tngp albp ljxt",
+            user: "frac-service@freshartclub.com",
+            pass: "FRAC.2025!",
           },
-          secure: true,
-          // tls: {
-          //   rejectUnauthorized: false,
-          // },
+          tls: {
+            ciphers: "SSLv3",
+          },
         })
       );
 
@@ -38,7 +44,7 @@ module.exports.sendMail = (templateName, mailVariable, email) => {
       }
 
       const options = {
-        from: "frac.test.2024@gmail.com",
+        from: `FreshArt Club <${fromEmail}>`,
         to: email,
         subject: subject,
         text: text,
