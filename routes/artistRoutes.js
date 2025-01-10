@@ -34,6 +34,7 @@ const {
   setDefaultBillingAddress,
   deleteArtistSeries,
   artistReValidate,
+  editUserProfile,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -92,6 +93,8 @@ router.post("/reply-ticket/:id", validateToken, replyTicketUser);
 router.get("/ticket/:id", validateToken, ticketDetail);
 
 router.patch("/ticket-feedback/:id", validateToken, ticketFeedback);
+
+router.patch("/edit-user-profile", validateToken, editUserProfile);
 
 router.patch("/edit-artist-profile", validateToken, editArtistProfile);
 

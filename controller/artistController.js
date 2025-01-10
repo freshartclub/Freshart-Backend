@@ -15,6 +15,7 @@ const md5 = require("md5");
 const objectId = require("mongoose").Types.ObjectId;
 const axios = require("axios");
 const EmailType = require("../models/emailTypeModel");
+const e = require("express");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -1006,7 +1007,61 @@ const completeProfile = async (req, res) => {
       .status(200)
       .send({ message: "Profile updated successfully", data: artist });
   } catch (error) {
-    APIErrorLog.error("Error while login the admin");
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const editUserProfile = async (req, res) => {
+  try {
+    const fileData = await fileUploadFunc(req, res);
+
+    const user = await Artist.findOne(
+      {
+        _id: req.user._id,
+        isDeleted: false,
+        isActivated: false,
+      },
+      {
+        artistName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        email: 1,
+        phone: 1,
+        profile: 1,
+      }
+    ).lean(true);
+
+    if (!user) {
+      return res.status(400).send({ message: "User not found" });
+    }
+
+    let obj = {
+      artistName: req.body.artistName ? req.body.artistName : user.artistName,
+      artistSurname1: req.body.artistSurname1
+        ? req.body.artistSurname1
+        : user.artistSurname1,
+      artistSurname2: req.body.artistSurname2
+        ? req.body.artistSurname2
+        : user.artistSurname2,
+      email: req.body.email ? req.body.email : user.email,
+      phone: req.body.phone ? req.body.phone : user.phone,
+    };
+
+    if (fileData?.data?.mainImage) {
+      obj["profile"] = {
+        ...user.profile,
+        mainImage: fileData?.data?.mainImage[0].filename,
+      };
+    }
+
+    await Artist.updateOne(
+      { _id: user._id, isDeleted: false },
+      { $set: obj }
+    ).lean(true);
+
+    return res.status(200).send({ message: "Profile updated successfully" });
+  } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -1018,6 +1073,7 @@ const editArtistProfile = async (req, res) => {
       {
         _id: req.user._id,
         isDeleted: false,
+        isActivated: true,
       },
       { profile: 1 }
     ).lean(true);
@@ -1854,6 +1910,7 @@ module.exports = {
   createTicket,
   ticketDetail,
   ticketFeedback,
+  editUserProfile,
   editArtistProfile,
   getActivedArtists,
   getUserTickets,
