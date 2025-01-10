@@ -76,6 +76,9 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const getAllOrders = catchAsyncError(async (req, res, next) => {
+  let { s } = req.query;
+  s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
   const orders = await Order.aggregate([
     {
       $unwind: "$items",
@@ -98,6 +101,16 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
     },
     {
       $unwind: { path: "$userData", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $match: {
+        $or: [
+          { "userData.userId": { $regex: s, $options: "i" } },
+          { "userData.artistId": { $regex: s, $options: "i" } },
+          { "userData.artistName": { $regex: s, $options: "i" } },
+          { orderID: { $regex: s, $options: "i" } },
+        ],
+      },
     },
     {
       $group: {
@@ -371,6 +384,7 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
       $addFields: {
         "items.artWork": {
           _id: { $arrayElemAt: ["$artWorkData._id", 0] },
+          artWorkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
           owner: { $arrayElemAt: ["$artWorkData.owner", 0] },
           artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
           media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
@@ -643,6 +657,27 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
   }
 
   const { artworkId } = req.body;
+
+  if (!artworkId)
+    return res.status(400).send({ message: "Please provide artworkId" });
+
+  const existingImg = await Order.findOne(
+    {
+      _id: id,
+      "items.artWork": objectId(artworkId),
+    },
+    { items: 1 }
+  ).lean(true);
+
+  const selectedItem = existingImg.items.find(
+    (item) => item.artWork.toString() === artworkId
+  );
+
+  if (selectedItem.evidenceImg.length > 0) {
+    for (let i = 0; i < selectedItem.evidenceImg.length; i++) {
+      imgArr.push(selectedItem.evidenceImg[i]);
+    }
+  }
 
   await Order.updateOne(
     { _id: id, "items.artWork": objectId(artworkId) },

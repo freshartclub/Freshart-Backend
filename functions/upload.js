@@ -162,7 +162,7 @@ const upload = multer({
   { name: "collectionFile", maxCount: 1 },
   { name: "expertImg", maxCount: 1 },
   { name: "expertImg", maxCount: 1 },
-  { name: "evidenceImg", maxCount: 7 },
+  { name: "evidenceImg", maxCount: 5 },
   { name: "planImg", maxCount: 1 },
 ]);
 
