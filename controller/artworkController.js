@@ -1494,12 +1494,23 @@ const addToRecentView = catchAsyncError(async (req, res, next) => {
 });
 
 const getRecentlyView = catchAsyncError(async (req, res, next) => {
-  const recentViewd = await RecentlyView.findOne({ owner: req.user._id }).lean(
-    true
-  );
+  const recentViewed = await RecentlyView.findOne(
+    { owner: req.user._id },
+    { artworks: 1 }
+  ).lean();
+
+  if (
+    !recentViewed ||
+    !recentViewed.artworks ||
+    recentViewed.artworks.length === 0
+  ) {
+    return res.status(200).send({
+      data: [],
+    });
+  }
 
   const artworks = await ArtWork.find(
-    { _id: { $in: recentViewd.artworks } },
+    { _id: { $in: recentViewed.artworks } },
     {
       media: 1,
       artworkName: 1,
@@ -1508,12 +1519,9 @@ const getRecentlyView = catchAsyncError(async (req, res, next) => {
     }
   )
     .populate("owner", "artistName artistSurname1 artistSurname2")
-    .lean(true);
+    .lean();
 
-  res.status(200).send({
-    data: artworks,
-    url: "https://dev.freshartclub.com/images",
-  });
+  res.status(200).send({ data: artworks });
 });
 
 const validateArtwork = catchAsyncError(async (req, res, next) => {
