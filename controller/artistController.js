@@ -15,7 +15,6 @@ const md5 = require("md5");
 const objectId = require("mongoose").Types.ObjectId;
 const axios = require("axios");
 const EmailType = require("../models/emailTypeModel");
-const e = require("express");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;

@@ -86,6 +86,8 @@ const {
   getAllCollections,
   searchCollection,
   deleteArtworkFromCollection,
+  deleteCollection,
+  restoreCollection,
 } = require("../controller/collectionController");
 const { getAllSeriesList } = require("../controller/generalController");
 const {
@@ -93,6 +95,7 @@ const {
   getPlans,
   getPlanById,
 } = require("../controller/planController");
+const { addCoupon, getCoupons, getCoupon } = require("../controller/couponController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -280,6 +283,10 @@ router.patch(
   deleteArtworkFromCollection
 );
 
+router.patch("/delete-collection/:id", validateAdminToken, deleteCollection);
+
+router.patch("/restore-collection/:id", validateAdminToken, restoreCollection);
+
 // ------------------ faq routes ---------------------
 
 router.post("/add-faq", validateAdminToken, addFAQ);
@@ -303,6 +310,14 @@ router.post("/add-plan/:id?", validateAdminToken, addPlan);
 router.get("/get-all-plans", validateAdminToken, getPlans);
 
 router.get("/get-plan-by-id/:id", validateAdminToken, getPlanById);
+
+// -------------------coupon routes ------------------------
+
+router.post("/add-coupon/:id?", validateAdminToken, addCoupon);
+
+router.get("/get-all-coupon", validateAdminToken, getCoupons);
+
+router.get("/get-coupon/:id",validateAdminToken,getCoupon);
 
 // -----------------doenload CSV -----------------------------
 

@@ -1428,12 +1428,33 @@ const getAllArtists = async (req, res) => {
 
     if (status === "All") status = "";
 
-    let weeksAgo;
-    if (date === "All") {
-      date = "";
-    } else {
-      weeksAgo = new Date();
-      weeksAgo.setDate(weeksAgo.getDate() - Number(date * 7));
+    let dateFilter = {};
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (date !== "All") {
+      const weeks = Number(date);
+
+      if (weeks === 1) {
+        // Less than 1 Week: Dates between 7 days ago and today
+        const oneWeekAgo = new Date(today);
+        oneWeekAgo.setDate(today.getDate() - 7);
+        dateFilter = { nextRevalidationDate: { $gte: oneWeekAgo, $lt: today } };
+      } else if (weeks === 2) {
+        // Between 1 and 2 Weeks: Dates between 7 and 14 days ago
+        const oneWeekAgo = new Date(today);
+        const twoWeeksAgo = new Date(today);
+        oneWeekAgo.setDate(today.getDate() - 7);
+        twoWeeksAgo.setDate(today.getDate() - 14);
+        dateFilter = {
+          nextRevalidationDate: { $gte: twoWeeksAgo, $lt: oneWeekAgo },
+        };
+      } else if (weeks === 3) {
+        // More than 2 Weeks: Dates older than 14 days
+        const twoWeeksAgo = new Date(today);
+        twoWeeksAgo.setDate(today.getDate() - 14);
+        dateFilter = { nextRevalidationDate: { $lt: twoWeeksAgo } };
+      }
     }
 
     const artists = await Artist.aggregate([
@@ -1441,7 +1462,7 @@ const getAllArtists = async (req, res) => {
         $match: {
           isDeleted: false,
           role: "artist",
-          ...(weeksAgo ? { nextRevalidationDate: { $lte: weeksAgo } } : {}),
+          ...dateFilter,
           ...(status ? { profileStatus: status } : {}),
           $or: [
             { artistId: { $regex: s, $options: "i" } },

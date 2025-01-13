@@ -499,6 +499,8 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
         items: {
           quantity: "$items.quantity",
           type: "$items.type",
+          rating: "$items.rating",
+          review: "$items.review",
           evidenceImg: "$items.evidenceImg",
           isCancelled: "$items.isCancelled",
           cancelReason: "$items.cancelReason",
@@ -722,6 +724,38 @@ const cancelParticularItemFromOrder = catchAsyncError(
   }
 );
 
+const giveReview = catchAsyncError(async (req, res, next) => {
+  const { id, artworkId } = req.params;
+  if (!id || !artworkId)
+    return res.status(404).send({ message: "OrderId not found" });
+
+  console.log(id, artworkId);
+
+  const { rating, review } = req.body;
+  if (!rating || !review)
+    return res
+      .status(400)
+      .send({ message: "Please provide rating and review" });
+
+  console.log(rating, review);
+
+  const updateResult = await Order.updateOne(
+    { _id: id, "items.artWork": objectId(artworkId) },
+    {
+      $set: {
+        "items.$.rating": rating,
+        "items.$.review": review,
+      },
+    }
+  );
+
+  if (updateResult.modifiedCount === 0) {
+    return res.status(404).send({ message: "Artwork not found in the order" });
+  }
+
+  return res.status(200).send({ message: "Review given successfully" });
+});
+
 module.exports = {
   createOrder,
   getAllOrders,
@@ -733,4 +767,5 @@ module.exports = {
   cancelParticularItemFromOrder,
   getAdminOrderDetails,
   getUserSingleOrder,
+  giveReview,
 };

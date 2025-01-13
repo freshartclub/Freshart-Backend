@@ -117,7 +117,6 @@ const getAllCollections = catchAsyncError(async (req, res, next) => {
   const collection = await Collection.aggregate([
     {
       $match: {
-        isDeleted: false,
         $or: [
           { collectionName: { $regex: s, $options: "i" } },
           { "expertDetails.createdBy": { $regex: s, $options: "i" } },
@@ -132,6 +131,7 @@ const getAllCollections = catchAsyncError(async (req, res, next) => {
         createdBy: "$expertDetails.createdBy",
         collectionFile: 1,
         status: 1,
+        isDeleted: 1,
         collectionTags: 1,
         createdAt: 1,
       },
@@ -239,10 +239,74 @@ const deleteArtworkFromCollection = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ message: "Artwork removed from collection" });
 });
 
+const deleteCollection = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).send({ message: "Please provide collection id" });
+  }
+
+  const collection = await Collection.findOne(
+    { _id: id },
+    { isDeleted: 1 }
+  ).lean(true);
+
+  if (!collection) {
+    return res.status(400).send({ message: "Collection not found" });
+  }
+
+  if (collection.isDeleted) {
+    return res.status(400).send({ message: "Collection already deleted" });
+  }
+
+  await Collection.updateOne({ _id: id }, { isDeleted: true });
+
+  res.status(200).send({ message: "Collection deleted successfully" });
+});
+
+const restoreCollection = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).send({ message: "Please provide collection id" });
+  }
+
+  const collection = await Collection.findOne(
+    { _id: id },
+    { isDeleted: 1 }
+  ).lean(true);
+
+  if (!collection) {
+    return res.status(400).send({ message: "Collection not found" });
+  }
+
+  if (!collection.isDeleted) {
+    return res.status(400).send({ message: "Collection is already active" });
+  }
+
+  await Collection.updateOne({ _id: id }, { isDeleted: false });
+
+  res.status(200).send({ message: "Collection restored successfully" });
+});
+
 module.exports = {
   addCollection,
   getAllCollections,
   getCollectionById,
   searchCollection,
   deleteArtworkFromCollection,
+  deleteCollection,
+  restoreCollection,
 };

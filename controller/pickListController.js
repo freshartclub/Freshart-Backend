@@ -81,7 +81,11 @@ const updatePicklistName = catchAsyncError(async (req, res, next) => {
 });
 
 const getPickList = catchAsyncError(async (req, res, next) => {
-  const picklist = await PickList.find().lean(true);
+  const picklist = await PickList.find()
+    .sort({
+      picklistName: 1,
+    })
+    .lean(true);
   res.status(200).send({ data: picklist });
 });
 

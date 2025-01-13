@@ -12,6 +12,7 @@ const {
   getAllUserOrders,
   getArtistOrders,
   getAllOrders,
+  giveReview,
 } = require("../controller/orderController");
 
 const router = express.Router();
@@ -47,5 +48,7 @@ router.get(
 );
 
 router.get("/get-user-single-order/:id", validateToken, getUserSingleOrder);
+
+router.patch("/give-review/:id/:artworkId", validateToken, giveReview);
 
 module.exports = router;

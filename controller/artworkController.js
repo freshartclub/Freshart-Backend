@@ -32,10 +32,13 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   const isArtwork = artwork ? true : false;
 
-  if (isArtwork && artwork.status === "modified") {
-    return res.status(400).send({
-      message: `Artwork already modified. First approve the changes.`,
-    });
+  if (isArtwork) {
+    if (artwork.status === "rejected" || artwork.status === "draft") {
+      return res.status(400).send({
+        message:
+          "You can't modify this artwork. This Artwork is rejected or in draft.",
+      });
+    }
   }
 
   const fileData = await fileUploadFunc(req, res);
@@ -209,7 +212,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   obj["inventoryShipping"] = {
     pCode: req.body.pCode,
     location: req.body.location,
-    comingSoon: Boolean(req.body.comingSoon),
+    comingSoon: req.body.comingSoon === "true" ? true : false,
     packageMaterial: req.body.packageMaterial,
     packageWeight: req.body.packageWeight,
     packageLength: req.body.packageLength,
@@ -287,6 +290,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       data: { _id: artworkId },
     });
   } else {
+    obj["status"] = "published";
     const artwork = await ArtWork.create(obj);
 
     const catalogId = req.body.subscriptionCatalog
@@ -1082,6 +1086,7 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
         artworkTechnic: "$additionalInfo.artworkTechnic",
         upworkOffer: "$commercialization.upworkOffer",
         activeTab: "$commercialization.activeTab",
+        comingSoon: "$inventoryShipping.comingSoon",
         createdAt: 1,
       },
     },
