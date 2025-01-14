@@ -828,6 +828,7 @@ const getArtistDetails = async (req, res) => {
           profile: 1,
           highlights: 1,
           publishingCatalog: 1,
+          likedArtworks: 1,
           address: 1,
           insignia: {
             credentialName: 1,
@@ -881,7 +882,7 @@ const getArtistDetails = async (req, res) => {
           role: 1,
           userId: 1,
           artistId: 1,
-          wishlist: 1,
+          likes: 1,
           otherTags: 1,
         },
       },
@@ -1584,32 +1585,32 @@ const removeFromCart = async (req, res) => {
   }
 };
 
-const addRemoveToWishlist = async (req, res) => {
+const likeOrUnlikeArtwork = async (req, res) => {
   try {
     const { id } = req.params;
+    const { action } = req.body;
 
-    const artist = await Artist.findOne(
-      { _id: req.user._id },
-      { wishlist: 1 }
-    ).lean(true);
-
-    if (!artist) {
-      return res.status(400).send({ message: "Artist not found" });
+    if (!["like", "unlike"].includes(action)) {
+      return res.status(400).send({ message: "Invalid action" });
     }
 
-    if (artist.wishlist) {
-      const isExist = artist.wishlist.find((item) => item.toString() == id);
-      if (isExist) {
-        Artist.updateOne(
-          { _id: req.user._id },
-          { $pull: { wishlist: id } }
-        ).then();
-        return res.status(200).send({ message: "Unliked" });
-      }
-    }
+    const updateArtist =
+      action === "like"
+        ? { $addToSet: { likedArtworks: id } }
+        : { $pull: { likedArtworks: id } };
 
-    Artist.updateOne({ _id: req.user._id }, { $push: { wishlist: id } }).then();
-    return res.status(200).send({ message: "Artwork Liked" });
+    const updateLikes = action === "like" ? 1 : -1;
+
+    await Promise.all([
+      Artist.updateOne({ _id: req.user._id }, updateArtist),
+      Artwork.updateOne({ _id: id }, { $inc: { numLikes: updateLikes } }),
+    ]);
+
+    return res.status(200).send({
+      message: `Artwork ${
+        action === "like" ? "liked" : "unliked"
+      } successfully`,
+    });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1638,26 +1639,47 @@ const getCartItems = async (req, res) => {
   }
 };
 
-const getWishlistItems = async (req, res) => {
+const getLikedItems = async (req, res) => {
   try {
-    const artist = await Artist.countDocuments({ _id: req.user._id }).lean(
-      true
-    );
-    if (!artist) {
-      return res.status(400).send({ message: "Artist not found" });
-    }
+    const likedItems = await Artist.aggregate([
+      { $match: { _id: req.user._id } },
+      {
+        $lookup: {
+          from: "artworks",
+          localField: "likedArtworks",
+          foreignField: "_id",
+          as: "liked",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          likedArtworks: {
+            $map: {
+              input: "$liked",
+              as: "item",
+              in: {
+                _id: "$$item._id",
+                artworkName: "$$item.artworkName",
+                media: "$$item.media.mainImage",
+                size: {
+                  width: "$$item.additionalInfo.width",
+                  height: "$$item.additionalInfo.height",
+                  length: "$$item.additionalInfo.length",
+                },
+                pricing: "$$item.pricing.basePrice",
+                discipline: "$$item.discipline.artworkDiscipline",
+              },
+            },
+          },
+        },
+      },
+    ]);
 
-    const wishlistItems = await Artist.findOne(
-      { _id: req.user._id },
-      { wishlist: 1 }
-    )
-      .populate("wishlist", "artworkName pricing media")
-      .lean(true);
-
-    return res.status(200).send({
-      data: wishlistItems,
-      url: "https://dev.freshartclub.com/images",
-    });
+    return res.status(200).send({ data: likedItems[0] });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1916,9 +1938,9 @@ module.exports = {
   replyTicketUser,
   addToCart,
   removeFromCart,
-  addRemoveToWishlist,
+  likeOrUnlikeArtwork,
   getCartItems,
-  getWishlistItems,
+  getLikedItems,
   getBillingAddresses,
   addBillingAddress,
   removeBillingAddress,

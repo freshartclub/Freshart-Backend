@@ -73,6 +73,12 @@ const artistSchema = new mongoose.Schema(
     currency: {
       type: String,
     },
+    likedArtworks: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ArtWork",
+      },
+    ],
     isManagerDetails: {
       type: Boolean,
       default: false,

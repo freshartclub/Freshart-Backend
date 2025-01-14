@@ -35,6 +35,8 @@ const {
   deleteArtistSeries,
   artistReValidate,
   editUserProfile,
+  likeOrUnlikeArtwork,
+  getLikedItems,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -152,9 +154,7 @@ router.patch("/add-to-cart/:id", validateToken, addToCart);
 
 router.patch("/remove-from-cart/:id", validateToken, removeFromCart);
 
-router.patch("/item-to-wishlist/:id", validateToken, addRemoveToWishlist);
-
-router.get("/get-wishlist", validateToken, getWishlistItems);
+router.get("/get-liked-items", validateToken, getLikedItems);
 
 router.get("/get-cart", validateToken, getCartItems);
 
@@ -167,5 +167,7 @@ router.get(
   validateToken,
   getArtworkGroupBySeries
 );
+
+router.patch("/like-unlike-artwork/:id", validateToken, likeOrUnlikeArtwork);
 
 module.exports = router;
