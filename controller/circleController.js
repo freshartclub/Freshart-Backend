@@ -36,8 +36,9 @@ const addCircle = catchAsyncError(async (req, res) => {
           coverImage: fileData.data?.backImage
             ? fileData.data?.backImage[0]?.filename
             : circle.coverImage,
-          managers: req.body.managers,
-          categories: req.body.categories,
+          managers: JSON.parse(req.body.managers),
+          categories: JSON.parse(req.body.categories),
+          status: req.body.status,
         },
       }
     );
@@ -52,6 +53,7 @@ const addCircle = catchAsyncError(async (req, res) => {
       coverImage: fileData.data?.backImage[0]?.filename,
       managers: JSON.parse(req.body.managers),
       categories: JSON.parse(req.body.categories),
+      status: req.body.status,
     });
 
     return res.status(200).send({ message: "Circle added successfully" });
@@ -69,9 +71,114 @@ const getCircle = catchAsyncError(async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send({ message: `Circle id not found` });
 
-  const circle = await Circle.findOne({ _id: id }).lean(true);
+  const circle = await Circle.aggregate([
+    {
+      $match: {
+        _id: objectId(id),
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "managers",
+        foreignField: "_id",
+        as: "managers",
+      },
+    },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        content: 1,
+        mainImage: 1,
+        coverImage: 1,
+        categories: 1,
+        status: 1,
+        managers: {
+          $map: {
+            input: "$managers",
+            as: "manager",
+            in: {
+              _id: "$$manager._id",
+              artistName: "$$manager.artistName",
+              artistSurname1: "$$manager.artistSurname1",
+              artistSurname2: "$$manager.artistSurname2",
+              artistId: "$$manager.artistId",
+              img: "$$manager.profile.mainImage",
+            },
+          },
+        },
+      },
+    },
+  ]);
+
+  return res.status(200).send({ data: circle[0] });
+});
+
+const getCircleList = catchAsyncError(async (req, res) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  let { s } = req.query;
+
+  if (s == "undefined") {
+    s = "";
+  } else if (typeof s === "undefined") {
+    s = "";
+  }
+
+  const circle = await Circle.aggregate([
+    {
+      $match: {
+        $or: [
+          { title: { $regex: s, $options: "i" } },
+          { description: { $regex: s, $options: "i" } },
+        ],
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "managers",
+        foreignField: "_id",
+        as: "managers",
+      },
+    },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        content: 1,
+        mainImage: 1,
+        coverImage: 1,
+        categories: 1,
+        createdAt: 1,
+        status: 1,
+        managers: {
+          $map: {
+            input: "$managers",
+            as: "manager",
+            in: {
+              _id: "$$manager._id",
+              artistName: "$$manager.artistName",
+              artistSurname1: "$$manager.artistSurname1",
+              artistSurname2: "$$manager.artistSurname2",
+              artistId: "$$manager.artistId",
+              img: "$$manager.profile.mainImage",
+            },
+          },
+        },
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
+    },
+  ]);
 
   return res.status(200).send({ data: circle });
 });
-
-module.exports = { addCircle, getCircle };
+module.exports = { addCircle, getCircle, getCircleList };
