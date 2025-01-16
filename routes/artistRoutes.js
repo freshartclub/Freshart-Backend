@@ -20,8 +20,6 @@ const {
   replyTicketUser,
   getArtistDetailById,
   addToCart,
-  addRemoveToWishlist,
-  getWishlistItems,
   getCartItems,
   ticketFeedback,
   removeFromCart,
@@ -37,6 +35,9 @@ const {
   editUserProfile,
   likeOrUnlikeArtwork,
   getLikedItems,
+  getNotificationsOfUser,
+  markReadNotification,
+  deleteNotification,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -169,5 +170,11 @@ router.get(
 );
 
 router.patch("/like-unlike-artwork/:id", validateToken, likeOrUnlikeArtwork);
+
+router.get("/get-notifications", validateToken, getNotificationsOfUser);
+
+router.patch("/read-notification/:id?", validateToken, markReadNotification);
+
+router.patch("/delete-notification/:id?", validateToken, deleteNotification);
 
 module.exports = router;

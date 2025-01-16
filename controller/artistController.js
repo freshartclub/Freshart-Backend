@@ -15,6 +15,7 @@ const md5 = require("md5");
 const objectId = require("mongoose").Types.ObjectId;
 const axios = require("axios");
 const EmailType = require("../models/emailTypeModel");
+const Notification = require("../models/notificationModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -263,14 +264,25 @@ const verifyEmailOTP = async (req, res) => {
         { expiresIn: "30d" }
       );
 
-      await Artist.updateOne(
-        { _id: user._id, isDeleted: false },
-        {
-          $unset: { OTP: "" },
-          $push: { tokens: token },
-          $set: { isEmailVerified: true },
-        }
-      );
+      await Promise.all([
+        Artist.updateOne(
+          { _id: user._id, isDeleted: false },
+          {
+            $unset: { OTP: "" },
+            $push: { tokens: token },
+            $set: { isEmailVerified: true },
+          }
+        ),
+        Notification.create({
+          user: user._id,
+          notifications: [
+            {
+              subject: `Welcome to FreshArt Club!`,
+              message: `Hello ${user.artistName}, your account has been successfully created. We're excited to have you on board! If you have any questions, feel free to reach out to our support team.`,
+            },
+          ],
+        }),
+      ]);
 
       return res
         .status(200)
@@ -730,6 +742,17 @@ const becomeArtist = async (req, res) => {
 
     if (id) {
       Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
+      await Notification.updateOne(
+        { user: id },
+        {
+          $push: {
+            notifications: {
+              subject: "Become Artist Request Form Submitted",
+              message: `Hello ${req.body.artistName}, Your Become Artist request has been submitted successfully.`,
+            },
+          },
+        }
+      );
     } else {
       Artist.updateOne(
         { email: req.body.email.toLowerCase(), isDeleted: false },
@@ -1005,7 +1028,7 @@ const completeProfile = async (req, res) => {
 
     return res
       .status(200)
-      .send({ message: "Profile updated successfully", data: artist });
+      .send({ message: "Profile completed successfully", data: artist });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1326,7 +1349,9 @@ const ticketDetail = async (req, res) => {
     const { id } = req.params;
 
     const [ticketData, replyData] = await Promise.all([
-      Ticket.findOne({ _id: id }).lean(true),
+      Ticket.findOneAndUpdate({ _id: id }, { $set: { isRead: false } }).lean(
+        true
+      ),
       TicketReply.aggregate([
         { $match: { ticket: objectId(id) } },
         {
@@ -1346,6 +1371,10 @@ const ticketDetail = async (req, res) => {
         { $sort: { createdAt: -1 } },
       ]),
     ]);
+
+    if (!ticketData) {
+      return res.status(400).send({ message: "Ticket not found" });
+    }
 
     return res.status(200).send({
       data: ticketData,
@@ -1373,6 +1402,7 @@ const getUserTickets = async (req, res) => {
           subject: 1,
           message: 1,
           urgency: 1,
+          isRead: 1,
           impact: 1,
           status: 1,
           ticketFeedback: 1,
@@ -1425,7 +1455,6 @@ const replyTicketUser = async (req, res) => {
       data: reply,
     });
   } catch (error) {
-    APIErrorLog.error("Error while replying the ticket");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -1445,6 +1474,7 @@ const ticketFeedback = async (req, res) => {
       { _id: id },
       {
         $set: {
+          status: isLiked == true ? "Closed" : "In Progress",
           ticketFeedback: {
             isLiked,
             message,
@@ -1912,6 +1942,69 @@ const artistReValidate = async (req, res) => {
   }
 };
 
+const getNotificationsOfUser = async (req, res) => {
+  try {
+    const notifications = await Notification.findOne({
+      user: req.user._id,
+    }).lean(true);
+
+    return res.status(200).send({ data: notifications });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const markReadNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id) {
+      await Notification.updateOne(
+        { user: req.user._id, "notifications._id": id },
+        { $set: { "notifications.$.isRead": true } }
+      );
+    } else {
+      await Notification.updateOne(
+        { user: req.user._id },
+        { $set: { "notifications.$[].isRead": true } }
+      );
+    }
+
+    return res
+      .status(200)
+      .send({ message: "Notifications marked as read successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id) {
+      await Notification.updateOne(
+        { user: req.user._id },
+        { $pull: { notifications: { _id: id } } }
+      );
+    } else {
+      await Notification.updateOne(
+        { user: req.user._id },
+        { $set: { notifications: [] } }
+      );
+    }
+
+    return res
+      .status(200)
+      .send({ message: "Notifications marked as deleted successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -1947,4 +2040,7 @@ module.exports = {
   setDefaultBillingAddress,
   deleteArtistSeries,
   artistReValidate,
+  getNotificationsOfUser,
+  markReadNotification,
+  deleteNotification,
 };

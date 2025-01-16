@@ -6,6 +6,7 @@ const RecentlyView = require("../models/recentlyView");
 const { fileUploadFunc, generateRandomId } = require("../functions/common");
 const objectId = require("mongoose").Types.ObjectId;
 const Catalog = require("../models/catalogModel");
+const Notification = require("../models/notificationModel");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -301,6 +302,18 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       { _id: catalogId },
       { $push: { artworkList: artwork._id } }
     );
+
+    Notification.updateOne(
+      { user: artist._id },
+      {
+        $push: {
+          notifications: {
+            subject: "New Artwork Added",
+            message: `A New Artwork "${artwork.artworkName}" has been added by Admin for you`,
+          },
+        },
+      }
+    ).then();
 
     res
       .status(200)
@@ -636,6 +649,18 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       { $push: { artworkList: artwork._id } }
     );
 
+    await Notification.updateOne(
+      { user: artist._id },
+      {
+        $push: {
+          notifications: {
+            subject: "New Artwork Added",
+            message: `You have added a new Artwork - ${artwork.artworkName}`,
+          },
+        },
+      }
+    );
+
     return res
       .status(200)
       .send({ message: "Artwork Added Sucessfully", artwork });
@@ -657,7 +682,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 
   let artworkData = await ArtWork.findOne(
     { _id: id, isDeleted: false },
-    { media: 1, status: 1, artworkId: 1, lastModified: 1 }
+    { artworkName: 1, media: 1, status: 1, artworkId: 1, lastModified: 1 }
   ).lean(true);
 
   if (!artworkData) {
@@ -923,6 +948,18 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     { $set: { reviewDetails: obj, status: "modified" } }
   ).then();
 
+  Notification.updateOne(
+    { user: artist._id },
+    {
+      $push: {
+        notifications: {
+          subject: "Artwork Modification Requested",
+          message: `You have submitted an artwork modification request for ${artworkData.artworkName}`,
+        },
+      },
+    }
+  ).then();
+
   return res.status(200).send({ message: "Artwork Modified Successfully" });
 });
 
@@ -937,6 +974,18 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
 
   if (artwork.status === "draft") {
     ArtWork.updateOne({ _id: id }, { status: "pending" }).then();
+    Notification.updateOne(
+      { user: req.user._id },
+      {
+        $push: {
+          notifications: {
+            subject: "Artwork Published",
+            message: `Your Artwork "${artwork.artworkName}" has been moved to pending by FreshArt Club.`,
+          },
+        },
+      }
+    ).then();
+
     return res
       .status(200)
       .send({ message: "Artwork Published Sucessfully", data: artwork._id });
@@ -1106,7 +1155,10 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   if (!id) return res.status(400).send({ message: "Artwork Id is required" });
 
-  const artwork = await ArtWork.findOne({ _id: id }).lean(true);
+  const artwork = await ArtWork.findOne(
+    { _id: id },
+    { status: 1, owner: 1 }
+  ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status === "rejected") {
@@ -1116,6 +1168,17 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   await ArtWork.updateOne({ _id: id }, { $set: { status: "rejected" } });
+  await Notification.updateOne(
+    { user: owner },
+    {
+      $push: {
+        notifications: {
+          subject: "Artwork Rejected",
+          message: `Your Artwork "${artwork.artworkName}" has been rejected by FreshArtClub. Please contact FreshArtClub for further details.`,
+        },
+      },
+    }
+  );
 
   res.status(200).send({ message: "Artwork Removed Sucessfully" });
 });
@@ -1124,7 +1187,10 @@ const moveArtworkToPending = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   if (!id) return res.status(400).send({ message: "Artwork Id is required" });
 
-  const artwork = await ArtWork.findOne({ _id: id }).lean(true);
+  const artwork = await ArtWork.findOne(
+    { _id: id },
+    { status: 1, owner: 1 }
+  ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status !== "rejected") {
@@ -1134,6 +1200,18 @@ const moveArtworkToPending = catchAsyncError(async (req, res, next) => {
   }
 
   await ArtWork.updateOne({ _id: id }, { $set: { status: "pending" } });
+
+  await Notification.updateOne(
+    { user: owner },
+    {
+      $push: {
+        notifications: {
+          subject: "Artwork Pending",
+          message: `Your Artwork "${artwork.artworkName}" has been moved to pending by FreshArtClub.`,
+        },
+      },
+    }
+  );
 
   res.status(200).send({ message: "Artwork Moved to Pending Sucessfully" });
 });
@@ -1532,11 +1610,25 @@ const getRecentlyView = catchAsyncError(async (req, res, next) => {
 const validateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  const artwork = await ArtWork.findOne({ _id: id }, { status: 1 }).lean(true);
+  const artwork = await ArtWork.findOne(
+    { _id: id },
+    { status: 1, owner: 1 }
+  ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status === "pending") {
     ArtWork.updateOne({ _id: id }, { status: "published" }).then();
+    Notification.updateOne(
+      { user: artwork.owner },
+      {
+        $push: {
+          notifications: {
+            subject: "Artwork Status Updated",
+            message: "Your artwork status has been updated to published",
+          },
+        },
+      }
+    );
     return res.status(200).send({ message: "Artwork successfully validated" });
   } else {
     return res

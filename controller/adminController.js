@@ -9,6 +9,7 @@ const Artist = require("../models/artistModel");
 const Ticket = require("../models/ticketModel");
 const PickList = require("../models/pickListModel");
 const Discipline = require("../models/disciplineModel");
+const Notification = require("../models/notificationModel");
 const {
   createLog,
   fileUploadFunc,
@@ -1813,6 +1814,15 @@ const createNewUser = async (req, res) => {
         isArtist && (obj["artistId"] = "AID-" + generateRandomId());
 
         const user = await Artist.create(obj);
+        Notification.create({
+          user: user._id,
+          notifications: [
+            {
+              subject: "Welcome to FreshArt Club",
+              message: `Hey ${user.artistName}! Your account has been created successfully by FreshArt Club`,
+            },
+          ],
+        }).then();
         sendMail("sample-email", mailVaribles, user.email);
 
         return res
@@ -1827,6 +1837,15 @@ const createNewUser = async (req, res) => {
 
         let condition = { $set: obj };
         Artist.updateOne({ _id: id, isDeleted: false }, condition).then();
+        Notification.create({
+          user: id,
+          notifications: [
+            {
+              subject: "Welcome to FreshArt Club",
+              message: `Hey ${obj.artistName}! Your account has been created successfully by FreshArt Club`,
+            },
+          ],
+        }).then();
 
         return res
           .status(200)
@@ -1843,6 +1862,16 @@ const createNewUser = async (req, res) => {
         { _id: id === "null" ? req.body._id : id, isDeleted: false },
         condition
       ).then();
+
+      Notification.create({
+        user: id === "null" ? req.body._id : id,
+        notifications: [
+          {
+            subject: "Welcome to FreshArt Club",
+            message: `Hey ${obj.artistName}! Your account has been created successfully by FreshArt Club`,
+          },
+        ],
+      }).then();
 
       return res.status(200).send({
         message: "User created successfully",
@@ -2527,7 +2556,7 @@ const replyTicket = async (req, res) => {
 
     Ticket.updateOne(
       { _id: id },
-      { $set: { status: status, ticketType: ticketType } }
+      { $set: { status: status, ticketType: ticketType, isRead: true } }
     ).then();
 
     const reply = await TicketReply.create({

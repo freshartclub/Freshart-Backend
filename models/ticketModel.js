@@ -34,6 +34,10 @@ const ticketSchema = new mongoose.Schema(
     ticketImg: {
       type: Object,
     },
+    isRead: {
+      type: Boolean,
+      default: false,
+    },
     ticketFeedback: {
       isLiked: {
         type: Boolean,
