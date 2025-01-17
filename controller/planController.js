@@ -41,7 +41,7 @@ const addPlan = catchAsyncError(async (req, res) => {
     defaultPlan: req.body.defaultPlan,
     status: req.body.status,
   };
-  
+
   if (fileData.data?.planImg) {
     payload["planImg"] = fileData.data.planImg[0].filename;
   }
@@ -117,14 +117,6 @@ const getPlans = catchAsyncError(async (req, res) => {
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const plans = await Plan.aggregate([
-    // {
-    //   $lookup: {
-    //     from: "catalogs",
-    //     localField: "catalogs",
-    //     foreignField: "_id",
-    //     as: "catData",
-    //   },
-    // },
     {
       $project: {
         _id: 1,
@@ -141,23 +133,15 @@ const getPlans = catchAsyncError(async (req, res) => {
         individualShipment: 1,
         logCarrierSubscription: 1,
         logCarrierPurchase: 1,
-        // catalogs: {
-        //   $map: {
-        //     input: "$catData",
-        //     as: "item",
-        //     in: {
-        //       _id: "$$item._id",
-        //       catalogName: "$$item.catalogName",
-        //       catalogImg: "$$item.catalogImg",
-        //     },
-        //   },
-        // },
         purchaseDiscount: 1,
         limitPurchaseDiscount: 1,
         monthsDiscountSubscription: 1,
         planData: 1,
         status: 1,
       },
+    },
+    {
+      $sort: { createdAt: -1 },
     },
   ]);
 

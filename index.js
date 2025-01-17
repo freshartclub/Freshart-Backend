@@ -8,7 +8,24 @@ const fs = require("fs");
 
 connectDb();
 const app = express();
-app.use(cors());
+
+const allowedOrigins = [
+  "https://dev.freshartclub.com",
+  "https://test.freshartclub.com",
+];
+
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  })
+);
 
 const session = require("express-session");
 const port = process.env.PORT || 4000;

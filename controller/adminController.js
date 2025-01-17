@@ -2468,7 +2468,15 @@ const ticketList = async (req, res) => {
       },
       {
         $match: {
-          ...(filterType && filterOption ? { [filterType]: filterOption } : {}),
+          ...(filterType && filterOption
+            ? filterType == "feedback"
+              ? {
+                  "ticketFeedback.isLiked":
+                    filterOption == "true" ? true : false,
+                  ticketFeedback: { $exists: true },
+                }
+              : { [filterType]: filterOption }
+            : {}),
           ...(search
             ? {
                 $or: [
@@ -2497,6 +2505,9 @@ const ticketList = async (req, res) => {
           mainImage: "$artistInfo.profile.mainImage",
           ticketType: 1,
           status: 1,
+          impact: 1,
+          priority: 1,
+          urgency: 1,
           subject: 1,
           message: 1,
           region: 1,
@@ -2515,7 +2526,6 @@ const ticketList = async (req, res) => {
 
     return res.status(200).send({
       data: getData,
-      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -2557,16 +2567,21 @@ const replyTicket = async (req, res) => {
     if (!id) return res.status(400).send({ message: `Ticket id not found` });
 
     const fileData = await fileUploadFunc(req, res);
-    const { ticketType, status, message, userType } = req.body;
+    const { ticketType, status, message, userType, priority } = req.body;
 
-    const ticketData = await Ticket.countDocuments({ _id: id });
-    if (!ticketData) {
-      return res.status(400).send({ message: "Ticket not found" });
-    }
+    const ticket = await Ticket.countDocuments({ _id: id });
+    if (!ticket) return res.status(400).send({ message: "Ticket not found" });
 
     Ticket.updateOne(
       { _id: id },
-      { $set: { status: status, ticketType: ticketType, isRead: true } }
+      {
+        $set: {
+          status: status,
+          ticketType: ticketType,
+          priority: priority,
+          isRead: true,
+        },
+      }
     ).then();
 
     const reply = await TicketReply.create({

@@ -36,8 +36,7 @@ const addCoupon = catchAsyncError(async (req, res) => {
       numOfUses,
     });
 
-    return res.status(200).json({
-      success: true,
+    return res.status(200).send({
       message: "Coupon added successfully",
     });
   }
@@ -49,16 +48,11 @@ const getCoupons = catchAsyncError(async (req, res) => {
     isDeleted: false,
   }).lean(true);
 
-  if (!admin) {
-    return res.status(400).send({ message: `Admin not found` });
-  }
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  const coupons = await Coupon.find({}).sort({ createdAt: -1 }).lean(true);
+  const coupons = await Coupon.find().sort({ createdAt: -1 }).lean(true);
 
-  res.status(200).json({
-    success: true,
-    data: coupons,
-  });
+  return res.status(200).send({ data: coupons });
 });
 
 const getCoupon = catchAsyncError(async (req, res) => {
