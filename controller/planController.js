@@ -18,11 +18,13 @@ const addPlan = catchAsyncError(async (req, res) => {
   const { id } = req.params;
   const fileData = await fileUploadFunc(req, res);
 
+  const parsedCatalogs = JSON.parse(req.body.catalogs);
+
   let payload = {
     planGrp: req.body.planGrp,
     planName: req.body.planName,
     planDesc: req.body.planDesc,
-    catalogs: req.body.catalogs,
+    catalogs: parsedCatalogs,
     standardPrice: req.body.standardPrice,
     standardYearlyPrice: req.body.standardYearlyPrice,
     currentPrice: req.body.currentPrice,
@@ -35,20 +37,21 @@ const addPlan = catchAsyncError(async (req, res) => {
     purchaseDiscount: req.body.purchaseDiscount,
     limitPurchaseDiscount: req.body.limitPurchaseDiscount,
     monthsDiscountSubscription: req.body.monthsDiscountSubscription,
-    planData: req.body.planData,
+    planData: JSON.parse(req.body.planData),
+    defaultPlan: req.body.defaultPlan,
     status: req.body.status,
   };
-
-  if (fileData.data !== undefined) {
+  
+  if (fileData.data?.planImg) {
     payload["planImg"] = fileData.data.planImg[0].filename;
   }
 
   if (!id) {
     const newPlan = await Plan.create(payload);
 
-    if (req.body.catalogs) {
+    if (parsedCatalogs) {
       await Catalog.updateMany(
-        { _id: { $in: req.body.catalogs } },
+        { _id: { $in: parsedCatalogs } },
         { $addToSet: { subPlan: newPlan._id } }
       );
     }
@@ -57,10 +60,18 @@ const addPlan = catchAsyncError(async (req, res) => {
       .status(201)
       .send({ message: "Plan added successfully", data: newPlan });
   } else {
+    const plan = await Plan.findOne({ _id: id }, { planImg: 1 }).lean(true);
+
+    if (fileData.data?.planImg) {
+      payload["planImg"] = fileData.data.planImg[0].filename;
+    } else {
+      payload["planImg"] = plan.planImg;
+    }
+
     await Plan.updateOne({ _id: id }, { $set: payload });
 
-    if (req.body.catalogs) {
-      const catalogsToUpdate = req.body.catalogs;
+    if (parsedCatalogs) {
+      const catalogsToUpdate = parsedCatalogs;
 
       const existingCatalogs = await Catalog.find(
         { subPlan: id },

@@ -12,6 +12,7 @@ const {
   deleteMedia,
   getGeneralKBList,
   getFAQGeneralList,
+  getKBById,
 } = require("../controller/generalController");
 const {
   addDiscipline,
@@ -72,5 +73,7 @@ router.patch("/delete-media/:id", validateAdminToken, deleteMedia);
 router.get("/get-general-kb-list", getGeneralKBList);
 
 router.get("/get-general-faq-list", getFAQGeneralList);
+
+router.get("/get-kb-by-id/:id", getKBById);
 
 module.exports = router;

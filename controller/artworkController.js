@@ -583,6 +583,11 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkDiscipline: req.body.artworkDiscipline,
   };
 
+  obj["promotions"] = {
+    promotion: "No",
+    promotionScore: 0,
+  };
+
   obj["restriction"] = {
     availableTo: req.body.availableTo,
     discountAcceptation: req.body.discountAcceptation,
@@ -925,6 +930,11 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["discipline"] = {
     artworkDiscipline: req.body.artworkDiscipline,
+  };
+
+  obj["promotions"] = {
+    promotion: 'No',
+    promotionScore: 0,
   };
 
   obj["restriction"] = {
@@ -1386,6 +1396,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           restriction: 1,
           tags: 1,
           catalogInfo: 1,
+          reviewDetails: 1,
           createdAt: 1,
         },
       },

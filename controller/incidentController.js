@@ -46,10 +46,18 @@ const getAllIncident = catchAsyncError(async (req, res, next) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
   }
 
+  let { s } = req.query;
+  s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
   const incidents = await Incident.aggregate([
     {
       $match: {
         isDeleted: false,
+        $or: [
+          { incGroup: { $regex: s, $options: "i" } },
+          { incType: { $regex: s, $options: "i" } },
+          { title: { $regex: s, $options: "i" } },
+        ],
       },
     },
     {
@@ -71,9 +79,7 @@ const getAllIncident = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  res
-    .status(200)
-    .send({ message: "Incident Fetched Sucessfully", data: incidents });
+  res.status(200).send({ data: incidents });
 });
 
 const getIncidentById = catchAsyncError(async (req, res, next) => {

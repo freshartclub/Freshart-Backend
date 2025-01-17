@@ -692,6 +692,19 @@ const getFAQGeneralList = async (req, res) => {
   }
 };
 
+const getKBById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if(!id) return res.status(400).send({ message: "Id not found" });
+
+    const kb = await KB.findOne({ _id: id }).lean(true);
+    return res.status(200).send({ data: kb });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   listArtworkStyle,
   listDiscipline,
@@ -706,4 +719,5 @@ module.exports = {
   getAllSeriesList,
   getGeneralKBList,
   getFAQGeneralList,
+  getKBById,
 };

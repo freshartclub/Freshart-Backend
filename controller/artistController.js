@@ -264,25 +264,24 @@ const verifyEmailOTP = async (req, res) => {
         { expiresIn: "30d" }
       );
 
-      await Promise.all([
-        Artist.updateOne(
-          { _id: user._id, isDeleted: false },
+      await Artist.updateOne(
+        { _id: user._id, isDeleted: false },
+        {
+          $unset: { OTP: "" },
+          $push: { tokens: token },
+          $set: { isEmailVerified: true },
+        }
+      );
+
+      await Notification.create({
+        user: user._id,
+        notifications: [
           {
-            $unset: { OTP: "" },
-            $push: { tokens: token },
-            $set: { isEmailVerified: true },
-          }
-        ),
-        Notification.create({
-          user: user._id,
-          notifications: [
-            {
-              subject: `Welcome to FreshArt Club!`,
-              message: `Hello ${user.artistName}, your account has been successfully created. We're excited to have you on board! If you have any questions, feel free to reach out to our support team.`,
-            },
-          ],
-        }),
-      ]);
+            subject: `Welcome to FreshArt Club!`,
+            message: `Hello ${user.artistName}, your account has been successfully created. We're excited to have you on board! If you have any questions, feel free to reach out to our support team.`,
+          },
+        ],
+      });
 
       return res
         .status(200)
@@ -924,6 +923,10 @@ const getArtistDetails = async (req, res) => {
 };
 
 const getArtistDetailById = async (req, res) => {
+  if (req.params.id) {
+    return res.status(400).send({ message: "Artist Id not found" });
+  }
+  
   try {
     const artist = await Artist.findOne(
       {

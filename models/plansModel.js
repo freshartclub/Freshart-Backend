@@ -33,6 +33,9 @@ const planSchema = new mongoose.Schema(
     currentYearlyPrice: {
       type: Number,
     },
+    defaultPlan: {
+      type: Boolean,
+    },
     defaultArtistFees: {
       type: Number,
     },
@@ -63,16 +66,7 @@ const planSchema = new mongoose.Schema(
     planImg: {
       type: String,
     },
-    planData: [
-      {
-        size: {
-          type: String,
-        },
-        minSubTime: {
-          type: String,
-        },
-      },
-    ],
+    planData: [{ type: Object }],
     status: {
       type: String,
     },

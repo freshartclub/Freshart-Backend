@@ -2453,15 +2453,6 @@ const ticketList = async (req, res) => {
 
     const pipeline = [
       {
-        $match: {
-          ...(filterType && filterOption ? { [filterType]: filterOption } : {}),
-          ...(search ? { ticketId: { $regex: search, $options: "i" } } : {}),
-          ...(status ? { status: { $regex: status, $options: "i" } } : {}),
-          ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
-        },
-      },
-
-      {
         $lookup: {
           from: "artists",
           localField: "user",
@@ -2473,6 +2464,25 @@ const ticketList = async (req, res) => {
         $unwind: {
           path: "$artistInfo",
           preserveNullAndEmptyArrays: true,
+        },
+      },
+      {
+        $match: {
+          ...(filterType && filterOption ? { [filterType]: filterOption } : {}),
+          ...(search
+            ? {
+                $or: [
+                  { ticketId: { $regex: search, $options: "i" } },
+                  { subject: { $regex: search, $options: "i" } },
+                  {
+                    "artistInfo.artistName": { $regex: search, $options: "i" },
+                  },
+                  { "artistInfo.email": { $regex: search, $options: "i" } },
+                ],
+              }
+            : {}),
+          ...(status ? { status: { $regex: status, $options: "i" } } : {}),
+          ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
         },
       },
       {
@@ -2637,10 +2647,7 @@ const getTicketReplies = async (req, res) => {
       },
     ]);
 
-    return res.status(201).send({
-      message: "Ticket replies retrieved successfully",
-      data: replies,
-    });
+    return res.status(201).send({ data: replies });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2668,12 +2675,12 @@ const addFAQ = async (req, res) => {
       $set: obj,
     };
 
-    if (id === undefined) {
+    if (!id) {
       await FAQ.create(obj);
-      return res.status(201).send({ message: "FAQ added successfully" });
+      return res.status(200).send({ message: "FAQ added successfully" });
     } else {
-      FAQ.updateOne({ _id: id }, condition).then();
-      return res.status(201).send({ message: "FAQ updated successfully" });
+      await FAQ.updateOne({ _id: id }, condition);
+      return res.status(200).send({ message: "FAQ updated successfully" });
     }
   } catch (error) {
     APIErrorLog.error(error);
@@ -2692,21 +2699,16 @@ const getFAQList = async (req, res) => {
       return res.status(400).send({ message: `Admin not found` });
     }
 
-    let { s, grp } = req.query;
-    if (grp === "All") {
-      grp = "";
-    }
+    let { s } = req.query;
 
     const faqList = await FAQ.aggregate([
       {
         $match: {
           isDeleted: false,
-          faqGrp: { $regex: grp, $options: "i" },
           $or: [
             { faqQues: { $regex: s, $options: "i" } },
-            {
-              tags: { $regex: s, $options: "i" },
-            },
+            { tags: { $regex: s, $options: "i" } },
+            { faqGrp: { $regex: s, $options: "i" } },
           ],
         },
       },
@@ -2725,10 +2727,7 @@ const getFAQList = async (req, res) => {
       },
     ]);
 
-    res.status(201).send({
-      message: "FAQ list retrieved successfully",
-      data: faqList,
-    });
+    res.status(200).send({ data: faqList });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2750,11 +2749,7 @@ const getFAQById = async (req, res) => {
       return res.status(400).send({ message: "FAQ not found" });
     }
 
-    return res.status(201).send({
-      message: "FAQ retrieved successfully",
-      data: faq,
-      // url: "https://dev.freshartclub.com/images",
-    });
+    return res.status(201).send({ data: faq });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2806,21 +2801,15 @@ const getKBList = async (req, res) => {
       return res.status(400).send({ message: `Admin not found` });
     }
 
-    let { s, grp } = req.query;
-    if (grp === "All") {
-      grp = "";
-    }
+    let { s } = req.query;
 
     const kbList = await KB.aggregate([
       {
         $match: {
-          isDeleted: false,
-          kbGrp: { $regex: grp, $options: "i" },
           $or: [
             { kbTitle: { $regex: s, $options: "i" } },
-            {
-              tags: { $regex: s, $options: "i" },
-            },
+            { tags: { $regex: s, $options: "i" } },
+            { kbGrp: { $regex: s, $options: "i" } },
           ],
         },
       },
@@ -2839,10 +2828,7 @@ const getKBList = async (req, res) => {
       },
     ]);
 
-    res.status(201).send({
-      message: "KB list retrieved successfully",
-      data: kbList,
-    });
+    return res.status(200).send({ data: kbList });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2864,7 +2850,7 @@ const getKBById = async (req, res) => {
       return res.status(400).send({ message: "KB not found" });
     }
 
-    return res.status(201).send({
+    return res.status(200).send({
       message: "KB retrieved successfully",
       data: kb,
     });
@@ -2916,9 +2902,7 @@ const getReviewDetailArtist = async (req, res) => {
       reviewDetails: artist.reviewDetails,
     };
 
-    return res
-      .status(200)
-      .send({ data: sendData, url: "https://dev.freshartclub.com/images" });
+    return res.status(200).send({ data: sendData });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -3160,12 +3144,11 @@ const getReviewDetailArtwork = async (req, res) => {
       inventoryShipping: artwork.inventoryShipping,
       discipline: artwork.discipline,
       promotions: artwork.promotions,
+      restriction: artwork.restriction,
       tags: artwork.tags,
     };
 
-    return res
-      .status(200)
-      .send({ data: sendData, url: "https://dev.freshartclub.com/images" });
+    return res.status(200).send({ data: sendData });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -3996,6 +3979,152 @@ const downloadInsigniaDataCSV = async (req, res) => {
   }
 };
 
+const downloadKBDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("KB List");
+
+    worksheet.columns = [
+      { header: "KB Group", key: "kbGrp", width: 20 },
+      { header: "KB Question", key: "kbTitle", width: 30 },
+      { header: "KB Description", key: "kbDesc", width: 40 },
+      { header: "Tags", key: "tags", width: 20 },
+      { header: "Created At", key: "createdAt", width: 20 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s } = req.query;
+    s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
+    const kbList = await KB.aggregate([
+      {
+        $match: {
+          $or: [
+            { kbTitle: { $regex: s, $options: "i" } },
+            { tags: { $regex: s, $options: "i" } },
+            { kbGrp: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          kbGrp: 1,
+          kbTitle: 1,
+          kbDesc: 1,
+          tags: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    kbList.forEach((item) => {
+      worksheet.addRow({
+        kbGrp: item.kbGrp || "N/A",
+        kbTitle: item.kbTitle || "N/A",
+        kbDesc: item.kbDesc || "N/A",
+        tags: item.tags ? item.tags.join(", ") : "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", 'attachment; filename="KB_List.xlsx"');
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const downloadFAQDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("FAQ List");
+
+    worksheet.columns = [
+      { header: "FAQ Group", key: "faqGrp", width: 20 },
+      { header: "FAQ Question", key: "faqQues", width: 30 },
+      { header: "FAQ Answer", key: "faqAns", width: 40 },
+      { header: "Tags", key: "tags", width: 20 },
+      { header: "Created At", key: "createdAt", width: 20 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s } = req.query;
+    s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
+    const faqList = await FAQ.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          $or: [
+            { faqQues: { $regex: s, $options: "i" } },
+            { tags: { $regex: s, $options: "i" } },
+            { faqGrp: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          faqGrp: 1,
+          faqQues: 1,
+          faqAns: 1,
+          tags: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]);
+
+    faqList.forEach((item) => {
+      worksheet.addRow({
+        faqGrp: item.faqGrp || "N/A",
+        faqQues: item.faqQues || "N/A",
+        faqAns: item.faqAns || "N/A",
+        tags: item.tags ? item.tags.join(", ") : "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="FAQ_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -4059,4 +4188,6 @@ module.exports = {
   downloadCategoryDataCSV,
   downloadPicklistDataCSV,
   downloadInsigniaDataCSV,
+  downloadKBDataCSV,
+  downloadFAQDataCSV,
 };

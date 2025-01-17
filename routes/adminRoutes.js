@@ -54,6 +54,8 @@ const {
   downloadCategoryDataCSV,
   downloadPicklistDataCSV,
   downloadInsigniaDataCSV,
+  downloadKBDataCSV,
+  downloadFAQDataCSV,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -95,7 +97,11 @@ const {
   getPlans,
   getPlanById,
 } = require("../controller/planController");
-const { addCoupon, getCoupons, getCoupon } = require("../controller/couponController");
+const {
+  addCoupon,
+  getCoupons,
+  getCoupon,
+} = require("../controller/couponController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -317,7 +323,7 @@ router.post("/add-coupon/:id?", validateAdminToken, addCoupon);
 
 router.get("/get-all-coupon", validateAdminToken, getCoupons);
 
-router.get("/get-coupon/:id",validateAdminToken,getCoupon);
+router.get("/get-coupon/:id", validateAdminToken, getCoupon);
 
 // -----------------doenload CSV -----------------------------
 
@@ -345,16 +351,16 @@ router.get(
   downloadCategoryDataCSV
 );
 
-router.get(
-  "/download-picklist",
-  validateAdminToken,
-  downloadPicklistDataCSV
-);
+router.get("/download-picklist", validateAdminToken, downloadPicklistDataCSV);
 
 router.get(
   "/download-insignia-list",
   validateAdminToken,
   downloadInsigniaDataCSV
 );
+
+router.get("/download-kb-list", validateAdminToken, downloadKBDataCSV);
+
+router.get("/download-faq-list", validateAdminToken, downloadFAQDataCSV);
 
 module.exports = router;

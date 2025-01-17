@@ -9,9 +9,6 @@ const notificationSchema = new mongoose.Schema(
     },
     notifications: [
       {
-        type: {
-          type: String,
-        },
         subject: {
           type: String,
         },
