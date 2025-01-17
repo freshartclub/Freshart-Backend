@@ -32,6 +32,7 @@ const mongoose = require("mongoose");
 const Catalog = require("../models/catalogModel");
 const ArtWork = require("../models/artWorksModel");
 const EmailType = require("../models/emailTypeModel");
+const Coupon = require("../models/couponModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -4140,6 +4141,105 @@ const downloadFAQDataCSV = async (req, res) => {
   }
 };
 
+const downloadCouponDataCSV = async (req, res) => {
+  try {
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Coupon List");
+
+    worksheet.columns = [
+      { header: "Coupon Code", key: "code", width: 20 },
+      { header: "Coupon Name", key: "name", width: 30 },
+      { header: "Note", key: "note", width: 40 },
+      { header: "Valid From", key: "validFrom", width: 20 },
+      { header: "Valid To", key: "validTo", width: 20 },
+      { header: "Restrictions", key: "restriction", width: 30 },
+      { header: "Usage", key: "usage", width: 15 },
+      { header: "Extension (Days)", key: "extension", width: 20 },
+      { header: "Discount (%)", key: "discount", width: 20 },
+      { header: "Discount Amount", key: "disAmount", width: 20 },
+      { header: "Created At", key: "createdAt", width: 20 },
+    ];
+
+    worksheet.getRow(1).eachCell((cell) => {
+      cell.font = { bold: true };
+    });
+
+    let { s } = req.query;
+    s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
+    const coupons = await Coupon.aggregate([
+      {
+        $match: {
+          $or: [
+            { code: { $regex: s, $options: "i" } },
+            { name: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          code: 1,
+          name: 1,
+          validFrom: 1,
+          validTo: 1,
+          restriction: 1,
+          note: 1,
+          usage: 1,
+          subscriptionPlan: 1,
+          catalogs: 1,
+          extension: 1,
+          discount: 1,
+          disAmount: 1,
+          createdAt: 1,
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+    ]);
+
+    coupons.forEach((item) => {
+      worksheet.addRow({
+        code: item.code || "N/A",
+        name: item.name || "N/A",
+        note: item.note || "N/A",
+        validFrom: item.validFrom
+          ? new Date(item.validFrom).toLocaleDateString()
+          : "N/A",
+        validTo: item.validTo
+          ? new Date(item.validTo).toLocaleDateString()
+          : "N/A",
+        restriction: item.restriction ? item.restriction.join(", ") : "N/A",
+        usage: item.usage || "N/A",
+        extension: item.extension || "N/A",
+        discount: item.discount || "N/A",
+        disAmount: item.disAmount || "N/A",
+        createdAt: item.createdAt
+          ? new Date(item.createdAt).toLocaleDateString()
+          : "N/A",
+      });
+    });
+
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader(
+      "Content-Disposition",
+      'attachment; filename="Coupon_List.xlsx"'
+    );
+
+    await workbook.xlsx.write(res);
+    res.end();
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   sendLoginOTP,
   validateOTP,
@@ -4205,4 +4305,5 @@ module.exports = {
   downloadInsigniaDataCSV,
   downloadKBDataCSV,
   downloadFAQDataCSV,
+  downloadCouponDataCSV,
 };

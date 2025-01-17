@@ -18,23 +18,29 @@ const addCoupon = catchAsyncError(async (req, res) => {
 
   const { id } = req.params;
 
-  const { couponCode, discount, expiryDate, description, numOfUses } = req.body;
+  const payload = {
+    code: req.body.code,
+    name: req.body.name,
+    note: req.body.note,
+    validFrom: req.body.validFrom,
+    validTo: req.body.validTo,
+    restriction: req.body.restriction,
+    usage: req.body.usage,
+    subscriptionPlan: req.body.subscriptionPlan,
+    catalogs: req.body.catalogs,
+    extension: req.body.extension,
+    discount: req.body.discount,
+    disAmount: req.body.disAmount,
+  };
 
-  if (id) {
-    await Coupon.updateOne({ _id: id }, { $set: req.body });
+  if (id !== "null") {
+    await Coupon.updateOne({ _id: id }, { $set: payload });
 
-    return res.status(200).json({
-      success: true,
+    return res.status(200).send({
       message: "Coupon editted successfully",
     });
   } else {
-    await Coupon.create({
-      couponCode,
-      discount,
-      expiryDate,
-      description,
-      numOfUses,
-    });
+    await Coupon.create(payload);
 
     return res.status(200).send({
       message: "Coupon added successfully",
@@ -50,7 +56,40 @@ const getCoupons = catchAsyncError(async (req, res) => {
 
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  const coupons = await Coupon.find().sort({ createdAt: -1 }).lean(true);
+  let { s } = req.query;
+  s = s === "undefined" || typeof s === "undefined" ? "" : s;
+
+  const coupons = await Coupon.aggregate([
+    {
+      $match: {
+        $or: [
+          { code: { $regex: s, $options: "i" } },
+          { name: { $regex: s, $options: "i" } },
+        ],
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        code: 1,
+        name: 1,
+        validFrom: 1,
+        validTo: 1,
+        restriction: 1,
+        usage: 1,
+        subscriptionPlan: 1,
+        catalogs: 1,
+        extension: 1,
+        discount: 1,
+        disAmount: 1,
+      },
+    },
+    {
+      $sort: {
+        createdAt: -1,
+      },
+    }
+  ]);
 
   return res.status(200).send({ data: coupons });
 });
@@ -61,17 +100,12 @@ const getCoupon = catchAsyncError(async (req, res) => {
     isDeleted: false,
   }).lean(true);
 
-  if (!admin) {
-    return res.status(400).send({ message: `Admin not found` });
-  }
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const { id } = req.params;
   const coupon = await Coupon.findOne({ _id: id }).lean(true);
 
-  res.status(200).json({
-    success: true,
-    data: coupon,
-  });
+  return res.status(200).send({ data: coupon });
 });
 
 module.exports = { addCoupon, getCoupons, getCoupon };

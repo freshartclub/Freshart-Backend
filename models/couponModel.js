@@ -6,22 +6,36 @@ const couponSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    couponCode: {
+    code: {
       type: String,
+    },
+    name: {
+      type: String,
+    },
+    note: {
+      type: String,
+    },
+    validFrom: {
+      type: Date,
+    },
+    validTo: {
+      type: Date,
+    },
+    restriction: {
+      type: Array,
+    },
+    usage: {
+      type: Number,
+    },
+    subscriptionPlan: [{ type: mongoose.Schema.Types.ObjectId, ref: "Plan" }],
+    catalogs: [{ type: mongoose.Schema.Types.ObjectId, ref: "Catalog" }],
+    extension: {
+      type: Number,
     },
     discount: {
       type: Number,
     },
-    expiryDate: {
-      type: Date,
-    },
-    description: {
-      type: String,
-    },
-    isActive: {
-      type: Boolean,
-    },
-    numOfUses: {
+    disAmount: {
       type: Number,
     },
   },
