@@ -1393,7 +1393,7 @@ const activateArtist = async (req, res) => {
       );
     }
 
-    const url = "https://test.freshartclub.com";
+    const url = "https://freshartclub.com";
     const link = `${url}/reset-password?id=${artist._id}&token=${token}`;
 
     const findEmail = await EmailType.findOne({
