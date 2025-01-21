@@ -6,6 +6,9 @@ const orderSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+    type: {
+      type: String,
+    },
     status: {
       type: String,
     },

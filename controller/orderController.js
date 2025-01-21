@@ -15,54 +15,77 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
   const orderID = Math.random().toString(36).substring(2, 8).toUpperCase();
 
+  const { type } = req.query;
+
   if (req.body.items) {
     items = req.body.items.map((item) => {
       return {
         artWork: objectId(item.id),
-        quantity: item.quantity,
-        type: item.type,
+        quantity: 1,
       };
     });
   }
 
   let subTotal = 0;
   let totalDiscount = 0;
+  let total = 0;
 
-  for (const item of items) {
-    const artWork = await ArtWork.findOne(
-      { _id: item.artWork },
-      { pricing: 1 }
-    ).lean(true);
+  let order;
+  if (type === "purchase") {
+    for (const item of items) {
+      const artWork = await ArtWork.findOne(
+        { _id: item.artWork },
+        { pricing: 1 }
+      ).lean(true);
 
-    if (!artWork) {
-      return res.status(400).send({ message: "Artwork not found" });
+      if (!artWork) {
+        return res.status(400).send({ message: "Artwork not found" });
+      }
+
+      const itemTotal = Number(artWork.pricing.basePrice) * item.quantity;
+      const itemDiscount = (artWork.pricing.dpersentage / 100) * itemTotal;
+      subTotal += itemTotal;
+      totalDiscount += itemDiscount;
     }
 
-    const itemTotal = Number(artWork.pricing.basePrice) * item.quantity;
-    const itemDiscount = (artWork.pricing.dpersentage / 100) * itemTotal;
-    subTotal += itemTotal;
-    totalDiscount += itemDiscount;
+    total = subTotal - totalDiscount + req.body.shipping;
+    const taxAmount = (total * Number(req.body.tax)) / 100;
+    total = total + taxAmount;
+
+    order = await Order.create({
+      orderID: orderID,
+      type: "purchase",
+      user: user._id,
+      status: "pending",
+      tax: req.body.tax,
+      taxAmount: taxAmount,
+      billingAddress: req.body.billingAddress,
+      shippingAddress: req.body.shippingAddress,
+      shipping: req.body.shipping,
+      discount: totalDiscount,
+      subTotal: subTotal,
+      total: total,
+      items: items,
+      note: req.body.note,
+    });
+  } else {
+    order = await Order.create({
+      orderID: orderID,
+      type: "subscription",
+      user: user._id,
+      status: "pending",
+      tax: 0,
+      taxAmount: 0,
+      billingAddress: req.body.billingAddress,
+      shippingAddress: req.body.shippingAddress,
+      shipping: 0,
+      discount: 0,
+      subTotal: 0,
+      total: 0,
+      items: items,
+      note: req.body.note,
+    });
   }
-
-  let total = subTotal - totalDiscount + req.body.shipping;
-  const taxAmount = (total * Number(req.body.tax)) / 100;
-  total = total + taxAmount;
-
-  const order = await Order.create({
-    orderID: orderID,
-    user: user._id,
-    status: "pending",
-    tax: req.body.tax,
-    taxAmount: taxAmount,
-    billingAddress: req.body.billingAddress,
-    shippingAddress: req.body.shippingAddress,
-    shipping: req.body.shipping,
-    discount: totalDiscount,
-    subTotal: subTotal,
-    total: total,
-    items: items,
-    note: req.body.note,
-  });
 
   const itemIds = items.map((item) => objectId(item.artWork));
   await Artist.updateOne(
@@ -116,6 +139,7 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
       $group: {
         _id: "$_id",
         orderID: { $first: "$orderID" },
+        type: { $first: "$type" },
         status: { $first: "$status" },
         tax: { $first: "$tax" },
         shipping: { $first: "$shipping" },
@@ -128,7 +152,6 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
         items: {
           $push: {
             quantity: "$items.quantity",
-            type: "$items.type",
             artWork: {
               _id: { $arrayElemAt: ["$artWorkData._id", 0] },
               artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
@@ -147,6 +170,7 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
       $project: {
         _id: 1,
         orderID: 1,
+        type: 1,
         status: 1,
         tax: 1,
         shipping: 1,
@@ -192,7 +216,6 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
                 as: "item",
                 in: {
                   quantity: "$$item.quantity",
-                  type: "$$item.type",
                   artWork: {
                     $arrayElemAt: [
                       {
@@ -217,6 +240,7 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
       $project: {
         _id: 1,
         user: 1,
+        type: 1,
         status: 1,
         orderID: 1,
         discount: 1,
@@ -227,7 +251,6 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
         updatedAt: 1,
         "items.quantity": 1,
         "item.artWorkId": 1,
-        "items.type": 1,
         "items.artWork._id": 1,
         "items.artWork.artworkName": 1,
         "items.artWork.media.mainImage": 1,
@@ -245,6 +268,7 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
       order.items.map((item) => ({
         _id: order._id,
         user: order.user,
+        type: order.type,
         status: order.status,
         orderID: order.orderID,
         discount: order.discount,
@@ -314,6 +338,7 @@ const getArtistOrders = catchAsyncError(async (req, res, next) => {
       $project: {
         _id: 1,
         status: 1,
+        type: 1,
         tax: 1,
         taxAmount: 1,
         shipping: 1,
@@ -337,9 +362,7 @@ const getArtistOrders = catchAsyncError(async (req, res, next) => {
     { $sort: { createdAt: -1 } },
   ]);
 
-  return res.status(200).send({
-    data: orders,
-  });
+  return res.status(200).send({ data: orders });
 });
 
 const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
@@ -406,6 +429,7 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
       $group: {
         _id: "$_id",
         orderID: { $first: "$orderID" },
+        type: { $first: "$type" },
         status: { $first: "$status" },
         tax: { $first: "$tax" },
         shipping: { $first: "$shipping" },
@@ -418,7 +442,6 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
         items: {
           $push: {
             quantity: "$items.quantity",
-            type: "$items.type",
             evidenceImg: "$items.evidenceImg",
             isCancelled: "$items.isCancelled",
             cancelReason: "$items.cancelReason",
@@ -488,6 +511,7 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
         orderID: 1,
         status: 1,
         tax: 1,
+        type: 1,
         shipping: 1,
         discount: 1,
         subTotal: 1,
@@ -498,7 +522,6 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
         note: 1,
         items: {
           quantity: "$items.quantity",
-          type: "$items.type",
           rating: "$items.rating",
           review: "$items.review",
           evidenceImg: "$items.evidenceImg",
@@ -588,6 +611,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         _id: "$_id",
         orderID: { $first: "$orderID" },
         status: { $first: "$status" },
+        type: { $first: "$type" },
         tax: { $first: "$tax" },
         shipping: { $first: "$shipping" },
         discount: { $first: "$discount" },
@@ -601,7 +625,6 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         items: {
           $push: {
             quantity: "$items.quantity",
-            type: "$items.type",
             evidenceImg: "$items.evidenceImg",
             isCancelled: "$items.isCancelled",
             cancelReason: "$items.cancelReason",
@@ -625,6 +648,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         _id: 1,
         orderID: 1,
         status: 1,
+        type: 1,
         tax: 1,
         shipping: 1,
         discount: 1,
@@ -729,15 +753,11 @@ const giveReview = catchAsyncError(async (req, res, next) => {
   if (!id || !artworkId)
     return res.status(404).send({ message: "OrderId not found" });
 
-  console.log(id, artworkId);
-
   const { rating, review } = req.body;
   if (!rating || !review)
     return res
       .status(400)
       .send({ message: "Please provide rating and review" });
-
-  console.log(rating, review);
 
   const updateResult = await Order.updateOne(
     { _id: id, "items.artWork": objectId(artworkId) },

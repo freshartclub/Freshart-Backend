@@ -103,6 +103,12 @@ const {
   getCoupons,
   getCoupon,
 } = require("../controller/couponController");
+const {
+  addHomeArtwork,
+  getHomeArtworkById,
+  getAdminHomeArtworks,
+  deleteHomeArtworkItem,
+} = require("../controller/homeArtworkController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -325,6 +331,24 @@ router.post("/add-coupon/:id?", validateAdminToken, addCoupon);
 router.get("/get-all-coupons", validateAdminToken, getCoupons);
 
 router.get("/get-coupon-by-id/:id", validateAdminToken, getCoupon);
+
+// ------------------Home Artworks -------------------------
+
+router.post("/add-home-artwork/:id?", validateAdminToken, addHomeArtwork);
+
+router.get(
+  "/get-admin-home-artworks",
+  validateAdminToken,
+  getAdminHomeArtworks
+);
+
+router.get("/get-home-artwork/:id", validateAdminToken, getHomeArtworkById);
+
+router.patch(
+  "/delete-item/:id/:itemId",
+  validateAdminToken,
+  deleteHomeArtworkItem
+);
 
 // -----------------doenload CSV -----------------------------
 

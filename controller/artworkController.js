@@ -7,6 +7,7 @@ const { fileUploadFunc, generateRandomId } = require("../functions/common");
 const objectId = require("mongoose").Types.ObjectId;
 const Catalog = require("../models/catalogModel");
 const Notification = require("../models/notificationModel");
+const HomeArtwork = require("../models/homeArtworkModel");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -708,6 +709,8 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 
   const fileData = await fileUploadFunc(req, res);
 
+  console.log(req.body);
+
   let images = [];
   let videos = [];
 
@@ -933,7 +936,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   };
 
   obj["promotions"] = {
-    promotion: 'No',
+    promotion: "No",
     promotionScore: 0,
   };
 
@@ -1043,9 +1046,7 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  res
-    .status(200)
-    .send({ data: artists, url: "https://dev.freshartclub.com/images" });
+  return res.status(200).send({ data: artists });
 });
 
 const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
@@ -1056,20 +1057,14 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
 
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  let { s, status, days } = req.query;
-  if (status == "All") {
-    status = "";
-  }
+  let { s, status, days, limit, cursor, direction, currPage } = req.query;
 
-  if (s == "undefined") {
-    s = "";
-  } else if (typeof s === "undefined") {
-    s = "";
-  }
+  if (status == "All") status = "";
+  if (s == "undefined" || typeof s === "undefined") s = "";
+  if (days === "All") days = "";
 
-  if (days === "All") {
-    days = "";
-  }
+  limit = parseInt(limit) || 10;
+  cursor = cursor || null;
 
   let filter = {};
   if (days) {
@@ -1093,14 +1088,24 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  const artworkList = await ArtWork.aggregate([
-    {
-      $match: {
-        isDeleted: false,
-        status: { $regex: status, $options: "i" },
-        ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
-      },
-    },
+  const matchStage = {
+    isDeleted: false,
+    status: { $regex: status, $options: "i" },
+    ...(filter.createdAt ? { createdAt: filter.createdAt } : {}),
+  };
+
+  const totalCount = await ArtWork.countDocuments(matchStage);
+
+  if (cursor) {
+    if (direction === "next") {
+      matchStage._id = { $lt: objectId(cursor) };
+    } else if (direction === "prev") {
+      matchStage._id = { $gt: objectId(cursor) };
+    }
+  }
+
+  let artworkList = await ArtWork.aggregate([
+    { $match: matchStage },
     {
       $lookup: {
         from: "artists",
@@ -1149,16 +1154,40 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
         createdAt: 1,
       },
     },
-    {
-      $sort: {
-        createdAt: -1,
-      },
-    },
+    { $sort: { _id: direction === "prev" ? 1 : -1 } },
+    { $limit: limit + 1 },
   ]);
 
-  res
-    .status(200)
-    .send({ data: artworkList, url: "https://dev.freshartclub.com/images" });
+  if (direction === "prev" && currPage != 1) {
+    artworkList.reverse().shift();
+  } else if (direction === "prev") {
+    artworkList.reverse();
+  }
+
+  const hasNextPage =
+    currPage === 1 || artworkList.length < limit ? false : true;
+
+  if (hasNextPage && direction) {
+    if (direction === "next") artworkList.pop();
+  } else if (hasNextPage) {
+    artworkList.pop();
+  }
+
+  const hasPrevPage = currPage == 1 ? false : true;
+  const nextCursor = hasNextPage
+    ? artworkList[artworkList.length - 1]._id
+    : null;
+
+  const prevCursor = hasPrevPage ? artworkList[0]._id : null;
+
+  res.status(200).send({
+    data: artworkList,
+    nextCursor,
+    prevCursor,
+    hasNextPage,
+    hasPrevPage,
+    totalCount,
+  });
 });
 
 const removeArtwork = catchAsyncError(async (req, res, next) => {
@@ -1503,37 +1532,75 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
 });
 
 const getHomeArtwork = catchAsyncError(async (req, res, next) => {
-  const [newAdded, highlighted, artists] = await Promise.all([
+  const [newAdded, homeArt, artists, commingSoon] = await Promise.all([
     ArtWork.find(
       {
         status: "published",
+        "inventoryShipping.comingSoon": false,
         isDeleted: false,
-        updatedAt: { $gt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+        // createdAt: { $gt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
       },
       {
-        media: 1,
+        media: "$media.mainImage",
         artworkName: 1,
         additionalInfo: 1,
+        provideArtistName: 1,
+        price: {
+          $cond: {
+            if: { $eq: ["$commercialization.activeTab", "purchase"] },
+            then: "$commercialization.basePrice",
+            else: "",
+          },
+        },
         discipline: 1,
+        "inventoryShipping.comingSoon": 1,
       }
     )
-      .populate("owner", "artistName artistSurname1 artistSurname2")
-      .lean(true),
-    ArtWork.find(
-      {
-        status: "published",
-      },
-      {
-        media: 1,
-        artworkName: 1,
-        additionalInfo: 1,
-        discipline: 1,
-      }
-    )
+      .limit(10)
       .populate("owner", "artistName artistSurname1 artistSurname2")
       .sort({ createdAt: -1 })
-      .limit(10)
       .lean(true),
+    HomeArtwork.aggregate([
+      {
+        $lookup: {
+          from: "artworks",
+          localField: "artworks",
+          foreignField: "_id",
+          as: "artwork",
+        },
+      },
+      {
+        $project: {
+          artworksTitle: 1,
+          artworks: {
+            $map: {
+              input: "$artwork",
+              as: "item",
+              in: {
+                _id: "$$item._id",
+                artworkId: "$$item.artworkId",
+                artworkName: "$$item.artworkName",
+                media: "$$item.media.mainImage",
+                additionalInfo: "$$item.additionalInfo",
+                provideArtistName: "$$item.provideArtistName",
+                price: {
+                  $cond: {
+                    if: {
+                      $eq: ["$$item.commercialization.activeTab", "purchase"],
+                    },
+                    then: "$$item.commercialization.basePrice",
+                    else: "",
+                  },
+                },
+                discipline: "$$item.discipline",
+                comingSoon: "$$item.inventoryShipping.comingSoon",
+              },
+            },
+          },
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ]),
     Artist.find(
       {
         isActivated: true,
@@ -1547,15 +1614,49 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         profile: 1,
       }
     )
-      .limit(15)
+      .limit(10)
+      .sort({ createdAt: -1 })
+      .lean(true),
+    ArtWork.find(
+      {
+        "inventoryShipping.comingSoon": true,
+        status: "published",
+        isDeleted: false,
+      },
+      {
+        media: "$media.mainImage",
+        artworkName: 1,
+        additionalInfo: 1,
+        provideArtistName: 1,
+        price: {
+          $cond: {
+            if: { $eq: ["$commercialization.activeTab", "purchase"] },
+            then: "$commercialization.basePrice",
+            else: "",
+          },
+        },
+        discipline: 1,
+        "inventoryShipping.comingSoon": 1,
+      }
+    )
+      .limit(10)
+      .sort({ createdAt: -1 })
       .lean(true),
   ]);
 
+  const trending = homeArt.find(
+    (item) => item.artworksTitle === "Trending Artworks"
+  ).artworks;
+  const highlighted = homeArt.find(
+    (item) => item.artworksTitle === "Highlighted Artworks"
+  ).artworks;
+
   res.status(200).send({
     newAdded,
+    trending,
     highlighted,
     artists,
-    url: "https://dev.freshartclub.com/images",
+    commingSoon,
   });
 });
 
@@ -1683,7 +1784,6 @@ const searchArtwork = catchAsyncError(async (req, res, next) => {
         ],
       },
     },
-
     {
       $project: {
         artworkId: 1,
@@ -1698,75 +1798,7 @@ const searchArtwork = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  res.status(200).send({
-    data: artworks,
-    url: "https://dev.freshartclub.com/images",
-  });
-});
-
-const getArtworkList = catchAsyncError(async (req, res, next) => {
-  const admin = await Admin.countDocuments({
-    _id: req.user._id,
-    isDeleted: false,
-  }).lean(true);
-  if (!admin) return res.status(400).send({ message: `Admin not found` });
-
-  const { discipline, option } = req.query;
-  let query = {};
-
-  if (discipline) {
-    query.discipline = { artworkDiscipline: discipline };
-  }
-
-  if (option) {
-    query.commercialization = { activeTab: option };
-  }
-
-  const artworkList = await ArtWork.aggregate([
-    {
-      $match: {
-        isDeleted: false,
-        status: "success",
-        ...query,
-      },
-    },
-    {
-      $lookup: {
-        from: "artists",
-        localField: "owner",
-        foreignField: "_id",
-        as: "ownerInfo",
-      },
-    },
-    {
-      $project: {
-        _id: 1,
-        artistName: "$ownerInfo.artistName",
-        artistSurname1: "$ownerInfo.artistSurname1",
-        artistSurname2: "$ownerInfo.artistSurname2",
-        isDeleted: 1,
-        status: 1,
-        media: 1,
-        discipline: 1,
-        artworkName: 1,
-        artworkCreationYear: 1,
-        artworkSeries: 1,
-        productDescription: 1,
-        artworkTechnic: "$additionalInfo.artworkTechnic",
-        upworkOffer: "$commercialization.upworkOffer",
-        createdAt: 1,
-      },
-    },
-    {
-      $sort: {
-        createdAt: -1,
-      },
-    },
-  ]);
-
-  res
-    .status(200)
-    .send({ data: artworkList, url: "https://dev.freshartclub.com/images" });
+  res.status(200).send({ data: artworks });
 });
 
 const addSeriesToArtist = catchAsyncError(async (req, res, next) => {

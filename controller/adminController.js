@@ -1426,9 +1426,13 @@ const getAllArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { s, date, status } = req.query;
+    let { s, date, status, limit, cursor, direction, currPage } = req.query;
 
     if (status === "All") status = "";
+    if (s == "undefined" || typeof s === "undefined") s = "";
+
+    limit = parseInt(limit) || 10;
+    cursor = cursor || null;
 
     let dateFilter = {};
     const today = new Date();
@@ -1459,20 +1463,30 @@ const getAllArtists = async (req, res) => {
       }
     }
 
-    const artists = await Artist.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          role: "artist",
-          ...dateFilter,
-          ...(status ? { profileStatus: status } : {}),
-          $or: [
-            { artistId: { $regex: s, $options: "i" } },
-            { artistName: { $regex: s, $options: "i" } },
-            { email: { $regex: s, $options: "i" } },
-          ],
-        },
-      },
+    const matchStage = {
+      isDeleted: false,
+      role: "artist",
+      ...dateFilter,
+      ...(status ? { profileStatus: status } : {}),
+      $or: [
+        { artistId: { $regex: s, $options: "i" } },
+        { artistName: { $regex: s, $options: "i" } },
+        { email: { $regex: s, $options: "i" } },
+      ],
+    };
+
+    const totalCount = await Artist.countDocuments(matchStage);
+
+    if (cursor) {
+      if (direction === "next") {
+        matchStage._id = { $lt: objectId(cursor) };
+      } else if (direction === "prev") {
+        matchStage._id = { $gt: objectId(cursor) };
+      }
+    }
+
+    let artists = await Artist.aggregate([
+      { $match: matchStage },
       {
         $project: {
           artistName: 1,
@@ -1496,14 +1510,36 @@ const getAllArtists = async (req, res) => {
           status: 1,
         },
       },
-      {
-        $sort: { createdAt: -1 },
-      },
+      { $sort: { _id: direction === "prev" ? 1 : -1 } },
+      { $limit: limit + 1 },
     ]);
 
-    return res
-      .status(200)
-      .send({ data: artists, url: "https://dev.freshartclub.com/images" });
+    if (direction === "prev" && currPage != 1) {
+      artists.reverse().shift();
+    } else if (direction === "prev") {
+      artists.reverse();
+    }
+
+    const hasNextPage = currPage === 1 || artists.length < limit ? false : true;
+
+    if (hasNextPage && direction) {
+      if (direction === "next") artists.pop();
+    } else if (hasNextPage) {
+      artists.pop();
+    }
+
+    const hasPrevPage = currPage == 1 ? false : true;
+    const nextCursor = hasNextPage ? artists[artists.length - 1]._id : null;
+    const prevCursor = hasPrevPage ? artists[0]._id : null;
+
+    return res.status(200).send({
+      data: artists,
+      nextCursor,
+      prevCursor,
+      hasNextPage,
+      hasPrevPage,
+      totalCount,
+    });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -2547,10 +2583,7 @@ const ticketDetail = async (req, res) => {
       .populate("user", "email artistName artistSurname1 artistSurname2")
       .lean(true);
 
-    return res.status(201).send({
-      data: ticketData,
-      url: "https://dev.freshartclub.com/images",
-    });
+    return res.status(200).send({ data: ticketData });
   } catch (error) {
     return res.status(500).send({ message: "Server error" });
   }
@@ -3234,6 +3267,10 @@ const approveArtworkChanges = async (req, res) => {
         lastModified: data?.lastModified,
         status: "published",
       };
+
+      if (data?.isArtProvider === "Yes") {
+        obj["provideArtistName"] = data.provideArtistName;
+      }
 
       if (data?.commercialization?.activeTab === "subscription") {
         obj["commercialization"] = {
