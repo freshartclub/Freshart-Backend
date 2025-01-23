@@ -154,11 +154,11 @@ const getPlanById = catchAsyncError(async (req, res) => {
     isDeleted: false,
   }).lean(true);
 
-  if (!admin) {
-    return res.status(400).send({ message: `Admin not found` });
-  }
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const { id } = req.params;
+  if(!id) return res.status(400).send({ message: `Plan id not found` });
+  
   const plan = await Plan.findOne({ _id: id }).lean(true);
   res.status(200).send({ data: plan });
 });

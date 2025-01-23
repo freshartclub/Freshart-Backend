@@ -296,7 +296,7 @@ const artistRegister = async (req, res) => {
           });
         } else {
           const filename = req.body?.uploadDocs.replace(
-            "https://dev.freshartclub.com/images/documents/",
+            "https://freshartclub.com/images/documents/",
             ""
           );
           docsArr.push({
@@ -314,7 +314,7 @@ const artistRegister = async (req, res) => {
             uploadDocs.shift();
           } else {
             const filename = element.replace(
-              "https://dev.freshartclub.com/images/documents/",
+              "https://freshartclub.com/images/documents/",
               ""
             );
             docsArr.push({
@@ -350,10 +350,10 @@ const artistRegister = async (req, res) => {
       additionalImages?.map((element) => {
         if (
           typeof element === "string" &&
-          element.includes("https://dev.freshartclub.com/images/users")
+          element.includes("https://freshartclub.com/images/users")
         ) {
           return element.replace(
-            "https://dev.freshartclub.com/images/users/",
+            "https://freshartclub.com/images/users/",
             ""
           );
         }
@@ -364,10 +364,10 @@ const artistRegister = async (req, res) => {
       additionalVideos?.map((element) => {
         if (
           typeof element === "string" &&
-          element.includes("https://dev.freshartclub.com/images/users")
+          element.includes("https://freshartclub.com/images/users")
         ) {
           return element.replace(
-            "https://dev.freshartclub.com/images/users/",
+            "https://freshartclub.com/images/users/",
             ""
           );
         }

@@ -38,6 +38,7 @@ const {
   getNotificationsOfUser,
   markReadNotification,
   deleteNotification,
+  getUserPlans,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -171,10 +172,16 @@ router.get(
 
 router.patch("/like-unlike-artwork/:id", validateToken, likeOrUnlikeArtwork);
 
+// -------------------- notifications ---------------------------------
+
 router.get("/get-notifications", validateToken, getNotificationsOfUser);
 
 router.patch("/read-notification/:id?", validateToken, markReadNotification);
 
 router.patch("/delete-notification/:id?", validateToken, deleteNotification);
+
+// -------------------------- plans ---------------------------------------------
+
+router.get("/get-all-plans", validateToken, getUserPlans);
 
 module.exports = router;

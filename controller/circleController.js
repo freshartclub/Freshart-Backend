@@ -5,6 +5,8 @@ const ArtWork = require("../models/artWorksModel");
 const { fileUploadFunc } = require("../functions/common");
 const Circle = require("../models/circleModel");
 const objectId = require("mongoose").Types.ObjectId;
+const EmailType = require("../models/emailTypeModel");
+const { sendMail } = require("../functions/mailer");
 
 const addCircle = catchAsyncError(async (req, res) => {
   const admin = await Admin.countDocuments({
@@ -20,8 +22,18 @@ const addCircle = catchAsyncError(async (req, res) => {
   if (id) {
     const circle = await Circle.findOne(
       { _id: id },
-      { mainImage: 1, coverImage: 1, title: 1 }
+      { mainImage: 1, coverImage: 1, title: 1, managers: 1 }
     ).lean(true);
+
+    const newManagers = JSON.parse(req.body.managers);
+    const existingManagers = circle.managers.map((m) => String(m));
+
+    const addedManagers = newManagers.filter(
+      (manager) => !existingManagers.includes(manager)
+    );
+    const removedManagers = existingManagers.filter(
+      (manager) => !newManagers.includes(manager)
+    );
 
     await Circle.updateOne(
       { _id: id },
@@ -43,6 +55,52 @@ const addCircle = catchAsyncError(async (req, res) => {
       }
     );
 
+    if (addedManagers.length > 0) {
+      const addedArtists = await Artist.find(
+        { _id: { $in: addedManagers } },
+        { email: 1, artistName: 1 }
+      ).lean(true);
+
+      const assignEmailTemplate = await EmailType.findOne({
+        emailType: "circle-assign-manager",
+      }).lean(true);
+
+      addedArtists.forEach((artist) => {
+        const mailVariables = {
+          "%head%": assignEmailTemplate.emailHead,
+          "%email%": artist.email,
+          "%msg%": assignEmailTemplate.emailDesc,
+          "%name%": artist.artistName,
+          "%title%": req.body.title,
+        };
+
+        sendMail("sample-email", mailVariables, artist.email);
+      });
+    }
+
+    if (removedManagers.length > 0) {
+      const removedArtists = await Artist.find(
+        { _id: { $in: removedManagers } },
+        { email: 1, artistName: 1 }
+      ).lean(true);
+
+      const revokeEmailTemplate = await EmailType.findOne({
+        emailType: "circle-access-revoked",
+      }).lean(true);
+
+      removedArtists.forEach((artist) => {
+        const mailVariables = {
+          "%head%": revokeEmailTemplate.emailHead,
+          "%email%": artist.email,
+          "%msg%": revokeEmailTemplate.emailDesc,
+          "%name%": artist.artistName,
+          "%title%": req.body.title,
+        };
+
+        sendMail("sample-email", mailVariables, artist.email);
+      });
+    }
+
     return res.status(200).send({ message: "Circle updated successfully" });
   } else {
     await Circle.create({
@@ -54,6 +112,27 @@ const addCircle = catchAsyncError(async (req, res) => {
       managers: JSON.parse(req.body.managers),
       categories: JSON.parse(req.body.categories),
       status: req.body.status,
+    });
+
+    const artists = await Artist.find(
+      { _id: { $in: JSON.parse(req.body.managers) } },
+      { email: 1, artistName: 1 }
+    ).lean(true);
+
+    const findEmail = await EmailType.findOne({
+      emailType: "circle-assign-manager",
+    }).lean(true);
+
+    artists.forEach((artist) => {
+      const mailVariables = {
+        "%head%": findEmail.emailHead,
+        "%email%": artist.email,
+        "%msg%": findEmail.emailDesc,
+        "%name%": artist.artistName,
+        "%title%": req.body.title,
+      };
+
+      sendMail("sample-email", mailVariables, artist.email);
     });
 
     return res.status(200).send({ message: "Circle added successfully" });

@@ -16,6 +16,7 @@ const objectId = require("mongoose").Types.ObjectId;
 const axios = require("axios");
 const EmailType = require("../models/emailTypeModel");
 const Notification = require("../models/notificationModel");
+const Plan = require("../models/plansModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -926,7 +927,7 @@ const getArtistDetailById = async (req, res) => {
   if (req.params.id) {
     return res.status(400).send({ message: "Artist Id not found" });
   }
-  
+
   try {
     const artist = await Artist.findOne(
       {
@@ -1703,7 +1704,10 @@ const getLikedItems = async (req, res) => {
                   height: "$$item.additionalInfo.height",
                   length: "$$item.additionalInfo.length",
                 },
-                pricing: "$$item.pricing.basePrice",
+                pricing: {
+                  basePrice: "$$item.pricing.basePrice",
+                  currency: "$$item.pricing.currency",
+                },
                 discipline: "$$item.discipline.artworkDiscipline",
               },
             },
@@ -2008,6 +2012,17 @@ const deleteNotification = async (req, res) => {
   }
 };
 
+const getUserPlans = async (req, res) => {
+  try {
+    const planList = await Plan.find({}).lean(true);
+
+    return res.status(200).send({ data: planList });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2046,4 +2061,5 @@ module.exports = {
   getNotificationsOfUser,
   markReadNotification,
   deleteNotification,
+  getUserPlans,
 };

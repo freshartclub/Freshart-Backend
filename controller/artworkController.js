@@ -35,10 +35,9 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const isArtwork = artwork ? true : false;
 
   if (isArtwork) {
-    if (artwork.status === "rejected" || artwork.status === "draft") {
+    if (artwork.status === "rejected") {
       return res.status(400).send({
-        message:
-          "You can't modify this artwork. This Artwork is rejected or in draft.",
+        message: "You can't modify this artwork. This Artwork is rejected.",
       });
     }
   }
@@ -84,12 +83,9 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     images?.map((element) => {
       if (
         typeof element === "string" &&
-        element.includes("https://dev.freshartclub.com/images/users")
+        element.includes("https://freshartclub.com/images/users")
       ) {
-        return element.replace(
-          "https://dev.freshartclub.com/images/users/",
-          ""
-        );
+        return element.replace("https://freshartclub.com/images/users/", "");
       }
       return element;
     }) || [];
@@ -98,12 +94,9 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     videos?.map((element) => {
       if (
         typeof element === "string" &&
-        element.includes("https://dev.freshartclub.com/images/videos")
+        element.includes("https://freshartclub.com/images/videos")
       ) {
-        return element.replace(
-          "https://dev.freshartclub.com/images/videos/",
-          ""
-        );
+        return element.replace("https://freshartclub.com/images/videos/", "");
       }
       return element;
     }) || [];
@@ -115,7 +108,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       : new Date().getFullYear(),
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
-    isArtProvider: req.body.isArtProvider,
+    isArtProvider: req.body.isArtProvider ? req.body.isArtProvider : "No",
     artworkId: isArtwork ? artwork?.artworkId : "ARW-" + generateRandomId(),
     owner: id,
   };
@@ -159,12 +152,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     height: req.body.height,
     width: req.body.width,
     hangingAvailable: req.body.hangingAvailable,
-    hangingDescription: req.body.hangingDescription,
     framed: req.body.framed,
-    framedDescription: req.body.framedDescription,
-    frameHeight: req.body.frameHeight,
-    frameLength: req.body.frameLenght,
-    frameWidth: req.body.frameWidth,
     artworkStyle:
       typeof req.body.artworkStyle === "string"
         ? [req.body.artworkStyle]
@@ -177,6 +165,17 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       typeof req.body.colors === "string" ? [req.body.colors] : req.body.colors,
     offensive: req.body.offensive,
   };
+
+  if (req?.body?.hangingAvailable === "Yes") {
+    obj["additionalInfo"]["hangingDescription"] = req.body.hangingDescription;
+  }
+
+  if (req?.body?.framed === "Yes") {
+    obj["additionalInfo"]["framedDescription"] = req.body.framedDescription;
+    obj["additionalInfo"]["frameHeight"] = req.body.frameHeight;
+    obj["additionalInfo"]["frameLength"] = req.body.frameLenght;
+    obj["additionalInfo"]["frameWidth"] = req.body.frameWidth;
+  }
 
   if (req?.body?.activeTab === "subscription") {
     obj["commercialization"] = {
@@ -292,7 +291,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       data: { _id: artworkId },
     });
   } else {
-    obj["status"] = "published";
+    obj["status"] = "draft";
     const artwork = await ArtWork.create(obj);
 
     const catalogId = req.body.subscriptionCatalog
@@ -477,7 +476,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkCreationYear: req.body.artworkCreationYear,
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
-    isArtProvider: req.body.isArtProvider,
+    isArtProvider: req.body.isArtProvider ? req.body.isArtProvider : "No",
     artworkId:
       artworkData === null
         ? "ARW-" + generateRandomId()
@@ -524,17 +523,23 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     height: req.body.height,
     width: req.body.width,
     hangingAvailable: req.body.hangingAvailable,
-    hangingDescription: req.body.hangingDescription,
     framed: req.body.framed,
-    framedDescription: req.body.framedDescription,
-    frameHeight: req.body.frameHeight,
-    frameLength: req.body.frameLength,
-    frameWidth: req.body.frameWidth,
     artworkStyle: styleArr,
     emotions: emotionsArr,
     colors: colorsArr,
     offensive: req.body.offensive,
   };
+
+  if (req?.body?.hangingAvailable === "Yes") {
+    obj["additionalInfo"]["hangingDescription"] = req.body.hangingDescription;
+  }
+
+  if (req?.body?.framed === "Yes") {
+    obj["additionalInfo"]["framedDescription"] = req.body.framedDescription;
+    obj["additionalInfo"]["frameHeight"] = req.body.frameHeight;
+    obj["additionalInfo"]["frameLength"] = req.body.frameLength;
+    obj["additionalInfo"]["frameWidth"] = req.body.frameWidth;
+  }
 
   if (req?.body?.activeTab === "subscription") {
     obj["commercialization"] = {
@@ -709,8 +714,6 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 
   const fileData = await fileUploadFunc(req, res);
 
-  console.log(req.body);
-
   let images = [];
   let videos = [];
 
@@ -828,6 +831,8 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
+  console.log(req.body);
+
   let obj = {
     artworkName: req.body.artworkName,
     artworkCreationYear: req.body.artworkCreationYear,
@@ -875,17 +880,23 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     height: req.body.height,
     width: req.body.width,
     hangingAvailable: req.body.hangingAvailable,
-    hangingDescription: req.body.hangingDescription,
     framed: req.body.framed,
-    framedDescription: req.body.framedDescription,
-    frameHeight: req.body.frameHeight,
-    frameLength: req.body.frameLength,
-    frameWidth: req.body.frameWidth,
     artworkStyle: styleArr,
     emotions: emotionsArr,
     colors: colorsArr,
     offensive: req.body.offensive,
   };
+
+  if (req?.body?.hangingAvailable === "Yes") {
+    obj["additionalInfo"]["hangingDescription"] = req.body.hangingDescription;
+  }
+
+  if (req?.body?.framed === "Yes") {
+    obj["additionalInfo"]["framedDescription"] = req.body.framedDescription;
+    obj["additionalInfo"]["frameHeight"] = req.body.frameHeight;
+    obj["additionalInfo"]["frameLength"] = req.body.frameLength;
+    obj["additionalInfo"]["frameWidth"] = req.body.frameWidth;
+  }
 
   if (req?.body?.activeTab === "subscription") {
     obj["commercialization"] = {
@@ -985,15 +996,19 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
   ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
-  if (artwork.status === "draft") {
-    ArtWork.updateOne({ _id: id }, { status: "pending" }).then();
+  if (artwork.status !== "draft") {
+    return res.status(400).send({ message: "Artwork is already published" });
+  }
+
+  if (req.user?.roles && req.user?.roles === "superAdmin") {
+    ArtWork.updateOne({ _id: id }, { status: "published" }).then();
     Notification.updateOne(
       { user: req.user._id },
       {
         $push: {
           notifications: {
             subject: "Artwork Published",
-            message: `Your Artwork "${artwork.artworkName}" has been moved to pending by FreshArt Club.`,
+            message: `Your Artwork "${artwork.artworkName}" has been published by FreshArt Club.`,
           },
         },
       }
@@ -1003,7 +1018,22 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
       .status(200)
       .send({ message: "Artwork Published Sucessfully", data: artwork._id });
   } else {
-    return res.status(400).send({ message: "Artwork Already Published" });
+    ArtWork.updateOne({ _id: id }, { status: "pending" }).then();
+    Notification.updateOne(
+      { user: req.user._id },
+      {
+        $push: {
+          notifications: {
+            subject: "Artwork Published",
+            message: `Your Artwork "${artwork.artworkName}" status changed to Pending.`,
+          },
+        },
+      }
+    ).then();
+
+    return res
+      .status(200)
+      .send({ message: "Artwork Published Sucessfully", data: artwork._id });
   }
 });
 
@@ -1661,31 +1691,28 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
 });
 
 const addToRecentView = catchAsyncError(async (req, res, next) => {
-  try {
-    const { id } = req.params;
+  const { id } = req.params;
 
-    const artworkExists = await ArtWork.exists({ _id: id });
-    if (!artworkExists) {
-      return res.status(400).send({ message: "Artwork not found" });
-    }
-
-    await RecentlyView.updateOne(
-      { owner: req.user._id },
-      {
-        $pull: { artworks: id },
-        $push: {
-          artworks: {
-            $each: [id],
-            $position: 0,
-          },
-        },
-        $slice: 15,
-      },
-      { upsert: true }
-    );
-  } catch (error) {
-    return res.status(400).send({ message: "Something went wrong" });
+  const artworkExists = await ArtWork.exists({ _id: id });
+  if (!artworkExists) {
+    return res.status(400).send({ message: "Artwork not found" });
   }
+
+  const result = await RecentlyView.findOneAndUpdate(
+    { owner: req.user._id },
+    {
+      $pull: { artworks: id },
+    },
+    { new: true, upsert: true }
+  );
+
+  if (result) {
+    result.artworks.unshift(id);
+    result.artworks = result.artworks.slice(0, 15);
+    await result.save();
+  }
+
+  res.status(200).send({ message: "Success" });
 });
 
 const getRecentlyView = catchAsyncError(async (req, res, next) => {
