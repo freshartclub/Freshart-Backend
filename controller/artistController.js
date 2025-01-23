@@ -924,7 +924,7 @@ const getArtistDetails = async (req, res) => {
 };
 
 const getArtistDetailById = async (req, res) => {
-  if (req.params.id) {
+  if (!req.params.id) {
     return res.status(400).send({ message: "Artist Id not found" });
   }
 
