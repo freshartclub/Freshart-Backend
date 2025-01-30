@@ -435,7 +435,7 @@ const validateOTP = async (req, res) => {
 
     return res
       .status(200)
-      .send({ message: "OTP verified successfully", id: user._id });
+      .send({ message: "OTP validated successfully", id: user._id });
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
@@ -1641,9 +1641,7 @@ const likeOrUnlikeArtwork = async (req, res) => {
     ]);
 
     return res.status(200).send({
-      message: `Artwork ${
-        action === "like" ? "liked" : "unliked"
-      } successfully`,
+      message: `Artwork ${action === "like" ? "liked" : "unliked"}`,
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -2003,9 +2001,7 @@ const deleteNotification = async (req, res) => {
       );
     }
 
-    return res
-      .status(200)
-      .send({ message: "Notifications marked as deleted successfully" });
+    return res.status(200).send({ message: "Deleted Successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });

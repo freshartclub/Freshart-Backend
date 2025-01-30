@@ -677,6 +677,7 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
 
   let imgArr = [];
   const fileData = await fileUploadFunc(req, res);
+  if(!fileData.data) return res.status(400).send({ message: "Please provide evidence image" });
 
   if (fileData.data?.evidenceImg) {
     fileData.data?.evidenceImg.forEach((img) => imgArr.push(img.filename));

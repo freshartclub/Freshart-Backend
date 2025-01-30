@@ -348,7 +348,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   if (artworkData && artworkData.status !== "draft") {
     return res.status(400).send({
-      message: `You already published/modified this artwork.`,
+      message: `You already published/modified this artwork`,
     });
   }
 
@@ -708,7 +708,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 
   if (artworkData.status !== "published") {
     return res.status(400).send({
-      message: `You cannot modify this artwork.`,
+      message: `You cannot modify this artwork`,
     });
   }
 
@@ -830,8 +830,6 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
       });
     }
   }
-
-  console.log(req.body);
 
   let obj = {
     artworkName: req.body.artworkName,
@@ -1600,8 +1598,21 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         },
       },
       {
+        $lookup: {
+          from: "artists",
+          localField: "owner",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
         $project: {
           artworksTitle: 1,
+          owner: {
+            artistName: "$user.artistName",
+            artistSurname1: "$user.artistAurname1",
+            artistSurname2: "$user.artistAurname",
+          },
           artworks: {
             $map: {
               input: "$artwork",
@@ -1670,6 +1681,7 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
       }
     )
       .limit(10)
+      .populate("owner", "artistName artistSurname1 artistSurname2")
       .sort({ createdAt: -1 })
       .lean(true),
   ]);

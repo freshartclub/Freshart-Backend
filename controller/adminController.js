@@ -2694,6 +2694,7 @@ const getTicketReplies = async (req, res) => {
           message: 1,
         },
       },
+      { $sort: { createdAt: -1 } },
     ]);
 
     return res.status(201).send({ data: replies });

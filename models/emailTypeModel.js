@@ -6,6 +6,9 @@ const emailTypeSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    lang: {
+      type: String,
+    },
     emailType: {
       type: String,
     },
