@@ -6,11 +6,12 @@ const emailTypeSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    lang: {
+    emailLang: {
       type: String,
     },
     emailType: {
       type: String,
+      trim: true,
     },
     emailDesc: {
       type: String,

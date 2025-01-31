@@ -677,7 +677,8 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
 
   let imgArr = [];
   const fileData = await fileUploadFunc(req, res);
-  if(!fileData.data) return res.status(400).send({ message: "Please provide evidence image" });
+  if (fileData.status === 400)
+    return res.status(400).send({ message: "Please provide evidence image" });
 
   if (fileData.data?.evidenceImg) {
     fileData.data?.evidenceImg.forEach((img) => imgArr.push(img.filename));
@@ -700,7 +701,7 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
     (item) => item.artWork.toString() === artworkId
   );
 
-  if (selectedItem.evidenceImg.length > 0) {
+  if (selectedItem.evidenceImg && selectedItem.evidenceImg.length > 0) {
     for (let i = 0; i < selectedItem.evidenceImg.length; i++) {
       imgArr.push(selectedItem.evidenceImg[i]);
     }

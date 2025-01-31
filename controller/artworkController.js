@@ -1298,6 +1298,10 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
       ? "$discipline.artworkDiscipline"
       : artworkType === "artprovider"
       ? "$provideArtistName"
+      : artworkType === "subscription"
+      ? "$catalogInfo.catalogName"
+      : artworkType === "purchase"
+      ? "$catalogInfo.catalogName"
       : null;
 
   let artworks = [];
@@ -1330,6 +1334,42 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
     artworks = await ArtWork.aggregate([
       { $match: matchQuery },
       { $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true } },
+      {
+        $set: {
+          catalogField: {
+            $ifNull: [
+              "$commercialization.purchaseCatalog",
+              "$commercialization.subscriptionCatalog",
+            ],
+          },
+        },
+      },
+      {
+        $lookup: {
+          from: "catalogs",
+          localField: "catalogField",
+          foreignField: "_id",
+          as: "catalogInfo",
+        },
+      },
+      {
+        $unwind: { path: "$catalogInfo", preserveNullAndEmptyArrays: true },
+      },
+      ...(artworkType === "subscription"
+        ? [
+            {
+              $match: {
+                "commercialization.activeTab": { $eq: "subscription" },
+              },
+            },
+          ]
+        : [
+            {
+              $match: {
+                "commercialization.activeTab": { $eq: "purchase" },
+              },
+            },
+          ]),
       {
         $group: {
           _id: groupByField,

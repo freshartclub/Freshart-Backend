@@ -86,7 +86,7 @@ router.get("/get-artist-detail/:id", validateToken, getArtistDetailById);
 
 router.patch("/logout", validateToken, logOut);
 
-router.post("/complete-profile/:id", validateToken, completeProfile);
+router.post("/complete-profile", validateToken, completeProfile);
 
 router.post("/create-ticket", validateToken, createTicket);
 

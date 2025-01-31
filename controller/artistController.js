@@ -96,13 +96,16 @@ const login = async (req, res) => {
 const sendVerifyEmailOTP = async (req, res) => {
   try {
     const { password, cpassword, isArtistRequest } = req.body;
-    let { email } = req.body;
+
+    let { email, langCode } = req.body;
     if (!email) return res.status(400).send({ message: "Email is required" });
 
     email = email.toLowerCase();
+    if (langCode == "GB") langCode = "EN";
 
     const findEmail = await EmailType.findOne({
       emailType: "verify-email-otp",
+      emailLang: langCode,
     }).lean(true);
 
     if (isArtistRequest == true) {
@@ -365,7 +368,10 @@ const verifySMSOTP = async (req, res) => {
 
 const sendForgotPasswordOTP = async (req, res) => {
   try {
-    const { email } = req.body;
+    let { email, langCode } = req.body;
+
+    if (!email) return res.status(400).send({ message: "Email is required" });
+    if (langCode == "GB") langCode = "EN";
 
     const user = await Artist.findOne({
       email: email.toLowerCase(),
@@ -379,6 +385,7 @@ const sendForgotPasswordOTP = async (req, res) => {
     const otp = await generateRandomOTP();
     const findEmail = await EmailType.findOne({
       emailType: "send-forgot-password-otp",
+      emailLang: langCode.toUpperCase(),
     }).lean(true);
 
     const mailVaribles = {
@@ -763,8 +770,12 @@ const becomeArtist = async (req, res) => {
     const name = req.body.artistName;
     const email = req.body.email.toLowerCase();
 
+    let langCode = req.body.langCode;
+    if (langCode == "GB") langCode = "EN";
+
     const findEmail = await EmailType.findOne({
       emailType: "become-artist-request",
+      emailLang: langCode,
       isDeleted: false,
     }).lean(true);
 
@@ -997,11 +1008,12 @@ const getArtistDetailById = async (req, res) => {
 
 const completeProfile = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = req.user._id;
+    if (!id) return res.status(404).send({ message: "User Not found" });
     const fileData = await fileUploadFunc(req, res);
 
     if (fileData.type !== "success") {
-      return res.status(fileData.status).send({
+      return res.status(400).send({
         message:
           fileData?.type === "fileNotFound"
             ? "Please upload the Image"
@@ -1905,8 +1917,12 @@ const artistReValidate = async (req, res) => {
 
     if (!artist) return res.status(400).send({ message: "Artist not found" });
 
+    let { langCode } = req.body;
+    langCode = langCode.toUpperCase();
+
     const findEmail = await EmailType.findOne({
       emailType: "artist-profile-revalidated",
+      emailLang: langCode,
     }).lean(true);
 
     const mailVaribles = {

@@ -352,10 +352,7 @@ const artistRegister = async (req, res) => {
           typeof element === "string" &&
           element.includes("https://freshartclub.com/images/users")
         ) {
-          return element.replace(
-            "https://freshartclub.com/images/users/",
-            ""
-          );
+          return element.replace("https://freshartclub.com/images/users/", "");
         }
         return element;
       }) || [];
@@ -366,10 +363,7 @@ const artistRegister = async (req, res) => {
           typeof element === "string" &&
           element.includes("https://freshartclub.com/images/users")
         ) {
-          return element.replace(
-            "https://freshartclub.com/images/users/",
-            ""
-          );
+          return element.replace("https://freshartclub.com/images/users/", "");
         }
         return element;
       }) || [];
@@ -575,9 +569,15 @@ const artistRegister = async (req, res) => {
               ? [req.body.extTags]
               : req.body.extTags,
         };
-        obj["lastRevalidationDate"] = req.body.lastRevalidationDate;
-        obj["profileStatus"] = "active";
-        obj["nextRevalidationDate"] = req.body.nextRevalidationDate;
+
+        if (req.body?.isActivated && req.body?.isActivated == "true") {
+          obj["lastRevalidationDate"] = req.body.lastRevalidationDate;
+          obj["profileStatus"] = "active";
+          obj["nextRevalidationDate"] = req.body.nextRevalidationDate;
+        } else {
+          obj["profileStatus"] = "inactive";
+        }
+
         obj["extraInfo"] = {
           extraInfo1: req.body.extraInfo1,
           extraInfo2: req.body.extraInfo2,

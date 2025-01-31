@@ -14,32 +14,33 @@ const addEmailType = catchAsyncError(async (req, res) => {
 
   const { id } = req.params;
 
-  const { emailType, emailDesc, emailHead } = req.body;
-  if (!emailType || !emailDesc || !emailHead) {
+  const { emailType, emailDesc, emailHead, emailLang } = req.body;
+  if (!emailType || !emailDesc || !emailHead || !emailLang) {
     return res.status(400).send({ message: `All fields are required` });
   }
 
-  if (!id) {
-    const found = await EmailType.findOne(
-      { emailType: emailType },
-      { isDeleted: 1 }
-    ).lean(true);
+  // if (!id) {
+  //   const found = await EmailType.findOne(
+  //     { emailType: emailType },
+  //     { isDeleted: 1 }
+  //   ).lean(true);
 
-    if (found) {
-      return res.status(400).send({ message: "Email Type already exist" });
-    }
-  }
+  //   if (found) {
+  //     return res.status(400).send({ message: "Email Type already exist" });
+  //   }
+  // }
 
   if (id) {
     await EmailType.updateOne(
       { _id: id },
-      { $set: { emailType, emailDesc, emailHead } }
+      { $set: { emailType, emailDesc, emailHead, emailLang } }
     );
     return res.status(200).send({ message: "Email Type updated successfully" });
   } else {
     await EmailType.create({
       emailType,
       emailDesc,
+      emailLang,
       emailHead,
     });
     return res.status(200).send({ message: "Email Type added successfully" });
@@ -74,6 +75,7 @@ const listEmailType = catchAsyncError(async (req, res) => {
     {
       $project: {
         emailType: 1,
+        emailLang: 1,
         emailDesc: 1,
         emailHead: 1,
         createdAt: 1,
