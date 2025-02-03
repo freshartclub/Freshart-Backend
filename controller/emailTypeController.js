@@ -69,7 +69,10 @@ const listEmailType = catchAsyncError(async (req, res) => {
     {
       $match: {
         isDeleted: false,
-        emailType: { $regex: s, $options: "i" },
+        $or: [
+          { emailType: { $regex: s, $options: "i" } },
+          { emailLang: { $regex: s } },
+        ],
       },
     },
     {

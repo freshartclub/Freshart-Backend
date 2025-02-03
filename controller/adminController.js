@@ -1345,6 +1345,7 @@ const activateArtist = async (req, res) => {
     }).lean(true);
 
     if (!admin) return res.status(400).send({ message: `Admin not found` });
+    const { lang } = req.query;
 
     const artist = await Artist.findOne(
       {
@@ -1398,6 +1399,7 @@ const activateArtist = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "become-an-artist",
+      emailLang: lang,
       isDeleted: false,
     }).lean(true);
 
@@ -1495,6 +1497,7 @@ const getAllArtists = async (req, res) => {
           artistSurname2: 1,
           avatar: 1,
           email: 1,
+          language: 1,
           phone: 1,
           createdAt: 1,
           isActivated: 1,
@@ -1582,6 +1585,7 @@ const getAllCompletedArtists = async (req, res) => {
         artistSurname2: 1,
         email: 1,
         phone: 1,
+        language: 1,
         profile: 1,
         createdAt: 1,
         isActivated: 1,
@@ -1820,14 +1824,16 @@ const createNewUser = async (req, res) => {
       zipCode: String(req.body.zipCode),
     };
 
+    // default lang is Spanish "ES"
     const findEmail = await EmailType.findOne({
       emailType: "admin-create-user",
+      emailLang: "ES",
     }).lean(true);
 
     const mailVaribles = {
       "%head%": findEmail.emailHead,
-      "%email%": obj.email,
       "%msg%": findEmail.emailDesc,
+      "%email%": obj.email,
       "%name%": obj.artistName,
       "%phone%": obj.phone,
     };
@@ -1954,6 +1960,7 @@ const suspendedArtistList = async (req, res) => {
           phone: 1,
           createdAt: 1,
           isActivated: 1,
+          language: 1,
           userId: 1,
           artistId: 1,
           city: "$address.city",
@@ -2127,10 +2134,13 @@ const suspendArtist = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    const { lang } = req.query;
+
     const artist = await Artist.findOne(
       { _id: req.params.id },
       { isDeleted: 1, email: 1, artistName: 1 }
     ).lean(true);
+
     if (!artist) return res.status(400).send({ message: `artist not found` });
     if (artist.isDeleted)
       return res.status(400).send({ message: `Artist already suspended` });
@@ -2142,6 +2152,7 @@ const suspendArtist = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "artist-suspended-mail",
+      emailLang: lang,
     }).lean(true);
 
     const mailVaribles = {
@@ -2155,7 +2166,6 @@ const suspendArtist = async (req, res) => {
 
     return res.status(200).send({ message: "Artist suspended successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -2169,10 +2179,13 @@ const unSuspendArtist = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    const { lang } = req.query;
+
     const artist = await Artist.findOne(
       { _id: req.params.id },
       { isDeleted: 1, email: 1, artistName: 1 }
     ).lean(true);
+
     if (!artist) return res.status(400).send({ message: `artist not found` });
     if (!artist.isDeleted)
       return res.status(400).send({ message: `artist already unsuspended` });
@@ -2184,6 +2197,7 @@ const unSuspendArtist = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "artist-unsuspended-mail",
+      emailLang: lang,
     }).lean(true);
 
     const mailVaribles = {
@@ -2197,7 +2211,6 @@ const unSuspendArtist = async (req, res) => {
 
     return res.status(200).send({ message: "Artist unsuspended successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -2346,7 +2359,7 @@ const changeArtistPassword = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
-    const { newPassword, confirmPassword } = req.body;
+    const { newPassword, confirmPassword, selectedLang } = req.body;
 
     const user = await Artist.findOne(
       {
@@ -2372,6 +2385,7 @@ const changeArtistPassword = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "admin-changed-passsword",
+      emailLang: selectedLang,
     }).lean(true);
 
     const mailVaribles = {
@@ -2392,7 +2406,6 @@ const changeArtistPassword = async (req, res) => {
 
     return res.status(200).send({ message: "Password changed successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -2967,6 +2980,8 @@ const approveArtistChanges = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
+    const { lang } = req.query;
+
     const { id } = req.params;
     const artist = await Artist.findOne(
       {
@@ -3014,6 +3029,7 @@ const approveArtistChanges = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "admin-artist-profile-status-change",
+      emailLang: lang,
     }).lean(true);
 
     const mailVaribles = {
@@ -3136,6 +3152,7 @@ const getReviewDetailArtwork = async (req, res) => {
             artistId: "$ownerInfo.artistId",
             artistSurname1: "$ownerInfo.artistSurname1",
             artistSurname2: "$ownerInfo.artistSurname2",
+            language: "$ownerInfo.language",
           },
           artworkName: 1,
           artworkCreationYear: 1,
@@ -3214,6 +3231,7 @@ const approveArtworkChanges = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
+    const { lang } = req.query;
     const artwork = await ArtWork.findOne(
       {
         _id: id,
@@ -3320,6 +3338,7 @@ const approveArtworkChanges = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "admin-artwork-status-change",
+      emailLang: lang,
     }).lean(true);
 
     const mailVaribles = {
@@ -3363,6 +3382,8 @@ const reValidateArtist = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
+    const { lang } = req.query;
+
     const artist = await Artist.findOne(
       {
         _id: id,
@@ -3377,6 +3398,7 @@ const reValidateArtist = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "profile-revalidated",
+      emailLang: lang,
     }).lean(true);
 
     const mailVaribles = {
