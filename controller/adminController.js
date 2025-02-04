@@ -33,6 +33,8 @@ const Catalog = require("../models/catalogModel");
 const ArtWork = require("../models/artWorksModel");
 const EmailType = require("../models/emailTypeModel");
 const Coupon = require("../models/couponModel");
+const fs = require("fs");
+const path = require("path");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -1399,7 +1401,7 @@ const activateArtist = async (req, res) => {
 
     const findEmail = await EmailType.findOne({
       emailType: "become-an-artist",
-      emailLang: lang,
+      emailLang: lang || "ES",
       isDeleted: false,
     }).lean(true);
 
@@ -3486,6 +3488,85 @@ const deleteArtistSeries = async (req, res) => {
   }
 };
 
+const updateJSONFile = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { fileType } = req.query;
+
+    const validJson = Object.fromEntries(
+      Object.entries(req.body).map(([key, value]) => [
+        key.replace(/^"|"$/g, ""),
+        value,
+      ])
+    );
+
+    const UPLOADS_DIR = path.join(__dirname, "../public/uploads/lang");
+    const filePath = path.join(UPLOADS_DIR, fileType);
+
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
+
+    fs.writeFileSync(filePath, JSON.stringify(validJson, null, 2), "utf-8");
+
+    return res.status(200).json({ message: "File uploaded successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getJSONFile = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const UPLOADS_DIR = path.join(__dirname, "../public/uploads/lang");
+
+    fs.readdir(UPLOADS_DIR, (err, files) => {
+      if (err) {
+        return res
+          .status(500)
+          .json({ message: "Error reading files", error: err });
+      }
+      return res.status(200).send({ data: files });
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getFile = async (req, res) => {
+  try {
+    const filePath = path.join(
+      __dirname,
+      `../public/uploads/lang/${req.query.file}`
+    );
+
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ message: "File not found" });
+    }
+
+    res.sendFile(filePath);
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const downloadArtworkDataCSV = async (req, res) => {
   try {
     const workbook = new ExcelJS.Workbook();
@@ -4357,6 +4438,9 @@ module.exports = {
   approveArtworkChanges,
   reValidateArtist,
   deleteArtistSeries,
+  updateJSONFile,
+  getJSONFile,
+  getFile,
   downloadArtworkDataCSV,
   downloadArtistDataCSV,
   downloadDisciplineDataCSV,

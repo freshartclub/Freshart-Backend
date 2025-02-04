@@ -260,4 +260,113 @@ const getCircleList = catchAsyncError(async (req, res) => {
 
   return res.status(200).send({ data: circle });
 });
-module.exports = { addCircle, getCircle, getCircleList };
+
+const getArtistCircleList = catchAsyncError(async (req, res) => {
+  let { s } = req.query;
+
+  if (s == "undefined") {
+    s = "";
+  } else if (typeof s === "undefined") {
+    s = "";
+  }
+
+  const circle = await Circle.aggregate([
+    {
+      $lookup: {
+        from: "artists",
+        localField: "managers",
+        foreignField: "_id",
+        as: "managers",
+      },
+    },
+    {
+      $match: {
+        managers: { $elemMatch: { _id: objectId(req.user._id) } },
+        $or: [
+          { title: { $regex: s, $options: "i" } },
+          { description: { $regex: s, $options: "i" } },
+        ],
+      },
+    },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        content: 1,
+        mainImage: 1,
+        categories: 1,
+        status: 1,
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
+    },
+  ]);
+
+  return res.status(200).send({ data: circle });
+});
+
+const getCircleById = catchAsyncError(async (req, res) => {
+  const circle = await Circle.aggregate([
+    {
+      $match: {
+        _id: objectId(req.params.id),
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "managers",
+        foreignField: "_id",
+        as: "managers",
+      },
+    },
+    // {
+    //   $lookup: {
+    //     from: "posts",
+    //     localField: "posts",
+    //     foreignField: "_id",
+    //     as: "post",
+    //   },
+    // },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        content: 1,
+        mainImage: 1,
+        coverImage: 1,
+        categories: 1,
+        status: 1,
+        managers: {
+          $map: {
+            input: "$managers",
+            as: "manager",
+            in: {
+              _id: "$$manager._id",
+              artistName: "$$manager.artistName",
+              artistSurname1: "$$manager.artistSurname1",
+              artistSurname2: "$$manager.artistSurname2",
+              artistId: "$$manager.artistId",
+              img: "$$manager.profile.mainImage",
+              address: {
+                city: "$$manager.address.city",
+                country: "$$manager.address.country",
+              },
+            },
+          },
+        },
+      },
+    },
+  ]);
+
+  return res.status(200).send({ data: circle[0] });
+});
+
+module.exports = {
+  addCircle,
+  getCircle,
+  getCircleList,
+  getArtistCircleList,
+  getCircleById,
+};

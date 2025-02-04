@@ -990,7 +990,7 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne(
     { _id: id, isDeleted: false },
-    { status: 1 }
+    { status: 1, artworkName: 1 }
   ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
@@ -1224,7 +1224,7 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne(
     { _id: id },
-    { status: 1, owner: 1 }
+    { status: 1, owner: 1, artworkName: 1 }
   ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
@@ -1256,7 +1256,7 @@ const moveArtworkToPending = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne(
     { _id: id },
-    { status: 1, owner: 1 }
+    { status: 1, owner: 1, artworkName: 1 }
   ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
@@ -1803,7 +1803,7 @@ const validateArtwork = catchAsyncError(async (req, res, next) => {
 
   const artwork = await ArtWork.findOne(
     { _id: id },
-    { status: 1, owner: 1 }
+    { status: 1, owner: 1, artworkName: 1 }
   ).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
@@ -1815,7 +1815,7 @@ const validateArtwork = catchAsyncError(async (req, res, next) => {
         $push: {
           notifications: {
             subject: "Artwork Status Updated",
-            message: "Your artwork status has been updated to published",
+            message: `Status of your artwork "${artwork.artworkName}" has been updated to Published`,
           },
         },
       }

@@ -57,6 +57,9 @@ const {
   downloadKBDataCSV,
   downloadFAQDataCSV,
   downloadCouponDataCSV,
+  updateJSONFile,
+  getJSONFile,
+  getFile,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -349,6 +352,14 @@ router.patch(
   validateAdminToken,
   deleteHomeArtworkItem
 );
+
+// ----------------- upload JSON --------------------------
+
+router.post("/upload-json", validateAdminToken, updateJSONFile);
+
+router.get("/get-files", validateAdminToken, getJSONFile);
+
+router.get("/get-file", validateAdminToken, getFile);
 
 // -----------------doenload CSV -----------------------------
 
