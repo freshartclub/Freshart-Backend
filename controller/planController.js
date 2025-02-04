@@ -39,8 +39,32 @@ const addPlan = catchAsyncError(async (req, res) => {
     monthsDiscountSubscription: req.body.monthsDiscountSubscription,
     planData: JSON.parse(req.body.planData),
     defaultPlan: req.body.defaultPlan,
+    priority: req.body.priority,
     status: req.body.status,
   };
+
+  const plans = await Plan.find(
+    { planGrp: req.body.planGrp },
+    { defaultPlan: 1 }
+  ).lean(true);
+
+  if (plans.length > 0) {
+    const defaultPlan = plans.find((plan) => plan.defaultPlan === true);
+
+    if (defaultPlan && id) {
+      if (req.body.defaultPlan == "true" && defaultPlan._id.toString() !== id) {
+        return res.status(400).send({
+          message: `There should be only one default plan per plan group`,
+        });
+      }
+    }
+
+    if (defaultPlan && !id) {
+      return res.status(400).send({
+        message: `There should be only one default plan per plan group`,
+      });
+    }
+  }
 
   if (fileData.data?.planImg) {
     payload["planImg"] = fileData.data.planImg[0].filename;
@@ -137,6 +161,7 @@ const getPlans = catchAsyncError(async (req, res) => {
         limitPurchaseDiscount: 1,
         monthsDiscountSubscription: 1,
         planData: 1,
+        priority: 1,
         status: 1,
       },
     },
@@ -157,8 +182,8 @@ const getPlanById = catchAsyncError(async (req, res) => {
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   const { id } = req.params;
-  if(!id) return res.status(400).send({ message: `Plan id not found` });
-  
+  if (!id) return res.status(400).send({ message: `Plan id not found` });
+
   const plan = await Plan.findOne({ _id: id }).lean(true);
   res.status(200).send({ data: plan });
 });

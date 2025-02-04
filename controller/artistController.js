@@ -591,6 +591,7 @@ const changePassword = async (req, res) => {
 const becomeArtist = async (req, res) => {
   try {
     const { id } = req.params;
+    const { referralCode } = req.query;
     const fileData = await fileUploadFunc(req, res);
     if (fileData.type !== "success") {
       return res.status(fileData.status).send({
@@ -725,6 +726,10 @@ const becomeArtist = async (req, res) => {
       country: req.body.country,
       zipCode: String(req.body.zipCode),
     };
+
+    if (referralCode) {
+      obj["referralCode"] = referralCode;
+    }
 
     const findFullName = (val) => {
       let fullName = val?.artistName || "";

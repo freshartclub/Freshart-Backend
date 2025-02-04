@@ -67,6 +67,9 @@ const planSchema = new mongoose.Schema(
       type: String,
     },
     planData: [{ type: Object }],
+    priority: {
+      type: String,
+    },
     status: {
       type: String,
     },

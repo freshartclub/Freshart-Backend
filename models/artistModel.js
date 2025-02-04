@@ -218,6 +218,7 @@ const artistSchema = new mongoose.Schema(
       default: 1,
     },
     passwordLinkToken: { type: String },
+    referralCode: { type: String },
   },
   {
     timestamps: true,

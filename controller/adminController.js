@@ -1661,6 +1661,7 @@ const getArtistRequestList = async (req, res) => {
           links: 1,
           profile: 1,
           isActivated: 1,
+          referralCode: 1,
           documents: 1,
           userId: 1,
           artistId: 1,
@@ -1827,18 +1828,18 @@ const createNewUser = async (req, res) => {
     };
 
     // default lang is Spanish "ES"
-    const findEmail = await EmailType.findOne({
-      emailType: "admin-create-user",
-      emailLang: "ES",
-    }).lean(true);
+    // const findEmail = await EmailType.findOne({
+    //   emailType: "admin-create-user",
+    //   emailLang: "ES",
+    // }).lean(true);
 
-    const mailVaribles = {
-      "%head%": findEmail.emailHead,
-      "%msg%": findEmail.emailDesc,
-      "%email%": obj.email,
-      "%name%": obj.artistName,
-      "%phone%": obj.phone,
-    };
+    // const mailVaribles = {
+    //   "%head%": findEmail.emailHead,
+    //   "%msg%": findEmail.emailDesc,
+    //   "%email%": obj.email,
+    //   "%name%": obj.artistName,
+    //   "%phone%": obj.phone,
+    // };
 
     let nUser = true;
     if (req.body.value === "new") {
@@ -1868,7 +1869,7 @@ const createNewUser = async (req, res) => {
             },
           ],
         }).then();
-        sendMail("sample-email", mailVaribles, user.email);
+        // sendMail("sample-email", mailVaribles, user.email);
 
         return res
           .status(200)
