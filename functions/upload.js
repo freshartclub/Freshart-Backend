@@ -1,7 +1,5 @@
 const multer = require("multer");
 const mongoose = require("mongoose");
-const path = require("path");
-const fs = require("fs");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -16,10 +14,6 @@ const storage = multer.diskStorage({
       } else {
         return cb(null, "./public/uploads/videos");
       }
-    }
-
-    if (file?.fieldname === "jsonFile") {
-      return cb(null, "./public/uploads/lang");
     }
 
     if (file?.fieldname === "ticketImg") {
@@ -54,7 +48,6 @@ const storage = multer.diskStorage({
       file.originalname.length
     );
     let data = req?.user?._id;
-
     if (
       [
         "disciplineImage",
@@ -79,29 +72,8 @@ const storage = multer.diskStorage({
       ].includes(file?.fieldname)
     ) {
       data = mongoose.Types.ObjectId();
-    } else if (file?.fieldname === "jsonFile") {
-      let filename;
-      const queryFileName = req.query.fileName;
-
-      if (!queryFileName) {
-        return cb(
-          new Error("Filename is required in the query parameter"),
-          null
-        );
-      }
-
-      filename = queryFileName.endsWith(".json")
-        ? queryFileName
-        : `${queryFileName}.json`;
-
-      const filePath = path.join("./public/uploads/lang", filename);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    } else {
-      cb(null, `${data}.${fileExtension}`);
     }
+    cb(null, `${data}.${fileExtension}`);
   },
 });
 
@@ -118,7 +90,6 @@ const fileFilter = (req, file, cb) => {
       return cb(null, true);
     }
   }
-
   if (["collectionFile"].includes(file?.fieldname)) {
     if (file.mimetype === "video/mp4") {
       return cb(null, true);
@@ -143,10 +114,6 @@ const fileFilter = (req, file, cb) => {
     } else {
       return cb(null, true);
     }
-  }
-
-  if (file?.fieldname === "jsonFile" && file.mimetype === "application/json") {
-    return cb(null, true);
   }
 
   if (
@@ -197,7 +164,6 @@ const upload = multer({
   { name: "expertImg", maxCount: 1 },
   { name: "evidenceImg", maxCount: 5 },
   { name: "planImg", maxCount: 1 },
-  { name: "jsonFile", maxCount: 1 },
 ]);
 
 module.exports = upload;
