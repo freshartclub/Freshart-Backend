@@ -176,7 +176,7 @@ const processImages = async (req, res) => {
           //   });
           // }
 
-          await sharp(`https://dev.freshartclub.com/images/${file.filename}`)
+          await sharp(`https://dev.freshartclub.com/images/users/${file.filename}`)
             .resize({ width: 800 })
             .jpeg({ quality: 60 })
             .toFile(compressedPath);
