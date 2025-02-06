@@ -7,7 +7,7 @@ const Circle = require("../models/circleModel");
 const objectId = require("mongoose").Types.ObjectId;
 const EmailType = require("../models/emailTypeModel");
 const { sendMail } = require("../functions/mailer");
-const Post = require("../models/postModel");
+const Post = require("../models/postsModel");
 
 const addCircle = catchAsyncError(async (req, res) => {
   const admin = await Admin.countDocuments({
