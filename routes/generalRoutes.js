@@ -13,6 +13,7 @@ const {
   getGeneralKBList,
   getFAQGeneralList,
   getKBById,
+  getGuestHomeData,
 } = require("../controller/generalController");
 const {
   addDiscipline,
@@ -75,5 +76,7 @@ router.get("/get-general-kb-list", getGeneralKBList);
 router.get("/get-general-faq-list", getFAQGeneralList);
 
 router.get("/get-kb-by-id/:id", getKBById);
+
+router.get("/get-home-data", getGuestHomeData);
 
 module.exports = router;

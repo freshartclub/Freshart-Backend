@@ -9,11 +9,15 @@ const postSchema = new mongoose.Schema(
       default: false,
     },
     content: { type: String },
-    file: { type: String },
+    circleFile: { type: String },
   },
   {
     timestamps: true,
   }
 );
+
+postSchema.index({ circle: 1 });
+
+postSchema.index({ circle: 1, owner: 1 });
 
 module.exports = mongoose.model("Post", postSchema);

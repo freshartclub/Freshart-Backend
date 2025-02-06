@@ -11,6 +11,7 @@ const objectId = require("mongoose").Types.ObjectId;
 const moment = require("moment");
 const KB = require("../models/kbModel");
 const FAQ = require("../models/faqModel");
+const Carousel = require("../models/carouselModel");
 
 const listArtworkStyle = async (req, res) => {
   try {
@@ -695,10 +696,60 @@ const getFAQGeneralList = async (req, res) => {
 const getKBById = async (req, res) => {
   try {
     const { id } = req.params;
-    if(!id) return res.status(400).send({ message: "Id not found" });
+    if (!id) return res.status(400).send({ message: "Id not found" });
 
     const kb = await KB.findOne({ _id: id }).lean(true);
     return res.status(200).send({ data: kb });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getGuestHomeData = async (req, res) => {
+  try {
+    const [carousel, faqList] = await Promise.all([
+      Carousel.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            title: 1,
+            subtitle: 1,
+            content: 1,
+            carouselImg: 1,
+            link: 1,
+            type: 1,
+          },
+        },
+      ]),
+      FAQ.aggregate([
+        {
+          $match: {
+            isDeleted: false,
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            faqGrp: 1,
+            faqQues: 1,
+            faqAns: 1,
+            tags: 1,
+            createdAt: 1,
+          },
+        },
+        {
+          $sort: { createdAt: -1 },
+        },
+      ]),
+    ]);
+
+    return res.status(200).send({ data: { carousel, faqList } });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -720,4 +771,5 @@ module.exports = {
   getGeneralKBList,
   getFAQGeneralList,
   getKBById,
+  getGuestHomeData,
 };

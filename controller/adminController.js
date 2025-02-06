@@ -2096,19 +2096,23 @@ const getAllUsers = async (req, res) => {
           isDeleted: false,
           userId: { $exists: true },
           $or: [
-            { userId: { $regex: s, $options: "i" } },
             { artistName: { $regex: s, $options: "i" } },
+            { artistSurname1: { $regex: s, $options: "i" } },
+            { artistSurname2: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
           ],
         },
       },
       {
         $project: {
+          _id: 1,
           artistName: 1,
           artistSurname1: 1,
           artistSurname2: 1,
           role: 1,
           email: 1,
           phone: 1,
+          mainImage: "$profile.mainImage",
           createdAt: 1,
           userId: 1,
           profile: 1,
@@ -2119,9 +2123,7 @@ const getAllUsers = async (req, res) => {
       },
     ]);
 
-    return res
-      .status(200)
-      .send({ data: users, url: "https://dev.freshartclub.com/images" });
+    return res.status(200).send({ data: users });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -3550,24 +3552,6 @@ const getJSONFile = async (req, res) => {
   }
 };
 
-const getFile = async (req, res) => {
-  try {
-    const filePath = path.join(
-      __dirname,
-      `../public/uploads/lang/${req.query.file}`
-    );
-
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: "File not found" });
-    }
-
-    res.sendFile(filePath);
-  } catch (error) {
-    APIErrorLog.error(error);
-    return res.status(500).send({ message: "Something went wrong" });
-  }
-};
-
 const downloadArtworkDataCSV = async (req, res) => {
   try {
     const workbook = new ExcelJS.Workbook();
@@ -4441,7 +4425,6 @@ module.exports = {
   deleteArtistSeries,
   updateJSONFile,
   getJSONFile,
-  getFile,
   downloadArtworkDataCSV,
   downloadArtistDataCSV,
   downloadDisciplineDataCSV,

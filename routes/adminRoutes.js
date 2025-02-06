@@ -59,7 +59,6 @@ const {
   downloadCouponDataCSV,
   updateJSONFile,
   getJSONFile,
-  getFile,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -85,6 +84,7 @@ const {
   getCatalogById,
   getCatalogList,
   deleteCatalog,
+  getCatalogName,
 } = require("../controller/catalogController");
 const {
   addCollection,
@@ -111,6 +111,11 @@ const {
   getHomeArtworkById,
   getAdminHomeArtworks,
   deleteHomeArtworkItem,
+  addCarousel,
+  getCarousels,
+  getCarousel,
+  deleteCarousel,
+  activateCarousel,
 } = require("../controller/homeArtworkController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
@@ -283,6 +288,8 @@ router.get("/get-catalog-list", validateAdminToken, getCatalogList);
 
 router.patch("/delete-catalog/:id", validateAdminToken, deleteCatalog);
 
+router.get("/get-catalogs-name", validateAdminToken, getCatalogName);
+
 // ------------------ collection routes ---------------------
 
 router.post("/add-collection", validateAdminToken, addCollection);
@@ -353,13 +360,23 @@ router.patch(
   deleteHomeArtworkItem
 );
 
+// -----------------carousel route ----------------------
+
+router.post("/add-carousel/:id?", validateAdminToken, addCarousel);
+
+router.get("/get-all-carousel", validateAdminToken, getCarousels);
+
+router.get("/get-carousel-by-id/:id", validateAdminToken, getCarousel);
+
+router.patch("/delete-carousel/:id", validateAdminToken, deleteCarousel);
+
+router.patch("/activate-carousel/:id", validateAdminToken, activateCarousel);
+
 // ----------------- upload JSON --------------------------
 
 router.post("/upload-json", validateAdminToken, updateJSONFile);
 
 router.get("/get-files", validateAdminToken, getJSONFile);
-
-router.get("/get-file", validateAdminToken, getFile);
 
 // -----------------doenload CSV -----------------------------
 

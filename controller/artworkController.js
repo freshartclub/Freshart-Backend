@@ -262,7 +262,30 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   };
 
   if (artworkId) {
-    ArtWork.updateOne({ _id: artworkId }, condition).then();
+    if (artwork.status === "modified") {
+      await ArtWork.updateOne(
+        { _id: artworkId },
+        { $set: { reviewDetails: obj } }
+      );
+
+      await Notification.updateOne(
+        { user: artist._id },
+        {
+          $push: {
+            notifications: {
+              subject: "Changes in Modified Artwork",
+              message: `Admin has made changes in your modified artwork ${artwork.title}. Please check it out.`,
+            },
+          },
+        }
+      );
+
+      return res
+        .status(200)
+        .send({ message: "Artwork Modified", data: artwork });
+    }
+
+    await ArtWork.updateOne({ _id: artworkId }, condition);
 
     const newCatalogId =
       req.body.activeTab === "subscription"
@@ -286,39 +309,49 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       ]);
     }
 
-    return res.status(200).send({
-      message: "Artwork Editted Sucessfully",
-      data: { _id: artworkId },
-    });
-  } else {
-    obj["status"] = "draft";
-    const artwork = await ArtWork.create(obj);
-
-    const catalogId = req.body.subscriptionCatalog
-      ? req.body.subscriptionCatalog
-      : req.body.purchaseCatalog;
-
-    await Catalog.updateOne(
-      { _id: catalogId },
-      { $push: { artworkList: artwork._id } }
-    );
-
-    Notification.updateOne(
+    await Notification.updateOne(
       { user: artist._id },
       {
         $push: {
           notifications: {
-            subject: "New Artwork Added",
-            message: `A New Artwork "${artwork.artworkName}" has been added by Admin for you`,
+            subject: "Artwork Modified by Admin",
+            message: `Artwork "${artwork.artworkName}" has been modified by Admin`,
           },
         },
       }
-    ).then();
+    );
 
-    res
-      .status(200)
-      .send({ message: "Artwork Added Sucessfully", data: artwork });
+    return res.status(200).send({
+      message: "Artwork Editted Sucessfully",
+      data: { _id: artworkId },
+    });
   }
+
+  obj["status"] = "draft";
+  await ArtWork.create(obj);
+
+  const catalogId = req.body.subscriptionCatalog
+    ? req.body.subscriptionCatalog
+    : req.body.purchaseCatalog;
+
+  await Catalog.updateOne(
+    { _id: catalogId },
+    { $push: { artworkList: artwork._id } }
+  );
+
+  await Notification.updateOne(
+    { user: artist._id },
+    {
+      $push: {
+        notifications: {
+          subject: "New Artwork Added by Admin",
+          message: `A New Artwork "${artwork.artworkName}" has been added by Admin for you`,
+        },
+      },
+    }
+  );
+
+  return res.status(200).send({ message: "Artwork Added Sucessfully" });
 });
 
 const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
@@ -647,6 +680,18 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       ]);
     }
 
+    await Notification.updateOne(
+      { user: artist._id },
+      {
+        $push: {
+          notifications: {
+            subject: "Draft Artwork Editted",
+            message: `You have editted a draft Artwork - "${artwork.artworkName}"`,
+          },
+        },
+      }
+    );
+
     return res.status(200).send({ message: "Artwork Editted Sucessfully" });
   } else {
     artwork = await ArtWork.create(obj);
@@ -666,7 +711,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
         $push: {
           notifications: {
             subject: "New Artwork Added",
-            message: `You have added a new Artwork - ${artwork.artworkName}`,
+            message: `You have added a new Artwork - "${artwork.artworkName}"`,
           },
         },
       }
@@ -700,13 +745,13 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Artwork not found` });
   }
 
-  if (artworkData.status === "modified") {
+  if (artworkData.status === "draft" || artworkData.status === "rejected") {
     return res.status(400).send({
-      message: `You already modified this artwork. Wait for admin approval`,
+      message: `Artwork is in ${artworkData.status} status. You cannot modify this artwork`,
     });
   }
 
-  if (artworkData.status !== "published") {
+  if (artworkData.status !== "published" || artworkData.status !== "modified") {
     return res.status(400).send({
       message: `You cannot modify this artwork`,
     });
@@ -965,22 +1010,26 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["lastModified"] = date;
 
-  ArtWork.updateOne(
+  await ArtWork.updateOne(
     { _id: id, isDeleted: false },
     { $set: { reviewDetails: obj, status: "modified" } }
-  ).then();
+  );
 
-  Notification.updateOne(
+  const notification = {
+    subject:
+      artworkData.status === "published"
+        ? "Artwork Modification Requested"
+        : "Modified Artwork Edited",
+    message:
+      artworkData.status === "published"
+        ? `You have submitted an artwork modification request for "${artworkData.artworkName}".`
+        : `You made changes to your modified artwork "${artworkData.artworkName}".`,
+  };
+
+  await Notification.updateOne(
     { user: artist._id },
-    {
-      $push: {
-        notifications: {
-          subject: "Artwork Modification Requested",
-          message: `You have submitted an artwork modification request for ${artworkData.artworkName}`,
-        },
-      },
-    }
-  ).then();
+    { $push: { notifications: notification } }
+  );
 
   return res.status(200).send({ message: "Artwork Modified Successfully" });
 });
@@ -1050,6 +1099,47 @@ const getArtistById = catchAsyncError(async (req, res, next) => {
       $match: {
         isDeleted: false,
         isActivated: true,
+        $or: [
+          { artistName: { $regex: nameEmail, $options: "i" } },
+          { artistSurname1: { $regex: nameEmail, $options: "i" } },
+          { artistSurname2: { $regex: nameEmail, $options: "i" } },
+          { email: { $regex: nameEmail, $options: "i" } },
+        ],
+      },
+    },
+    {
+      $project: {
+        email: 1,
+        artistName: 1,
+        nickName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        artProvider: "$commercilization.artProvider",
+        mainImage: "$profile.mainImage",
+        artistId: 1,
+        userId: 1,
+        _id: 1,
+      },
+    },
+  ]);
+
+  return res.status(200).send({ data: artists });
+});
+
+const getAllUsers = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+  const { nameEmail } = req.query;
+
+  const artists = await Artist.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        userId: { $exists: true },
         $or: [
           { artistName: { $regex: nameEmail, $options: "i" } },
           { artistSurname1: { $regex: nameEmail, $options: "i" } },
@@ -2065,6 +2155,7 @@ module.exports = {
   artistCreateArtwork,
   getAdminArtworkList,
   getArtistById,
+  getAllUsers,
   removeArtwork,
   getArtworkById,
   getArtistArtwork,

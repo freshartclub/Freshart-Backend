@@ -1970,9 +1970,10 @@ const artistReValidate = async (req, res) => {
 
 const getNotificationsOfUser = async (req, res) => {
   try {
-    const notifications = await Notification.findOne({
-      user: req.user._id,
-    }).lean(true);
+    const notifications = await Notification.findOne(
+      { user: req.user._id },
+      { notifications: { $elemMatch: { isDeleted: false } } }
+    ).lean(true);
 
     return res.status(200).send({ data: notifications });
   } catch (error) {
@@ -2012,13 +2013,13 @@ const deleteNotification = async (req, res) => {
 
     if (id) {
       await Notification.updateOne(
-        { user: req.user._id },
-        { $pull: { notifications: { _id: id } } }
+        { user: req.user._id, "notifications._id": id },
+        { $set: { "notifications.$.isDeleted": true } }
       );
     } else {
       await Notification.updateOne(
         { user: req.user._id },
-        { $set: { notifications: [] } }
+        { $set: { "notifications.$[].isDeleted": true } }
       );
     }
 

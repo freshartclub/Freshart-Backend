@@ -265,10 +265,33 @@ const getCatalogList = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ data: catalogs });
 });
 
+// for admin preview latest details
+const getCatalogName = catchAsyncError(async (req, res, next) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) {
+    return res.status(400).send({ message: `Admin not found` });
+  }
+
+  const catalog = await Catalog.find(
+    {},
+    {
+      catalogName: 1,
+      createdAt: 1,
+    }
+  );
+
+  res.status(200).send({ data: catalog });
+});
+
 module.exports = {
   addCatalog,
   getCatalog,
   getCatalogById,
   getCatalogList,
   deleteCatalog,
+  getCatalogName,
 };

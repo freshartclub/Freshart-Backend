@@ -69,6 +69,7 @@ const storage = multer.diskStorage({
         "expertImg",
         "evidenceImg",
         "planImg",
+        "carouselImg",
       ].includes(file?.fieldname)
     ) {
       data = mongoose.Types.ObjectId();
@@ -84,7 +85,7 @@ const fileFilter = (req, file, cb) => {
       file.originalname.length
     );
     if (
-      ["docx", "xlsx"].includes(fileExtension) ||
+      ["docx", "xlsx", "csv", "txt"].includes(fileExtension) ||
       file.mimetype === "application/pdf"
     ) {
       return cb(null, true);
@@ -164,6 +165,7 @@ const upload = multer({
   { name: "expertImg", maxCount: 1 },
   { name: "evidenceImg", maxCount: 5 },
   { name: "planImg", maxCount: 1 },
+  { name: "carouselImg", maxCount: 1 },
 ]);
 
 module.exports = upload;

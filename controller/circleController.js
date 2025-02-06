@@ -7,6 +7,7 @@ const Circle = require("../models/circleModel");
 const objectId = require("mongoose").Types.ObjectId;
 const EmailType = require("../models/emailTypeModel");
 const { sendMail } = require("../functions/mailer");
+const Post = require("../models/postModel");
 
 const addCircle = catchAsyncError(async (req, res) => {
   const admin = await Admin.countDocuments({
@@ -182,7 +183,7 @@ const getCircle = catchAsyncError(async (req, res) => {
               artistName: "$$manager.artistName",
               artistSurname1: "$$manager.artistSurname1",
               artistSurname2: "$$manager.artistSurname2",
-              artistId: "$$manager.artistId",
+              userId: "$$manager.userId",
               img: "$$manager.profile.mainImage",
             },
           },
@@ -361,6 +362,58 @@ const getCircleById = catchAsyncError(async (req, res) => {
   ]);
 
   return res.status(200).send({ data: circle[0] });
+});
+
+const createPostInCircle = catchAsyncError(async (req, res) => {
+  const { id, postId } = req.params;
+  const circle = await Circle.findById({ _id: id }).lean(true);
+  if (!circle) {
+    return res.status(400).send({ message: "Circle not found" });
+  }
+
+  if (!circle.managers.includes(req.user._id)) {
+    return res
+      .status(400)
+      .send({ message: "You don't have access to the resource" });
+  }
+
+  if (postId) {
+    const post = await Post.updateOne(
+      { circle: circle._id, owner: req.user._id },
+      {
+        $set: {
+          content: req.body.content,
+        },
+      }
+    );
+
+    if (post.modifiedCount === 0) {
+      return res.status(400).send({ message: "Post Not Found" });
+    }
+
+    return res.status(400).send({ message: "Post Editted" });
+  } else {
+    const fileData = await fileUploadFunc(req, res);
+
+    await Post.create({
+      circle: circle._id,
+      owner: req.user._id,
+      content: req.body.content,
+      circleFile: fileData.data?.circleFile[0]?.filename,
+    });
+  }
+});
+
+const getAllPostOfCircle = catchAsyncError(async (req, res) => {
+  const { id } = req.params;
+  const circle = await Circle.findById({ _id: id }).lean(true);
+  if (!circle) {
+    return res.status(400).send({ message: "Circle not found" });
+  }
+
+  const allPosts = await Post.find({ circle: circle._id });
+
+  return res.status(200).send({ data: allPosts });
 });
 
 module.exports = {
