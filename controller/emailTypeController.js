@@ -19,17 +19,6 @@ const addEmailType = catchAsyncError(async (req, res) => {
     return res.status(400).send({ message: `All fields are required` });
   }
 
-  // if (!id) {
-  //   const found = await EmailType.findOne(
-  //     { emailType: emailType },
-  //     { isDeleted: 1 }
-  //   ).lean(true);
-
-  //   if (found) {
-  //     return res.status(400).send({ message: "Email Type already exist" });
-  //   }
-  // }
-
   if (id) {
     await EmailType.updateOne(
       { _id: id },

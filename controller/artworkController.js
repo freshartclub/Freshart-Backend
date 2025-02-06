@@ -8,6 +8,7 @@ const objectId = require("mongoose").Types.ObjectId;
 const Catalog = require("../models/catalogModel");
 const Notification = require("../models/notificationModel");
 const HomeArtwork = require("../models/homeArtworkModel");
+const { processImages } = require("../functions/upload");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -43,6 +44,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   const fileData = await fileUploadFunc(req, res);
+  await processImages(req, res);
 
   let images = [];
   let videos = [];
@@ -386,6 +388,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   const fileData = await fileUploadFunc(req, res);
+  await processImages(req, res);
 
   let images = [];
   let videos = [];
@@ -758,6 +761,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   const fileData = await fileUploadFunc(req, res);
+  await processImages(req, res);
 
   let images = [];
   let videos = [];

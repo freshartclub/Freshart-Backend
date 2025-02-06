@@ -1,5 +1,8 @@
 const multer = require("multer");
 const mongoose = require("mongoose");
+const sharp = require("sharp");
+const fs = require("fs");
+const path = require("path");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -31,15 +34,15 @@ const storage = multer.diskStorage({
 
     if (file?.fieldname === "uploadDocs") {
       cb(null, "./public/uploads/documents");
-    } else {
-      if (
-        ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
-      ) {
-        return cb(null, "./public/uploads/videos");
-      } else {
-        return cb(null, "./public/uploads/users");
-      }
     }
+
+    if (
+      ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
+    ) {
+      return cb(null, "./public/uploads/videos");
+    }
+
+    return cb(null, "./public/uploads/users");
   },
 
   filename: function (req, file, cb) {
@@ -79,65 +82,52 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
+  const imageMimeTypes = new Set([
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+  ]);
+  const videoMimeTypes = new Set(["video/mp4", "video/webm", "video/mkv"]);
+  const docExtensions = new Set(["docx", "xlsx", "csv", "txt"]);
+
   if (file?.fieldname === "uploadDocs") {
-    const fileExtension = file.originalname.substr(
-      file.originalname.lastIndexOf(".") + 1,
-      file.originalname.length
-    );
+    const fileExtension = file.originalname.split(".").pop();
     if (
-      ["docx", "xlsx", "csv", "txt"].includes(fileExtension) ||
+      docExtensions.has(fileExtension) ||
       file.mimetype === "application/pdf"
     ) {
       return cb(null, true);
     }
   }
-  if (["collectionFile"].includes(file?.fieldname)) {
-    if (file.mimetype === "video/mp4") {
-      return cb(null, true);
-    } else if (
-      file.mimetype === "image/jpg" ||
-      file.mimetype === "image/png" ||
-      file.mimetype === "image/jpeg" ||
-      file.mimetype === "image/webp"
+
+  if (file?.fieldname === "collectionFile") {
+    if (
+      videoMimeTypes.has(file.mimetype) ||
+      imageMimeTypes.has(file.mimetype)
     ) {
       return cb(null, true);
     }
   }
 
-  if (["ticketImg"].includes(file?.fieldname)) {
-    if (
-      file.mimetype === "image/jpg" ||
-      file.mimetype === "image/png" ||
-      file.mimetype === "image/jpeg" ||
-      file.mimetype === "image/webp"
-    ) {
-      return cb(null, true);
-    } else {
+  if (file?.fieldname === "ticketImg") {
+    if (docExtensions.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
       return cb(null, true);
     }
   }
 
   if (
-    ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
+    ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname) &&
+    videoMimeTypes.has(file.mimetype)
   ) {
-    if (
-      file.mimetype === "video/mp4" ||
-      file.mimetype === "video/webm" ||
-      file.mimetype === "video/mkv"
-    ) {
-      return cb(null, true);
-    }
-  } else {
-    if (
-      ["image/jpeg", "image/jpg", "image/png", "image/webp"].includes(
-        file.mimetype
-      )
-    ) {
-      return cb(null, true);
-    }
+    return cb(null, true);
   }
 
-  req.fileValidationError = "Please upload valid File format";
+  if (imageMimeTypes.has(file.mimetype)) {
+    return cb(null, true);
+  }
+
+  req.fileValidationError = "Please upload a valid file format";
   return cb(null, false, req.fileValidationError);
 };
 
@@ -168,4 +158,42 @@ const upload = multer({
   { name: "carouselImg", maxCount: 1 },
 ]);
 
-module.exports = upload;
+const processImages = async (req, res) => {
+  try {
+    const imageFields = ["backImage", "inProcessImage", "images", "mainImage"];
+
+    if (!req.files) return;
+
+    for (const field of imageFields) {
+      if (req.files[field]) {
+        for (const file of req.files[field]) {
+          // const originalPath = file.path;
+          const compressedPath = `./public/low/${file.filename}`;
+
+          // if (!fs.existsSync("./public/uploads/low")) {
+          //   fs.mkdirSync("./public/uploads/low", {
+          //     recursive: true,
+          //   });
+          // }
+
+          await sharp(`https://dev.freshartclub.com/images/${file.filename}`)
+            .resize({ width: 800 })
+            .jpeg({ quality: 60 })
+            .toFile(compressedPath);
+
+          // await sharp(`./public/uploads/users/${file.filename}`)
+          //   .resize({ width: 800 })
+          //   .jpeg({ quality: 60 })
+          //   .toFile(compressedPath);
+        }
+      }
+    }
+
+    return;
+  } catch (error) {
+    console.error("Error processing images:", error);
+    next(error);
+  }
+};
+
+module.exports = { upload, processImages };

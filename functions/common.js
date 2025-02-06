@@ -2,8 +2,7 @@ const Theme = require("../models/themeModel");
 const Technic = require("../models/technicModel");
 // const MediaSupport = require("../models/mediaSupportModel");
 const multer = require("multer");
-
-const upload = require("../functions/upload");
+const { upload } = require("./upload");
 
 module.exports.createLog = (logName) => {
   try {
