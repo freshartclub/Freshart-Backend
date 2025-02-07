@@ -10,6 +10,12 @@ const artworkStyle = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    type: {
+      type: String,
+    },
+    text: {
+      type: String,
+    },
     artworks: [{ type: mongoose.Schema.Types.ObjectId }],
   },
   {

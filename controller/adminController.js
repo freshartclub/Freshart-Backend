@@ -1519,13 +1519,10 @@ const getAllArtists = async (req, res) => {
       { $limit: limit + 1 },
     ]);
 
-    if (direction === "prev" && currPage != 1) {
-      artists.reverse().shift();
-    } else if (direction === "prev") {
-      artists.reverse();
-    }
-
-    const hasNextPage = currPage === 1 || artists.length < limit ? false : true;
+    const hasNextPage =
+      (currPage == 1 && artists.length > limit) ||
+      artists.length > limit ||
+      (direction === "prev" && artists.length === limit);
 
     if (hasNextPage && direction) {
       if (direction === "next") artists.pop();
@@ -1534,6 +1531,13 @@ const getAllArtists = async (req, res) => {
     }
 
     const hasPrevPage = currPage == 1 ? false : true;
+
+    if (direction === "prev" && currPage != 1) {
+      artists.reverse().shift();
+    } else if (direction === "prev") {
+      artists.reverse();
+    }
+
     const nextCursor = hasNextPage ? artists[artists.length - 1]._id : null;
     const prevCursor = hasPrevPage ? artists[0]._id : null;
 
@@ -1546,7 +1550,6 @@ const getAllArtists = async (req, res) => {
       totalCount,
     });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -1560,48 +1563,85 @@ const getAllCompletedArtists = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { s } = req.query;
-    let filter = {};
+    let { s, limit, cursor, direction, currPage } = req.query;
+    if (s == "undefined" || typeof s === "undefined") s = "";
 
-    if (s) {
-      filter = {
-        $or: [
-          { artistId: { $regex: s, $options: "i" } },
-          { artistName: { $regex: s, $options: "i" } },
-          { email: { $regex: s, $options: "i" } },
-        ],
-      };
+    limit = parseInt(limit) || 10;
+    cursor = cursor || null;
+
+    const matchStage = {
+      isDeleted: false,
+      isActivated: true,
+      $or: [
+        { artistId: { $regex: s, $options: "i" } },
+        { artistName: { $regex: s, $options: "i" } },
+        { email: { $regex: s, $options: "i" } },
+      ],
+    };
+
+    const totalCount = await Artist.countDocuments(matchStage);
+
+    if (cursor) {
+      if (direction === "next") {
+        matchStage._id = { $lt: objectId(cursor) };
+      } else if (direction === "prev") {
+        matchStage._id = { $gt: objectId(cursor) };
+      }
     }
 
-    const getArtists = await Artist.find(
+    let artists = await Artist.aggregate([
+      { $match: matchStage },
       {
-        isActivated: true,
-        isDeleted: false,
-        ...filter,
+        $project: {
+          artistName: 1,
+          avatar: 1,
+          artistSurname1: 1,
+          nickName: 1,
+          artistSurname2: 1,
+          email: 1,
+          phone: 1,
+          language: 1,
+          profile: 1,
+          createdAt: 1,
+          isActivated: 1,
+          userId: 1,
+          artistId: 1,
+          status: 1,
+        },
       },
-      {
-        artistName: 1,
-        avatar: 1,
-        artistSurname1: 1,
-        nickName: 1,
-        artistSurname2: 1,
-        email: 1,
-        phone: 1,
-        language: 1,
-        profile: 1,
-        createdAt: 1,
-        isActivated: 1,
-        userId: 1,
-        artistId: 1,
-        status: 1,
-      }
-    )
-      .sort({ createdAt: -1 })
-      .lean(true);
+      { $sort: { _id: direction === "prev" ? 1 : -1 } },
+      { $limit: limit + 1 },
+    ]);
 
-    res
-      .status(200)
-      .send({ data: getArtists, url: "https://dev.freshartclub.com/images" });
+    const hasNextPage =
+      (currPage == 1 && artists.length > limit) ||
+      artists.length > limit ||
+      (direction === "prev" && artists.length === limit);
+
+    if (hasNextPage && direction) {
+      if (direction === "next") artists.pop();
+    } else if (hasNextPage) {
+      artists.pop();
+    }
+    const hasPrevPage = currPage == 1 ? false : true;
+
+    if (direction === "prev" && currPage != 1) {
+      artists.reverse().shift();
+    } else if (direction === "prev") {
+      artists.reverse();
+    }
+
+    const nextCursor = hasNextPage ? artists[artists.length - 1]._id : null;
+    const prevCursor = hasPrevPage ? artists[0]._id : null;
+
+    return res.status(200).send({
+      data: artists,
+      nextCursor,
+      prevCursor,
+      hasNextPage,
+      hasPrevPage,
+      totalCount,
+    });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1735,31 +1775,6 @@ const getArtistPendingList = async (req, res) => {
     res
       .status(200)
       .send({ data: artistlist, url: "https://dev.freshartclub.com/images" });
-  } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
-    APIErrorLog.error(error);
-    return res.status(500).send({ message: "Something went wrong" });
-  }
-};
-
-const getUserFromId = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const admin = await Admin.countDocuments({
-      _id: req.user._id,
-      isDeleted: false,
-    });
-    if (!admin) return res.status(400).send({ message: `Admin not found` });
-
-    const artist = await Artist.findOne({ _id: id, isDeleted: false }).lean(
-      true
-    );
-    if (!artist)
-      return res.status(400).send({ message: `Artist Request not found` });
-
-    const userId = artist.userId ? artist.userId : null;
-
-    return res.status(200).send({ data: artist, userId: userId });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1996,83 +2011,36 @@ const serachUser = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { userId } = req.query;
-    let query = {};
 
-    if (userId) {
-      query = {
-        $or: [
-          { userId: { $regex: userId, $options: "i" } },
-          { artistName: { $regex: userId, $options: "i" } },
-          { artistSurname1: { $regex: userId, $options: "i" } },
-          { email: { $regex: userId, $options: "i" } },
-        ],
-      };
-    }
-
-    const users = await Artist.find(
-      {
-        isDeleted: false,
-        role: "user",
-        ...query,
-      },
-      {
-        userId: 1,
-        email: 1,
-        artistName: 1,
-        artistSurname1: 1,
-        artistSurname2: 1,
-        phone: 1,
-        address: 1,
-        artistId: 1,
-        profile: 1,
-        url: "https://dev.freshartclub.com/images",
-      }
-    ).lean(true);
-
-    return res.status(200).send({ data: users });
-  } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
-    APIErrorLog.error(error);
-    return res.status(500).send({ message: "Something went wrong" });
-  }
-};
-
-const serachUserByQueryInput = async (req, res) => {
-  try {
-    const admin = await Admin.countDocuments({
-      _id: req.user._id,
-      isDeleted: false,
-    }).lean(true);
-    if (!admin) return res.status(400).send({ message: `Admin not found` });
-
-    let { s } = req.query;
-
-    const artists = await Artist.aggregate([
+    const users = await Artist.aggregate([
       {
         $match: {
           isDeleted: false,
+          role: "user",
           $or: [
-            { userId: { $regex: s, $options: "i" } },
-            { artistName: { $regex: s, $options: "i" } },
-            { email: { $regex: s, $options: "i" } },
+            { userId: { $regex: userId, $options: "i" } },
+            { artistName: { $regex: userId, $options: "i" } },
+            { artistSurname1: { $regex: userId, $options: "i" } },
+            { email: { $regex: userId, $options: "i" } },
           ],
         },
       },
       {
         $project: {
+          userId: 1,
+          email: 1,
           artistName: 1,
           artistSurname1: 1,
           artistSurname2: 1,
-          userId: 1,
+          phone: 1,
+          address: 1,
+          artistId: 1,
           mainImage: "$profile.mainImage",
-          email: 1,
         },
       },
     ]);
 
-    return res
-      .status(200)
-      .send({ data: artists, url: "https://dev.freshartclub.com/images" });
+    return res.status(200).send({ data: users });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -2088,21 +2056,36 @@ const getAllUsers = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    let { s } = req.query;
+    let { s, limit, cursor, direction, currPage } = req.query;
+    if (s == "undefined" || typeof s === "undefined") s = "";
 
-    const users = await Artist.aggregate([
-      {
-        $match: {
-          isDeleted: false,
-          userId: { $exists: true },
-          $or: [
-            { artistName: { $regex: s, $options: "i" } },
-            { artistSurname1: { $regex: s, $options: "i" } },
-            { artistSurname2: { $regex: s, $options: "i" } },
-            { email: { $regex: s, $options: "i" } },
-          ],
-        },
-      },
+    limit = parseInt(limit) || 10;
+    cursor = cursor || null;
+
+    const matchStage = {
+      isDeleted: false,
+      userId: { $exists: true },
+      $or: [
+        { userId: { $regex: s, $options: "i" } },
+        { artistName: { $regex: s, $options: "i" } },
+        { artistSurname1: { $regex: s, $options: "i" } },
+        { artistSurname2: { $regex: s, $options: "i" } },
+        { email: { $regex: s, $options: "i" } },
+      ],
+    };
+
+    const totalCount = await Artist.countDocuments(matchStage);
+
+    if (cursor) {
+      if (direction === "next") {
+        matchStage._id = { $lt: objectId(cursor) };
+      } else if (direction === "prev") {
+        matchStage._id = { $gt: objectId(cursor) };
+      }
+    }
+
+    let users = await Artist.aggregate([
+      { $match: matchStage },
       {
         $project: {
           _id: 1,
@@ -2115,17 +2098,84 @@ const getAllUsers = async (req, res) => {
           mainImage: "$profile.mainImage",
           createdAt: 1,
           userId: 1,
-          profile: 1,
+        },
+      },
+      { $sort: { _id: direction === "prev" ? 1 : -1 } },
+      { $limit: limit + 1 },
+    ]);
+
+    const hasNextPage =
+      (currPage == 1 && users.length > limit) ||
+      users.length > limit ||
+      (direction === "prev" && users.length === limit);
+
+    if (hasNextPage && direction) {
+      if (direction === "next") users.pop();
+    } else if (hasNextPage) {
+      users.pop();
+    }
+    const hasPrevPage = currPage == 1 ? false : true;
+
+    if (direction === "prev" && currPage != 1) {
+      users.reverse().shift();
+    } else if (direction === "prev") {
+      users.reverse();
+    }
+
+    const nextCursor = hasNextPage ? users[users.length - 1]._id : null;
+    const prevCursor = hasPrevPage ? users[0]._id : null;
+
+    return res.status(200).send({
+      data: users,
+      nextCursor,
+      prevCursor,
+      hasNextPage,
+      hasPrevPage,
+      totalCount,
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getUserById = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    let user = await Artist.aggregate([
+      {
+        $match: {
+          _id: objectId(req.params.id),
+          isDeleted: false,
+          userId: { $exists: true },
         },
       },
       {
-        $sort: { createdAt: -1 },
+        $project: {
+          _id: 1,
+          artistName: 1,
+          nickName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          address: 1,
+          role: 1,
+          email: 1,
+          phone: 1,
+          createdAt: 1,
+          gender: 1,
+          userId: 1,
+          profile: 1,
+        },
       },
     ]);
 
-    return res.status(200).send({ data: users });
+    return res.status(200).send({ data: user[0] });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -2141,19 +2191,16 @@ const suspendArtist = async (req, res) => {
 
     const { lang } = req.query;
 
-    const artist = await Artist.findOne(
-      { _id: req.params.id },
-      { isDeleted: 1, email: 1, artistName: 1 }
-    ).lean(true);
+    const artist = await Artist.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: false },
+      { $set: { isDeleted: true } },
+      { new: true, projection: "email artistName" }
+    ).lean();
 
-    if (!artist) return res.status(400).send({ message: `artist not found` });
-    if (artist.isDeleted)
-      return res.status(400).send({ message: `Artist already suspended` });
-
-    Artist.updateOne(
-      { _id: req.params.id },
-      { $set: { isDeleted: true } }
-    ).then();
+    if (!artist)
+      return res
+        .status(400)
+        .send({ message: `Artist already suspended/not found` });
 
     const findEmail = await EmailType.findOne({
       emailType: "artist-suspended-mail",
@@ -2186,19 +2233,16 @@ const unSuspendArtist = async (req, res) => {
 
     const { lang } = req.query;
 
-    const artist = await Artist.findOne(
-      { _id: req.params.id },
-      { isDeleted: 1, email: 1, artistName: 1 }
-    ).lean(true);
+    const artist = await Artist.findOneAndUpdate(
+      { _id: req.params.id, isDeleted: true },
+      { $set: { isDeleted: false } },
+      { new: true, projection: "email artistName" }
+    ).lean();
 
-    if (!artist) return res.status(400).send({ message: `artist not found` });
-    if (!artist.isDeleted)
-      return res.status(400).send({ message: `artist already unsuspended` });
-
-    Artist.updateOne(
-      { _id: req.params.id },
-      { $set: { isDeleted: false } }
-    ).then();
+    if (!artist)
+      return res
+        .status(400)
+        .send({ message: `Artist already unsuspended/not found` });
 
     const findEmail = await EmailType.findOne({
       emailType: "artist-unsuspended-mail",
@@ -2229,22 +2273,16 @@ const rejectArtistRequest = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const user = await Artist.findOne(
-      { _id: req.params.id },
-      { isArtistRequestStatus: 1 }
-    ).lean(true);
-    if (!user) return res.status(400).send({ message: `User not found` });
+    const user = await Artist.findOneAndUpdate(
+      { _id: req.params.id, isArtistRequestStatus: "pending" },
+      { $set: { isArtistRequestStatus: "rejected" } },
+      { new: true, projection: "email artistName" }
+    ).lean();
 
-    if (user.isArtistRequestStatus === "rejected") {
+    if (!user)
       return res
         .status(400)
-        .send({ message: `Artsit request already rejected` });
-    }
-
-    Artist.updateOne(
-      { _id: req.params.id },
-      { $set: { isArtistRequestStatus: "rejected" } }
-    ).then();
+        .send({ message: `Artsit request already rejected/not found` });
 
     return res
       .status(200)
@@ -2263,22 +2301,15 @@ const unRejectArtistRequest = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const user = await Artist.findOne(
-      { _id: req.params.id },
-      { isArtistRequestStatus: 1 }
-    ).lean(true);
-    if (!user) return res.status(400).send({ message: `User not found` });
-
-    if (user.isArtistRequestStatus === "pending") {
+    const user = await Artist.findOneAndUpdate(
+      { _id: req.params.id, isArtistRequestStatus: "rejected" },
+      { $set: { isArtistRequestStatus: "pending" } },
+      { new: true, projection: "email artistName" }
+    ).lean();
+    if (!user)
       return res
         .status(400)
         .send({ message: `Artist request already in pending` });
-    }
-
-    Artist.updateOne(
-      { _id: req.params.id },
-      { $set: { isArtistRequestStatus: "pending" } }
-    ).then();
 
     return res
       .status(200)
@@ -2297,20 +2328,16 @@ const banArtistRequest = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const user = await Artist.findOne(
-      { _id: req.params.id },
-      { isArtistRequestStatus: 1 }
-    ).lean(true);
-    if (!user) return res.status(400).send({ message: `User not found` });
+    const user = await Artist.findOneAndUpdate(
+      { _id: req.params.id, isArtistRequestStatus: "pending" },
+      { $set: { isArtistRequestStatus: "ban" } },
+      { new: true, projection: "email artistName" }
+    ).lean();
 
-    if (user.isArtistRequestStatus === "ban") {
-      return res.status(400).send({ message: `Artsit requset already banned` });
-    }
-
-    Artist.updateOne(
-      { _id: req.params.id },
-      { $set: { isArtistRequestStatus: "ban" } }
-    ).then();
+    if (!user)
+      return res
+        .status(400)
+        .send({ message: `Artist already banned/not found` });
 
     return res
       .status(200)
@@ -2329,22 +2356,16 @@ const unBanArtistRequest = async (req, res) => {
     }).lean(true);
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-    const user = await Artist.findOne(
-      { _id: req.params.id },
-      { isArtistRequestStatus: 1 }
-    ).lean(true);
-    if (!user) return res.status(400).send({ message: `User not found` });
+    const user = await Artist.findOneAndUpdate(
+      { _id: req.params.id, isArtistRequestStatus: "ban" },
+      { $set: { isArtistRequestStatus: "pending" } },
+      { new: true, projection: "email artistName" }
+    ).lean();
 
-    if (user.isArtistRequestStatus === "pending") {
+    if (!user)
       return res
         .status(400)
-        .send({ message: `Artsit requset already in pending` });
-    }
-
-    Artist.updateOne(
-      { _id: req.params.id },
-      { $set: { isArtistRequestStatus: "pending" } }
-    ).then();
+        .send({ message: `Artist request already in pending` });
 
     return res
       .status(200)
@@ -3552,6 +3573,27 @@ const getJSONFile = async (req, res) => {
   }
 };
 
+const getUserNotificationHistory = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    const { id } = req.params;
+
+    const user = await Artist.findById(id).lean(true);
+    if (!user) return res.status(400).send({ message: `User not found` });
+
+    const notifications = await Notification.findOne({ user: id }).lean(true);
+    return res.status(200).send({ data: notifications });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const downloadArtworkDataCSV = async (req, res) => {
   try {
     const workbook = new ExcelJS.Workbook();
@@ -4393,11 +4435,10 @@ module.exports = {
   getAllArtists,
   getArtistRequestList,
   getArtistPendingList,
-  getUserFromId,
   createNewUser,
   serachUser,
-  serachUserByQueryInput,
   getAllUsers,
+  getUserById,
   suspendedArtistList,
   suspendArtist,
   unSuspendArtist,
@@ -4425,6 +4466,7 @@ module.exports = {
   deleteArtistSeries,
   updateJSONFile,
   getJSONFile,
+  getUserNotificationHistory,
   downloadArtworkDataCSV,
   downloadArtistDataCSV,
   downloadDisciplineDataCSV,

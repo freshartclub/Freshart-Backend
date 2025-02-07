@@ -1280,14 +1280,10 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
     { $limit: limit + 1 },
   ]);
 
-  if (direction === "prev" && currPage != 1) {
-    artworkList.reverse().shift();
-  } else if (direction === "prev") {
-    artworkList.reverse();
-  }
-
   const hasNextPage =
-    currPage === 1 || artworkList.length < limit ? false : true;
+    (currPage === 1 && artworkList.length > limit) ||
+    artworkList.length > limit ||
+    (direction === "prev" && artworkList.length === limit);
 
   if (hasNextPage && direction) {
     if (direction === "next") artworkList.pop();
@@ -1296,6 +1292,13 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
   }
 
   const hasPrevPage = currPage == 1 ? false : true;
+
+  if (direction === "prev" && currPage != 1) {
+    artworkList.reverse().shift();
+  } else if (direction === "prev") {
+    artworkList.reverse();
+  }
+
   const nextCursor = hasNextPage
     ? artworkList[artworkList.length - 1]._id
     : null;
@@ -1723,6 +1726,11 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
       .sort({ createdAt: -1 })
       .lean(true),
     HomeArtwork.aggregate([
+      {
+        $match: {
+          type: "Home-Page",
+        },
+      },
       {
         $lookup: {
           from: "artworks",

@@ -13,8 +13,18 @@ const addHomeArtwork = catchAsyncError(async (req, res, next) => {
 
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  const { artworksTitle, artworks } = req.body;
+  const { artworksTitle, artworks, text, type } = req.body;
   const { id } = req.params;
+
+  let obj = {
+    artworksTitle: artworksTitle,
+    artworks: artworks,
+    type: type,
+  };
+
+  if (type === "Main-page") {
+    obj["text"] = text;
+  }
 
   if (id) {
     const existingHomeArt = await HomeArtwork.findOne(
@@ -29,10 +39,7 @@ const addHomeArtwork = catchAsyncError(async (req, res, next) => {
       return res.status(400).send({ message: "Artwork Name Already Exists" });
     }
 
-    await HomeArtwork.updateOne(
-      { artworksTitle: artworksTitle },
-      { $set: { artworks: artworks } }
-    );
+    await HomeArtwork.updateOne({ _id: id }, { $set: obj });
   } else {
     const existingHomeArt = await HomeArtwork.findOne(
       { artworksTitle: artworksTitle },
@@ -43,10 +50,7 @@ const addHomeArtwork = catchAsyncError(async (req, res, next) => {
       return res.status(400).send({ message: "Artwork Name Already Exists" });
     }
 
-    await HomeArtwork.create({
-      artworksTitle: artworksTitle,
-      artworks: artworks,
-    });
+    await HomeArtwork.create(obj);
   }
 
   res
@@ -73,6 +77,7 @@ const getAdminHomeArtworks = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         artworksTitle: 1,
+        type: 1,
         artworks: {
           $map: {
             input: "$artworks",
@@ -118,6 +123,8 @@ const getHomeArtworkById = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         artworksTitle: 1,
+        text: 1,
+        type: 1,
         artworks: {
           $map: {
             input: "$artworks",

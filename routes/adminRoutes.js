@@ -19,7 +19,6 @@ const {
   getAllUsers,
   logOut,
   getAllArtists,
-  getUserFromId,
   suspendArtist,
   changeArtistPassword,
   unSuspendArtist,
@@ -30,7 +29,6 @@ const {
   getTicketReplies,
   rejectArtistRequest,
   banArtistRequest,
-  serachUserByQueryInput,
   addTicket,
   getInsigniaById,
   deleteInsignia,
@@ -59,6 +57,8 @@ const {
   downloadCouponDataCSV,
   updateJSONFile,
   getJSONFile,
+  getUserNotificationHistory,
+  getUserById,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -162,19 +162,13 @@ router.get(
   getArtistPendingList
 );
 
-router.get("/get-user/:id", validateAdminToken, getUserFromId);
-
 router.post("/create-new-user/:id?", validateAdminToken, createNewUser);
 
 router.get("/get-user-by-id", validateAdminToken, serachUser);
 
-router.get(
-  "/get-user-by-query-input",
-  validateAdminToken,
-  serachUserByQueryInput
-);
-
 router.get("/get-all-users", validateAdminToken, getAllUsers);
+
+router.get("/get-user/:id", validateAdminToken, getUserById);
 
 router.get("/suspended-list", validateAdminToken, suspendedArtistList);
 
@@ -251,6 +245,12 @@ router.patch("/delete-series/:id", validateAdminToken, deleteArtistSeries);
 router.patch("/approve-changes/:id", validateAdminToken, approveArtistChanges);
 
 router.patch("/revalidate-artist/:id", validateAdminToken, reValidateArtist);
+
+router.get(
+  "/get-notification-history/:id",
+  validateAdminToken,
+  getUserNotificationHistory
+);
 
 // ------------------- Artwork Routes ------------------------
 
