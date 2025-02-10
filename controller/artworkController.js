@@ -1990,40 +1990,28 @@ const addSeriesToArtist = catchAsyncError(async (req, res, next) => {
   if (!seriesName)
     return res.status(400).send({ message: "Series name is required" });
 
-  const artist = await Artist.findOne(
-    { _id: id },
-    { artistSeriesList: 1 }
-  ).lean(true);
-  if (!artist) return res.status(400).send({ message: "Artist not found" });
-
-  if (
-    artist.artistSeriesList &&
-    artist.artistSeriesList.length > 0 &&
-    artist.artistSeriesList.find((item) => item == seriesName) !== undefined
-  ) {
-    return res.status(400).send({ message: "Series already exists" });
-  }
-
-  await Artist.updateOne(
-    { _id: id },
-    { $push: { artistSeriesList: seriesName.trim() } }
+  const result = await Artist.updateOne(
+    { _id: id, artistSeriesList: { $ne: seriesName } },
+    { $addToSet: { artistSeriesList: seriesName.trim() } }
   );
+
+  if (result.matchedCount === 0) {
+    return res
+      .status(400)
+      .send({ message: "Artist not found or series already exists" });
+  }
 
   return res.status(200).send({ message: "Series added successfully" });
 });
 
 const getAllArtworks = catchAsyncError(async (req, res, next) => {
-  const artist = await Artist.findOne(
-    { _id: req.user._id },
-    { role: 1 }
-  ).lean();
-  if (!artist) return res.status(400).send({ message: "Artist not found" });
-
   let {
     type,
-    page = 1,
-    limit = 10,
-    search,
+    limit,
+    cursor,
+    direction,
+    currPage,
+    s,
     discipline,
     theme,
     technic,
@@ -2031,26 +2019,39 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
 
   if (!type)
     return res.status(400).send({ message: "Artwork Type is required" });
+
   type = type.toLowerCase();
-  search = search ? search : "";
+  s = s ? s : "";
 
-  const pageNum = parseInt(page, 10) || 1;
-  const limitNum = parseInt(limit, 10) || 10;
+  limit = parseInt(limit) || 10;
+  cursor = cursor || null;
 
-  if (pageNum < 1 || limitNum < 1) {
-    return res
-      .status(400)
-      .send({ message: "Page and limit must be positive integers" });
+  const matchStage = {
+    isDeleted: false,
+    status: "published",
+    "commercialization.activeTab": type,
+    $or: [
+      { "ownerInfo.artistName": { $regex: s, $options: "i" } },
+      { "ownerInfo.artistSurname1": { $regex: s, $options: "i" } },
+      { "ownerInfo.artistSurname2": { $regex: s, $options: "i" } },
+      { artworkName: { $regex: s, $options: "i" } },
+    ],
+    ...(discipline && { "discipline.artworkDiscipline": discipline }),
+    ...(theme && { "additionalInfo.artworkTheme": theme }),
+    ...(technic && { "additionalInfo.artworkTechnic": technic }),
+  };
+
+  const totalCount = await ArtWork.countDocuments(matchStage);
+
+  if (cursor) {
+    if (direction === "next") {
+      matchStage._id = { $lt: objectId(cursor) };
+    } else if (direction === "prev") {
+      matchStage._id = { $gt: objectId(cursor) };
+    }
   }
 
-  const totalItems = await ArtWork.countDocuments({
-    isDeleted: false,
-    "commercialization.activeTab": type,
-  });
-
-  const totalPages = Math.ceil(totalItems / limitNum);
-
-  const artworks = await ArtWork.aggregate([
+  let artworkList = await ArtWork.aggregate([
     {
       $lookup: {
         from: "artists",
@@ -2065,22 +2066,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         preserveNullAndEmptyArrays: true,
       },
     },
-    {
-      $match: {
-        isDeleted: false,
-        status: "published",
-        "commercialization.activeTab": type,
-        $or: [
-          { "ownerInfo.artistName": { $regex: search, $options: "i" } },
-          { "ownerInfo.artistSurname1": { $regex: search, $options: "i" } },
-          { "ownerInfo.artistSurname2": { $regex: search, $options: "i" } },
-          { artworkName: { $regex: search, $options: "i" } },
-        ],
-        ...(discipline && { "discipline.artworkDiscipline": discipline }),
-        ...(theme && { "additionalInfo.artworkTheme": theme }),
-        ...(technic && { "additionalInfo.artworkTechnic": technic }),
-      },
-    },
+    { $match: matchStage },
     {
       $project: {
         _id: 1,
@@ -2102,19 +2088,42 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         status: 1,
       },
     },
-    { $skip: (pageNum - 1) * limitNum },
-    { $limit: limitNum },
-    { $sort: { createdAt: -1 } },
+    { $sort: { _id: direction === "prev" ? 1 : -1 } },
+    { $limit: limit + 1 },
   ]);
 
+  const hasNextPage =
+    (currPage === 1 && artworkList.length > limit) ||
+    artworkList.length > limit ||
+    (direction === "prev" && artworkList.length === limit);
+
+  if (hasNextPage && direction) {
+    if (direction === "next") artworkList.pop();
+  } else if (hasNextPage) {
+    artworkList.pop();
+  }
+
+  const hasPrevPage = currPage == 1 ? false : true;
+
+  if (direction === "prev" && currPage != 1) {
+    artworkList.reverse().shift();
+  } else if (direction === "prev") {
+    artworkList.reverse();
+  }
+
+  const nextCursor = hasNextPage
+    ? artworkList[artworkList.length - 1]._id
+    : null;
+
+  const prevCursor = hasPrevPage ? artworkList[0]._id : null;
+
   res.status(200).send({
-    data: artworks,
-    pagination: {
-      currentPage: pageNum,
-      totalPages,
-      totalItems,
-    },
-    url: "https://dev.freshartclub.com/images",
+    data: artworkList,
+    nextCursor,
+    prevCursor,
+    hasNextPage,
+    hasPrevPage,
+    totalCount,
   });
 });
 
