@@ -6,6 +6,7 @@ const circleSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    foradmin: { type: Boolean },
     title: { type: String },
     description: { type: String },
     content: { type: String },

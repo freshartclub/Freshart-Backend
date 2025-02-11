@@ -9,6 +9,7 @@ const Catalog = require("../models/catalogModel");
 const Notification = require("../models/notificationModel");
 const HomeArtwork = require("../models/homeArtworkModel");
 const { processImages } = require("../functions/upload");
+const Circle = require("../models/circleModel");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -1697,136 +1698,156 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
 });
 
 const getHomeArtwork = catchAsyncError(async (req, res, next) => {
-  const [newAdded, homeArt, artists, commingSoon] = await Promise.all([
-    ArtWork.find(
-      {
-        status: "published",
-        "inventoryShipping.comingSoon": false,
-        isDeleted: false,
-        // createdAt: { $gt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
-      },
-      {
-        media: "$media.mainImage",
-        artworkName: 1,
-        additionalInfo: 1,
-        provideArtistName: 1,
-        price: {
-          $cond: {
-            if: { $eq: ["$commercialization.activeTab", "purchase"] },
-            then: "$commercialization.basePrice",
-            else: "",
+  const [newAdded, homeArt, artists, commingSoon, freshartCircle] =
+    await Promise.all([
+      ArtWork.find(
+        {
+          status: "published",
+          "inventoryShipping.comingSoon": false,
+          isDeleted: false,
+          // createdAt: { $gt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+        },
+        {
+          media: "$media.mainImage",
+          artworkName: 1,
+          additionalInfo: 1,
+          provideArtistName: 1,
+          price: {
+            $cond: {
+              if: { $eq: ["$commercialization.activeTab", "purchase"] },
+              then: "$commercialization.basePrice",
+              else: "",
+            },
+          },
+          discipline: 1,
+          "inventoryShipping.comingSoon": 1,
+        }
+      )
+        .limit(10)
+        .populate("owner", "artistName artistSurname1 artistSurname2")
+        .sort({ createdAt: -1 })
+        .lean(true),
+      HomeArtwork.aggregate([
+        {
+          $match: {
+            type: "Home-Page",
           },
         },
-        discipline: 1,
-        "inventoryShipping.comingSoon": 1,
-      }
-    )
-      .limit(10)
-      .populate("owner", "artistName artistSurname1 artistSurname2")
-      .sort({ createdAt: -1 })
-      .lean(true),
-    HomeArtwork.aggregate([
-      {
-        $match: {
-          type: "Home-Page",
-        },
-      },
-      {
-        $lookup: {
-          from: "artworks",
-          localField: "artworks",
-          foreignField: "_id",
-          as: "artwork",
-        },
-      },
-      {
-        $lookup: {
-          from: "artists",
-          localField: "owner",
-          foreignField: "_id",
-          as: "user",
-        },
-      },
-      {
-        $project: {
-          artworksTitle: 1,
-          owner: {
-            artistName: "$user.artistName",
-            artistSurname1: "$user.artistAurname1",
-            artistSurname2: "$user.artistAurname",
+        {
+          $lookup: {
+            from: "artworks",
+            localField: "artworks",
+            foreignField: "_id",
+            as: "artwork",
           },
-          artworks: {
-            $map: {
-              input: "$artwork",
-              as: "item",
-              in: {
-                _id: "$$item._id",
-                artworkId: "$$item.artworkId",
-                artworkName: "$$item.artworkName",
-                media: "$$item.media.mainImage",
-                additionalInfo: "$$item.additionalInfo",
-                provideArtistName: "$$item.provideArtistName",
-                price: {
-                  $cond: {
-                    if: {
-                      $eq: ["$$item.commercialization.activeTab", "purchase"],
+        },
+        {
+          $lookup: {
+            from: "artists",
+            localField: "owner",
+            foreignField: "_id",
+            as: "user",
+          },
+        },
+        {
+          $project: {
+            artworksTitle: 1,
+            owner: {
+              artistName: "$user.artistName",
+              artistSurname1: "$user.artistAurname1",
+              artistSurname2: "$user.artistAurname",
+            },
+            artworks: {
+              $map: {
+                input: "$artwork",
+                as: "item",
+                in: {
+                  _id: "$$item._id",
+                  artworkId: "$$item.artworkId",
+                  artworkName: "$$item.artworkName",
+                  media: "$$item.media.mainImage",
+                  additionalInfo: "$$item.additionalInfo",
+                  provideArtistName: "$$item.provideArtistName",
+                  price: {
+                    $cond: {
+                      if: {
+                        $eq: ["$$item.commercialization.activeTab", "purchase"],
+                      },
+                      then: "$$item.commercialization.basePrice",
+                      else: "",
                     },
-                    then: "$$item.commercialization.basePrice",
-                    else: "",
                   },
+                  discipline: "$$item.discipline",
+                  comingSoon: "$$item.inventoryShipping.comingSoon",
                 },
-                discipline: "$$item.discipline",
-                comingSoon: "$$item.inventoryShipping.comingSoon",
               },
             },
           },
         },
-      },
-      { $sort: { createdAt: -1 } },
-    ]),
-    Artist.find(
-      {
-        isActivated: true,
-        isDeleted: false,
-      },
-      {
-        artistName: 1,
-        artistSurname1: 1,
-        artistSurname2: 1,
-        aboutArtist: 1,
-        profile: 1,
-      }
-    )
-      .limit(10)
-      .sort({ createdAt: -1 })
-      .lean(true),
-    ArtWork.find(
-      {
-        "inventoryShipping.comingSoon": true,
-        status: "published",
-        isDeleted: false,
-      },
-      {
-        media: "$media.mainImage",
-        artworkName: 1,
-        additionalInfo: 1,
-        provideArtistName: 1,
-        price: {
-          $cond: {
-            if: { $eq: ["$commercialization.activeTab", "purchase"] },
-            then: "$commercialization.basePrice",
-            else: "",
+        { $sort: { createdAt: -1 } },
+      ]),
+      Artist.find(
+        {
+          isActivated: true,
+          isDeleted: false,
+        },
+        {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          aboutArtist: 1,
+          profile: 1,
+        }
+      )
+        .limit(10)
+        .sort({ createdAt: -1 })
+        .lean(true),
+      ArtWork.find(
+        {
+          "inventoryShipping.comingSoon": true,
+          status: "published",
+          isDeleted: false,
+        },
+        {
+          media: "$media.mainImage",
+          artworkName: 1,
+          additionalInfo: 1,
+          provideArtistName: 1,
+          price: {
+            $cond: {
+              if: { $eq: ["$commercialization.activeTab", "purchase"] },
+              then: "$commercialization.basePrice",
+              else: "",
+            },
+          },
+          discipline: 1,
+          "inventoryShipping.comingSoon": 1,
+        }
+      )
+        .limit(10)
+        .populate("owner", "artistName artistSurname1 artistSurname2")
+        .sort({ createdAt: -1 })
+        .lean(true),
+      Circle.aggregate([
+        {
+          $match: {
+            foradmin: true,
           },
         },
-        discipline: 1,
-        "inventoryShipping.comingSoon": 1,
-      }
-    )
-      .limit(10)
-      .populate("owner", "artistName artistSurname1 artistSurname2")
-      .sort({ createdAt: -1 })
-      .lean(true),
-  ]);
+        {
+          $project: {
+            title: 1,
+            description: 1,
+            content: 1,
+            mainImage: 1,
+            coverImage: 1,
+            categories: 1,
+            foradmin: 1,
+            status: 1,
+          },
+        },
+      ]),
+    ]);
 
   const trending = homeArt.find(
     (item) => item.artworksTitle === "Trending Artworks"
@@ -1841,6 +1862,7 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
     highlighted,
     artists,
     commingSoon,
+    freshartCircle,
   });
 });
 

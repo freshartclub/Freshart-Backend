@@ -20,14 +20,38 @@ const addCircle = catchAsyncError(async (req, res) => {
   const { id } = req.params;
   const fileData = await fileUploadFunc(req, res);
 
+  let obj = {
+    title: req.body.title,
+    description: req.body.description,
+    content: req.body.content,
+    categories: JSON.parse(req.body.categories),
+    status: req.body.status,
+  };
+
+  if (req.body?.foradmin == "true") {
+    obj["foradmin"] = true;
+  } else {
+    obj["foradmin"] = false;
+    obj["managers"] = JSON.parse(req.body.managers);
+  }
+
   if (id) {
     const circle = await Circle.findOne(
       { _id: id },
-      { mainImage: 1, coverImage: 1, title: 1, managers: 1 }
+      { mainImage: 1, coverImage: 1, title: 1, managers: 1, foradmin: 1 }
     ).lean(true);
 
+    obj["mainImage"] = fileData.data?.mainImage
+      ? fileData.data?.mainImage[0]?.filename
+      : circle.mainImage;
+    obj["coverImage"] = fileData.data?.backImage
+      ? fileData.data?.backImage[0]?.filename
+      : circle.coverImage;
+
     const newManagers = JSON.parse(req.body.managers);
-    const existingManagers = circle.managers.map((m) => String(m));
+    const existingManagers = circle?.managers
+      ? circle.managers.map((m) => String(m))
+      : [];
 
     const addedManagers = newManagers.filter(
       (manager) => !existingManagers.includes(manager)
@@ -36,25 +60,7 @@ const addCircle = catchAsyncError(async (req, res) => {
       (manager) => !newManagers.includes(manager)
     );
 
-    await Circle.updateOne(
-      { _id: id },
-      {
-        $set: {
-          title: req.body.title,
-          description: req.body.description,
-          content: req.body.content,
-          mainImage: fileData.data?.mainImage
-            ? fileData.data?.mainImage[0]?.filename
-            : circle.mainImage,
-          coverImage: fileData.data?.backImage
-            ? fileData.data?.backImage[0]?.filename
-            : circle.coverImage,
-          managers: JSON.parse(req.body.managers),
-          categories: JSON.parse(req.body.categories),
-          status: req.body.status,
-        },
-      }
-    );
+    await Circle.updateOne({ _id: id }, { $set: obj });
 
     if (addedManagers.length > 0) {
       const addedArtists = await Artist.find(
@@ -104,16 +110,10 @@ const addCircle = catchAsyncError(async (req, res) => {
 
     return res.status(200).send({ message: "Circle updated successfully" });
   } else {
-    await Circle.create({
-      title: req.body.title,
-      description: req.body.description,
-      content: req.body.content,
-      mainImage: fileData.data?.mainImage[0]?.filename,
-      coverImage: fileData.data?.backImage[0]?.filename,
-      managers: JSON.parse(req.body.managers),
-      categories: JSON.parse(req.body.categories),
-      status: req.body.status,
-    });
+    obj["mainImage"] = fileData.data?.mainImage[0]?.filename;
+    obj["coverImage"] = fileData.data?.backImage[0]?.filename;
+
+    await Circle.create(obj);
 
     const artists = await Artist.find(
       { _id: { $in: JSON.parse(req.body.managers) } },
@@ -173,6 +173,7 @@ const getCircle = catchAsyncError(async (req, res) => {
         mainImage: 1,
         coverImage: 1,
         categories: 1,
+        foradmin: 1,
         status: 1,
         managers: {
           $map: {
@@ -237,6 +238,7 @@ const getCircleList = catchAsyncError(async (req, res) => {
         coverImage: 1,
         categories: 1,
         createdAt: 1,
+        foradmin: 1,
         status: 1,
         managers: {
           $map: {
@@ -283,6 +285,7 @@ const getArtistCircleList = catchAsyncError(async (req, res) => {
     {
       $match: {
         managers: { $elemMatch: { _id: objectId(req.user._id) } },
+        foradmin: false,
         $or: [
           { title: { $regex: s, $options: "i" } },
           { description: { $regex: s, $options: "i" } },
@@ -322,14 +325,6 @@ const getCircleById = catchAsyncError(async (req, res) => {
         as: "managers",
       },
     },
-    // {
-    //   $lookup: {
-    //     from: "posts",
-    //     localField: "posts",
-    //     foreignField: "_id",
-    //     as: "post",
-    //   },
-    // },
     {
       $project: {
         title: 1,
@@ -337,6 +332,7 @@ const getCircleById = catchAsyncError(async (req, res) => {
         content: 1,
         mainImage: 1,
         coverImage: 1,
+        foradmin: 1,
         categories: 1,
         status: 1,
         managers: {

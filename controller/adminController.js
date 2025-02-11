@@ -2139,6 +2139,54 @@ const getAllUsers = async (req, res) => {
   }
 };
 
+const getAllUsersOnSearch = async (req, res) => {
+  try {
+    const admin = await Admin.countDocuments({
+      _id: req.user._id,
+      isDeleted: false,
+    }).lean(true);
+    if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+    let { s } = req.query;
+    if (s == "undefined" || typeof s === "undefined") s = "";
+
+    let users = await Artist.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          userId: { $exists: true },
+          $or: [
+            { userId: { $regex: s, $options: "i" } },
+            { artistName: { $regex: s, $options: "i" } },
+            { artistSurname1: { $regex: s, $options: "i" } },
+            { artistSurname2: { $regex: s, $options: "i" } },
+            { email: { $regex: s, $options: "i" } },
+          ],
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          role: 1,
+          email: 1,
+          phone: 1,
+          mainImage: "$profile.mainImage",
+          createdAt: 1,
+          userId: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).send({ data: users });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const getUserById = async (req, res) => {
   try {
     const admin = await Admin.countDocuments({
@@ -4438,6 +4486,7 @@ module.exports = {
   createNewUser,
   serachUser,
   getAllUsers,
+  getAllUsersOnSearch,
   getUserById,
   suspendedArtistList,
   suspendArtist,

@@ -59,6 +59,7 @@ const {
   getJSONFile,
   getUserNotificationHistory,
   getUserById,
+  getAllUsersOnSearch,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -167,6 +168,8 @@ router.post("/create-new-user/:id?", validateAdminToken, createNewUser);
 router.get("/get-user-by-id", validateAdminToken, serachUser);
 
 router.get("/get-all-users", validateAdminToken, getAllUsers);
+
+router.get("/get-user-on-search", validateAdminToken, getAllUsersOnSearch);
 
 router.get("/get-user/:id", validateAdminToken, getUserById);
 
