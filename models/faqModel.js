@@ -18,6 +18,10 @@ const faqSchema = new mongoose.Schema(
     tags: {
       type: Array,
     },
+    forhomepage: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

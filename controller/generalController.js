@@ -34,10 +34,7 @@ const listArtworkStyle = async (req, res) => {
       },
       {
         $match: {
-          $or: [
-            { styleName: { $regex: s, $options: "i" } },
-            { "discipline.disciplineName": { $regex: s, $options: "i" } },
-          ],
+          $or: [{ styleName: { $regex: s, $options: "i" } }, { "discipline.disciplineName": { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -149,10 +146,7 @@ const listTechnic = async (req, res) => {
       },
       {
         $match: {
-          $or: [
-            { technicName: { $regex: s, $options: "i" } },
-            { "discipline.disciplineName": { $regex: s, $options: "i" } },
-          ],
+          $or: [{ technicName: { $regex: s, $options: "i" } }, { "discipline.disciplineName": { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -218,10 +212,7 @@ const listTheme = async (req, res) => {
       },
       {
         $match: {
-          $or: [
-            { themeName: { $regex: s, $options: "i" } },
-            { "discipline.disciplineName": { $regex: s, $options: "i" } },
-          ],
+          $or: [{ themeName: { $regex: s, $options: "i" } }, { "discipline.disciplineName": { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -288,10 +279,7 @@ const listMediaSupport = async (req, res) => {
       },
       {
         $match: {
-          $or: [
-            { mediaName: { $regex: s, $options: "i" } },
-            { "discipline.disciplineName": { $regex: s, $options: "i" } },
-          ],
+          $or: [{ mediaName: { $regex: s, $options: "i" } }, { "discipline.disciplineName": { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -548,8 +536,7 @@ const getAllSeriesList = async (req, res) => {
             _id: "$publishCatalog._id",
             catalogName: "$publishCatalog.catalogName",
             details: "$publishCatalog.details",
-            catalogCommercialization:
-              "$publishCatalog.catalogCommercialization",
+            catalogCommercialization: "$publishCatalog.catalogCommercialization",
           },
         },
       },
@@ -557,8 +544,7 @@ const getAllSeriesList = async (req, res) => {
         $group: {
           _id: {
             artistId: "$_id",
-            catalogCommercialization:
-              "$commercilization.catalogCommercialization",
+            catalogCommercialization: "$commercilization.catalogCommercialization",
           },
           artistSeriesList: { $first: "$artistSeriesList" },
           vatAmount: { $first: "$vatAmount" },
@@ -601,14 +587,10 @@ const getAllSeriesList = async (req, res) => {
       seriesList: seriesList[0]?.artistSeriesList,
       discipline: seriesList[0]?.discipline,
       purchaseCatalog: seriesList[0].commercilization
-        ? seriesList[0].commercilization.filter(
-            (item) => item.catalogCommercialization === "Purchase"
-          )[0]?.details
+        ? seriesList[0].commercilization.filter((item) => item.catalogCommercialization === "Purchase")[0]?.details
         : [],
       subscriptionCatalog: seriesList[0].commercilization
-        ? seriesList[0].commercilization.filter(
-            (item) => item.catalogCommercialization === "Subscription"
-          )[0]?.details
+        ? seriesList[0].commercilization.filter((item) => item.catalogCommercialization === "Subscription")[0]?.details
         : [],
       vatAmount: seriesList[0]?.vatAmount,
     });
@@ -633,10 +615,7 @@ const getGeneralKBList = async (req, res) => {
         $match: {
           isDeleted: false,
           // kbGrp: { $regex: grp, $options: "i" },
-          $or: [
-            { kbTitle: { $regex: s, $options: "i" } },
-            { tags: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ kbTitle: { $regex: s, $options: "i" } }, { tags: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -666,6 +645,7 @@ const getFAQGeneralList = async (req, res) => {
       {
         $match: {
           isDeleted: false,
+          forhomepage: false,
         },
       },
       {
@@ -678,15 +658,39 @@ const getFAQGeneralList = async (req, res) => {
           createdAt: 1,
         },
       },
-      {
-        $sort: { createdAt: -1 },
-      },
+      { $sort: { createdAt: -1 } },
     ]);
 
-    res.status(201).send({
-      message: "FAQ list retrieved successfully",
-      data: faqList,
-    });
+    res.status(201).send({ data: faqList });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getFAQGeneralMainList = async (req, res) => {
+  try {
+    const faqList = await FAQ.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+          forhomepage: true,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          faqGrp: 1,
+          faqQues: 1,
+          faqAns: 1,
+          tags: 1,
+          createdAt: 1,
+        },
+      },
+      { $sort: { createdAt: -1 } },
+    ]);
+
+    res.status(201).send({ data: faqList });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -769,6 +773,7 @@ module.exports = {
   deleteMedia,
   getAllSeriesList,
   getGeneralKBList,
+  getFAQGeneralMainList,
   getFAQGeneralList,
   getKBById,
   getGuestHomeData,

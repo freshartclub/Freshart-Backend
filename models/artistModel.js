@@ -229,4 +229,7 @@ const artistSchema = new mongoose.Schema(
   }
 );
 
+artistSchema.index({ email: 1 }, { unique: true });
+artistSchema.index({ _id: 1, isDeleted: 1 });
+
 module.exports = mongoose.model("Artist", artistSchema);

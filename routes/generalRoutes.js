@@ -14,6 +14,7 @@ const {
   getFAQGeneralList,
   getKBById,
   getGuestHomeData,
+  getFAQGeneralMainList,
 } = require("../controller/generalController");
 const {
   addDiscipline,
@@ -72,6 +73,8 @@ router.patch("/delete-theme/:id", validateAdminToken, deleteTheme);
 router.patch("/delete-media/:id", validateAdminToken, deleteMedia);
 
 router.get("/get-general-kb-list", getGeneralKBList);
+
+router.get("/get-faq-main-list", getFAQGeneralMainList);
 
 router.get("/get-general-faq-list", getFAQGeneralList);
 

@@ -21,9 +21,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   }).lean(true);
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
-  const artist = await Artist.findOne({ _id: id }, { isActivated: 1 }).lean(
-    true
-  );
+  const artist = await Artist.findOne({ _id: id }, { isActivated: 1 }).lean(true);
   if (!artist) return res.status(400).send({ message: `Artist not found` });
   if (!artist.isActivated) {
     return res.status(400).send({ message: `Artist not activated` });
@@ -84,10 +82,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   const newImageArr =
     images?.map((element) => {
-      if (
-        typeof element === "string" &&
-        element.includes("https://freshartclub.com/images/users")
-      ) {
+      if (typeof element === "string" && element.includes("https://freshartclub.com/images/users")) {
         return element.replace("https://freshartclub.com/images/users/", "");
       }
       return element;
@@ -95,10 +90,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   const newVideoArr =
     videos?.map((element) => {
-      if (
-        typeof element === "string" &&
-        element.includes("https://freshartclub.com/images/videos")
-      ) {
+      if (typeof element === "string" && element.includes("https://freshartclub.com/images/videos")) {
         return element.replace("https://freshartclub.com/images/videos/", "");
       }
       return element;
@@ -106,9 +98,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   let obj = {
     artworkName: req.body.artworkName,
-    artworkCreationYear: req.body.artworkCreationYear
-      ? req.body.artworkCreationYear
-      : new Date().getFullYear(),
+    artworkCreationYear: req.body.artworkCreationYear ? req.body.artworkCreationYear : new Date().getFullYear(),
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
     isArtProvider: req.body.isArtProvider ? req.body.isArtProvider : "No",
@@ -156,16 +146,9 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     width: req.body.width,
     hangingAvailable: req.body.hangingAvailable,
     framed: req.body.framed,
-    artworkStyle:
-      typeof req.body.artworkStyle === "string"
-        ? [req.body.artworkStyle]
-        : req.body.artworkStyle,
-    emotions:
-      typeof req.body.emotions === "string"
-        ? [req.body.emotions]
-        : req.body.emotions,
-    colors:
-      typeof req.body.colors === "string" ? [req.body.colors] : req.body.colors,
+    artworkStyle: typeof req.body.artworkStyle === "string" ? [req.body.artworkStyle] : req.body.artworkStyle,
+    emotions: typeof req.body.emotions === "string" ? [req.body.emotions] : req.body.emotions,
+    colors: typeof req.body.colors === "string" ? [req.body.colors] : req.body.colors,
     offensive: req.body.offensive,
   };
 
@@ -239,14 +222,8 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   };
 
   obj["tags"] = {
-    intTags:
-      typeof req.body.intTags === "string"
-        ? [req.body.intTags]
-        : req.body.intTags,
-    extTags:
-      typeof req.body.extTags === "string"
-        ? [req.body.extTags]
-        : req.body.extTags,
+    intTags: typeof req.body.intTags === "string" ? [req.body.intTags] : req.body.intTags,
+    extTags: typeof req.body.extTags === "string" ? [req.body.extTags] : req.body.extTags,
   };
 
   let date = [];
@@ -266,10 +243,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   if (artworkId) {
     if (artwork.status === "modified") {
-      await ArtWork.updateOne(
-        { _id: artworkId },
-        { $set: { reviewDetails: obj } }
-      );
+      await ArtWork.updateOne({ _id: artworkId }, { $set: { reviewDetails: obj } });
 
       await Notification.updateOne(
         { user: artist._id },
@@ -283,32 +257,19 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
         }
       );
 
-      return res
-        .status(200)
-        .send({ message: "Artwork Modified", data: artwork });
+      return res.status(200).send({ message: "Artwork Modified", data: artwork });
     }
 
     await ArtWork.updateOne({ _id: artworkId }, condition);
 
-    const newCatalogId =
-      req.body.activeTab === "subscription"
-        ? req.body.subscriptionCatalog
-        : req.body.purchaseCatalog;
+    const newCatalogId = req.body.activeTab === "subscription" ? req.body.subscriptionCatalog : req.body.purchaseCatalog;
 
-    const existingCatalogId =
-      artwork.commercialization?.purchaseCatalog ||
-      artwork.commercialization?.subscriptionCatalog;
+    const existingCatalogId = artwork.commercialization?.purchaseCatalog || artwork.commercialization?.subscriptionCatalog;
 
     if (newCatalogId !== existingCatalogId) {
       Promise.all([
-        Catalog.updateOne(
-          { _id: existingCatalogId, artworkList: artworkId },
-          { $pull: { artworkList: artworkId } }
-        ),
-        Catalog.updateOne(
-          { _id: newCatalogId, artworkList: { $ne: artworkId } },
-          { $push: { artworkList: artworkId } }
-        ),
+        Catalog.updateOne({ _id: existingCatalogId, artworkList: artworkId }, { $pull: { artworkList: artworkId } }),
+        Catalog.updateOne({ _id: newCatalogId, artworkList: { $ne: artworkId } }, { $push: { artworkList: artworkId } }),
       ]);
     }
 
@@ -333,14 +294,9 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   obj["status"] = "draft";
   await ArtWork.create(obj);
 
-  const catalogId = req.body.subscriptionCatalog
-    ? req.body.subscriptionCatalog
-    : req.body.purchaseCatalog;
+  const catalogId = req.body.subscriptionCatalog ? req.body.subscriptionCatalog : req.body.purchaseCatalog;
 
-  await Catalog.updateOne(
-    { _id: catalogId },
-    { $push: { artworkList: artwork._id } }
-  );
+  await Catalog.updateOne({ _id: catalogId }, { $push: { artworkList: artwork._id } });
 
   await Notification.updateOne(
     { user: artist._id },
@@ -358,10 +314,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 });
 
 const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
-  const artist = await Artist.findOne(
-    { _id: req.user._id, isDeleted: false },
-    { isActivated: 1 }
-  ).lean(true);
+  const artist = await Artist.findOne({ _id: req.user._id, isDeleted: false }, { isActivated: 1 }).lean(true);
   if (!artist) return res.status(400).send({ message: `Artist not found` });
 
   const { id } = req?.params;
@@ -372,10 +325,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   let artworkData = null;
   if (id !== "null") {
-    artworkData = await ArtWork.findOne(
-      { _id: id, isDeleted: false },
-      { media: 1, status: 1, artworkId: 1, lastModified: 1 }
-    ).lean(true);
+    artworkData = await ArtWork.findOne({ _id: id, isDeleted: false }, { media: 1, status: 1, artworkId: 1, lastModified: 1 }).lean(true);
 
     if (!artworkData) {
       return res.status(400).send({ message: `Artwork not found` });
@@ -436,9 +386,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   let extTagsArr = [];
 
   if (req.body.emotions) {
-    const emotions = Array.isArray(req.body.emotions)
-      ? req.body.emotions.map((item) => JSON.parse(item))
-      : req.body.emotions;
+    const emotions = Array.isArray(req.body.emotions) ? req.body.emotions.map((item) => JSON.parse(item)) : req.body.emotions;
 
     if (typeof emotions === "string") {
       const obj = JSON.parse(emotions);
@@ -451,9 +399,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   if (req.body.intTags) {
-    const intTags = Array.isArray(req.body.intTags)
-      ? req.body.intTags.map((item) => JSON.parse(item))
-      : req.body.intTags;
+    const intTags = Array.isArray(req.body.intTags) ? req.body.intTags.map((item) => JSON.parse(item)) : req.body.intTags;
 
     if (typeof intTags === "string") {
       intTagsArr.push(intTags.replace(/^"|"$/g, ""));
@@ -465,9 +411,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   if (req.body.extTags) {
-    const extTags = Array.isArray(req.body.extTags)
-      ? req.body.extTags.map((item) => JSON.parse(item))
-      : req.body.extTags;
+    const extTags = Array.isArray(req.body.extTags) ? req.body.extTags.map((item) => JSON.parse(item)) : req.body.extTags;
 
     if (typeof extTags === "string") {
       extTagsArr.push(extTags.replace(/^"|"$/g, ""));
@@ -494,9 +438,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   if (req.body.colors) {
-    const colors = Array.isArray(req.body.colors)
-      ? req.body.colors.map((item) => JSON.parse(item))
-      : req.body.colors;
+    const colors = Array.isArray(req.body.colors) ? req.body.colors.map((item) => JSON.parse(item)) : req.body.colors;
 
     if (typeof colors === "string") {
       const obj = JSON.parse(colors);
@@ -514,10 +456,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
     isArtProvider: req.body.isArtProvider ? req.body.isArtProvider : "No",
-    artworkId:
-      artworkData === null
-        ? "ARW-" + generateRandomId()
-        : artworkData?.artworkId,
+    artworkId: artworkData === null ? "ARW-" + generateRandomId() : artworkData?.artworkId,
     owner: artist._id,
   };
 
@@ -662,25 +601,14 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (id !== "null") {
     ArtWork.updateOne({ _id: id }, condition).then();
 
-    const newCatalogId =
-      req.body.activeTab === "subscription"
-        ? req.body.subscriptionCatalog
-        : req.body.purchaseCatalog;
+    const newCatalogId = req.body.activeTab === "subscription" ? req.body.subscriptionCatalog : req.body.purchaseCatalog;
 
-    const existingCatalogId =
-      artworkData.commercialization?.purchaseCatalog ||
-      artworkData.commercialization?.subscriptionCatalog;
+    const existingCatalogId = artworkData.commercialization?.purchaseCatalog || artworkData.commercialization?.subscriptionCatalog;
 
     if (newCatalogId !== existingCatalogId) {
       Promise.all([
-        Catalog.updateOne(
-          { _id: existingCatalogId, artworkList: artworkData._id },
-          { $pull: { artworkList: artworkData._id } }
-        ),
-        Catalog.updateOne(
-          { _id: newCatalogId, artworkList: { $ne: artworkData._id } },
-          { $push: { artworkList: artworkData._id } }
-        ),
+        Catalog.updateOne({ _id: existingCatalogId, artworkList: artworkData._id }, { $pull: { artworkList: artworkData._id } }),
+        Catalog.updateOne({ _id: newCatalogId, artworkList: { $ne: artworkData._id } }, { $push: { artworkList: artworkData._id } }),
       ]);
     }
 
@@ -700,14 +628,9 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   } else {
     artwork = await ArtWork.create(obj);
 
-    const catalogId = req.body.subscriptionCatalog
-      ? req.body.subscriptionCatalog
-      : req.body.purchaseCatalog;
+    const catalogId = req.body.subscriptionCatalog ? req.body.subscriptionCatalog : req.body.purchaseCatalog;
 
-    await Catalog.updateOne(
-      { _id: catalogId },
-      { $push: { artworkList: artwork._id } }
-    );
+    await Catalog.updateOne({ _id: catalogId }, { $push: { artworkList: artwork._id } });
 
     await Notification.updateOne(
       { user: artist._id },
@@ -721,17 +644,12 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       }
     );
 
-    return res
-      .status(200)
-      .send({ message: "Artwork Added Sucessfully", artwork });
+    return res.status(200).send({ message: "Artwork Added Sucessfully", artwork });
   }
 });
 
 const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
-  const artist = await Artist.findOne(
-    { _id: req.user._id, isDeleted: false },
-    { isActivated: 1 }
-  ).lean(true);
+  const artist = await Artist.findOne({ _id: req.user._id, isDeleted: false }, { isActivated: 1 }).lean(true);
   if (!artist) return res.status(400).send({ message: `Artist not found` });
 
   const { id } = req.params;
@@ -740,10 +658,9 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Artist not activated` });
   }
 
-  let artworkData = await ArtWork.findOne(
-    { _id: id, isDeleted: false },
-    { artworkName: 1, media: 1, status: 1, artworkId: 1, lastModified: 1 }
-  ).lean(true);
+  let artworkData = await ArtWork.findOne({ _id: id, isDeleted: false }, { artworkName: 1, media: 1, status: 1, artworkId: 1, lastModified: 1 }).lean(
+    true
+  );
 
   if (!artworkData) {
     return res.status(400).send({ message: `Artwork not found` });
@@ -809,9 +726,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   let extTagsArr = [];
 
   if (req.body.emotions) {
-    const emotions = Array.isArray(req.body.emotions)
-      ? req.body.emotions.map((item) => JSON.parse(item))
-      : req.body.emotions;
+    const emotions = Array.isArray(req.body.emotions) ? req.body.emotions.map((item) => JSON.parse(item)) : req.body.emotions;
 
     if (typeof emotions === "string") {
       const obj = JSON.parse(emotions);
@@ -824,9 +739,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   if (req.body.intTags) {
-    const intTags = Array.isArray(req.body.intTags)
-      ? req.body.intTags.map((item) => JSON.parse(item))
-      : req.body.intTags;
+    const intTags = Array.isArray(req.body.intTags) ? req.body.intTags.map((item) => JSON.parse(item)) : req.body.intTags;
 
     if (typeof intTags === "string") {
       intTagsArr.push(intTags.replace(/^"|"$/g, ""));
@@ -838,9 +751,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   if (req.body.extTags) {
-    const extTags = Array.isArray(req.body.extTags)
-      ? req.body.extTags.map((item) => JSON.parse(item))
-      : req.body.extTags;
+    const extTags = Array.isArray(req.body.extTags) ? req.body.extTags.map((item) => JSON.parse(item)) : req.body.extTags;
 
     if (typeof extTags === "string") {
       extTagsArr.push(extTags.replace(/^"|"$/g, ""));
@@ -867,9 +778,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   if (req.body.colors) {
-    const colors = Array.isArray(req.body.colors)
-      ? req.body.colors.map((item) => JSON.parse(item))
-      : req.body.colors;
+    const colors = Array.isArray(req.body.colors) ? req.body.colors.map((item) => JSON.parse(item)) : req.body.colors;
 
     if (typeof colors === "string") {
       const obj = JSON.parse(colors);
@@ -1015,26 +924,17 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["lastModified"] = date;
 
-  await ArtWork.updateOne(
-    { _id: id, isDeleted: false },
-    { $set: { reviewDetails: obj, status: "modified" } }
-  );
+  await ArtWork.updateOne({ _id: id, isDeleted: false }, { $set: { reviewDetails: obj, status: "modified" } });
 
   const notification = {
-    subject:
-      artworkData.status === "published"
-        ? "Artwork Modification Requested"
-        : "Modified Artwork Edited",
+    subject: artworkData.status === "published" ? "Artwork Modification Requested" : "Modified Artwork Edited",
     message:
       artworkData.status === "published"
         ? `You have submitted an artwork modification request for "${artworkData.artworkName}".`
         : `You made changes to your modified artwork "${artworkData.artworkName}".`,
   };
 
-  await Notification.updateOne(
-    { user: artist._id },
-    { $push: { notifications: notification } }
-  );
+  await Notification.updateOne({ user: artist._id }, { $push: { notifications: notification } });
 
   return res.status(200).send({ message: "Artwork Modified Successfully" });
 });
@@ -1042,10 +942,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 const publishArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  const artwork = await ArtWork.findOne(
-    { _id: id, isDeleted: false },
-    { status: 1, artworkName: 1 }
-  ).lean(true);
+  const artwork = await ArtWork.findOne({ _id: id, isDeleted: false }, { status: 1, artworkName: 1 }).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status !== "draft") {
@@ -1066,9 +963,7 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
       }
     ).then();
 
-    return res
-      .status(200)
-      .send({ message: "Artwork Published Sucessfully", data: artwork._id });
+    return res.status(200).send({ message: "Artwork Published Sucessfully", data: artwork._id });
   } else {
     ArtWork.updateOne({ _id: id }, { status: "pending" }).then();
     Notification.updateOne(
@@ -1083,9 +978,7 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
       }
     ).then();
 
-    return res
-      .status(200)
-      .send({ message: "Artwork Published Sucessfully", data: artwork._id });
+    return res.status(200).send({ message: "Artwork Published Sucessfully", data: artwork._id });
   }
 });
 
@@ -1282,9 +1175,7 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
   ]);
 
   const hasNextPage =
-    (currPage === 1 && artworkList.length > limit) ||
-    artworkList.length > limit ||
-    (direction === "prev" && artworkList.length === limit);
+    (currPage === 1 && artworkList.length > limit) || artworkList.length > limit || (direction === "prev" && artworkList.length === limit);
 
   if (hasNextPage && direction) {
     if (direction === "next") artworkList.pop();
@@ -1300,9 +1191,7 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
     artworkList.reverse();
   }
 
-  const nextCursor = hasNextPage
-    ? artworkList[artworkList.length - 1]._id
-    : null;
+  const nextCursor = hasNextPage ? artworkList[artworkList.length - 1]._id : null;
 
   const prevCursor = hasPrevPage ? artworkList[0]._id : null;
 
@@ -1320,16 +1209,11 @@ const removeArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   if (!id) return res.status(400).send({ message: "Artwork Id is required" });
 
-  const artwork = await ArtWork.findOne(
-    { _id: id },
-    { status: 1, owner: 1, artworkName: 1 }
-  ).lean(true);
+  const artwork = await ArtWork.findOne({ _id: id }, { status: 1, owner: 1, artworkName: 1 }).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status === "rejected") {
-    return res
-      .status(400)
-      .send({ message: "Artwork already rejected or removed" });
+    return res.status(400).send({ message: "Artwork already rejected or removed" });
   }
 
   await ArtWork.updateOne({ _id: id }, { $set: { status: "rejected" } });
@@ -1352,16 +1236,11 @@ const moveArtworkToPending = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   if (!id) return res.status(400).send({ message: "Artwork Id is required" });
 
-  const artwork = await ArtWork.findOne(
-    { _id: id },
-    { status: 1, owner: 1, artworkName: 1 }
-  ).lean(true);
+  const artwork = await ArtWork.findOne({ _id: id }, { status: 1, owner: 1, artworkName: 1 }).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status !== "rejected") {
-    return res
-      .status(400)
-      .send({ message: "Artwork already in pending status" });
+    return res.status(400).send({ message: "Artwork already in pending status" });
   }
 
   await ArtWork.updateOne({ _id: id }, { $set: { status: "pending" } });
@@ -1425,9 +1304,7 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
       },
     ]);
 
-    return res
-      .status(200)
-      .send({ data: artworks, url: "https://dev.freshartclub.com/images" });
+    return res.status(200).send({ data: artworks, url: "https://dev.freshartclub.com/images" });
   } else {
     artworks = await ArtWork.aggregate([
       { $match: matchQuery },
@@ -1435,10 +1312,7 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
       {
         $set: {
           catalogField: {
-            $ifNull: [
-              "$commercialization.purchaseCatalog",
-              "$commercialization.subscriptionCatalog",
-            ],
+            $ifNull: ["$commercialization.purchaseCatalog", "$commercialization.subscriptionCatalog"],
           },
         },
       },
@@ -1505,7 +1379,7 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  let { preview } = req.query;
+  let { preview, viewType } = req.query;
 
   let artwork = null;
   let artworks = [];
@@ -1521,10 +1395,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
       {
         $set: {
           catalogField: {
-            $ifNull: [
-              "$commercialization.purchaseCatalog",
-              "$commercialization.subscriptionCatalog",
-            ],
+            $ifNull: ["$commercialization.purchaseCatalog", "$commercialization.subscriptionCatalog"],
           },
         },
       },
@@ -1597,6 +1468,126 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
       },
     ]);
   } else {
+    if (preview == "false") {
+      artwork = await ArtWork.aggregate([
+        {
+          $match: {
+            _id: objectId(id),
+            status: "published",
+            isDeleted: false,
+          },
+        },
+        {
+          $set: {
+            catalogField: {
+              $ifNull: ["$commercialization.purchaseCatalog", "$commercialization.subscriptionCatalog"],
+            },
+          },
+        },
+        {
+          $lookup: {
+            from: "artists",
+            localField: "owner",
+            foreignField: "_id",
+            as: "ownerInfo",
+          },
+        },
+        {
+          $unwind: { path: "$ownerInfo", preserveNullAndEmptyArrays: true },
+        },
+        {
+          $lookup: {
+            from: "catalogs",
+            localField: "catalogField",
+            foreignField: "_id",
+            as: "catalogInfo",
+          },
+        },
+        {
+          $unwind: { path: "$catalogInfo", preserveNullAndEmptyArrays: true },
+        },
+        {
+          $project: {
+            _id: 1,
+            status: 1,
+            artworkId: 1,
+            views: 1,
+            owner: {
+              _id: "$ownerInfo._id",
+              artistName: "$ownerInfo.artistName",
+              artistId: "$ownerInfo.artistId",
+              artistSurname1: "$ownerInfo.artistSurname1",
+              artistSurname2: "$ownerInfo.artistSurname2",
+              address: "$ownerInfo.address",
+              aboutArtist: "$ownerInfo.aboutArtist",
+              profile: "$ownerInfo.profile",
+            },
+            artworkName: 1,
+            artworkCreationYear: 1,
+            artworkSeries: 1,
+            productDescription: 1,
+            media: 1,
+            additionalInfo: 1,
+            commercialization: {
+              $mergeObjects: [
+                "$commercialization",
+                {
+                  publishingCatalog: {
+                    _id: "$catalogInfo._id",
+                    catalogName: "$catalogInfo.catalogName",
+                  },
+                },
+              ],
+            },
+            pricing: 1,
+            tags: 1,
+          },
+        },
+      ]);
+
+      if (artwork.length === 0) {
+        return res.status(400).json({ message: "Either artwork not found or not published" });
+      }
+
+      artworks = await ArtWork.aggregate([
+        {
+          $match: {
+            owner: objectId(artwork[0].owner._id),
+            isDeleted: false,
+            status: "published",
+          },
+        },
+        {
+          $project: {
+            _id: 1,
+            status: 1,
+            artworkId: 1,
+            offensive: "$additionalInfo.offensive",
+            artworkName: 1,
+            mainImage: "$media.mainImage",
+            additionalInfo: 1,
+            pricing: 1,
+            inventoryShipping: 1,
+            discipline: 1,
+          },
+        },
+      ]);
+
+      const viewTypes = ["new", "trending", "soon", "highlight", "search"];
+      const type = viewTypes.includes(viewType) ? viewType : "search";
+
+      await ArtWork.updateOne({ _id: objectId(id), "views.type": type }, { $inc: { "views.$.count": 1 } }).then(async (res) => {
+        if (res.matchedCount === 0) {
+          await ArtWork.updateOne({ _id: objectId(id) }, { $push: { views: { type, count: 1 } } });
+        }
+      });
+
+      return res.status(200).send({
+        data: artwork[0],
+        artworks: artworks,
+      });
+    }
+
     artwork = await ArtWork.aggregate([
       {
         $match: {
@@ -1606,10 +1597,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
       {
         $set: {
           catalogField: {
-            $ifNull: [
-              "$commercialization.purchaseCatalog",
-              "$commercialization.subscriptionCatalog",
-            ],
+            $ifNull: ["$commercialization.purchaseCatalog", "$commercialization.subscriptionCatalog"],
           },
         },
       },
@@ -1640,9 +1628,9 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           _id: 1,
           status: 1,
           artworkId: 1,
-          isHighlighted: 1,
           isArtProvider: 1,
           provideArtistName: 1,
+          views: 1,
           owner: {
             _id: "$ownerInfo._id",
             artistName: "$ownerInfo.artistName",
@@ -1653,12 +1641,10 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
             aboutArtist: "$ownerInfo.aboutArtist",
             profile: "$ownerInfo.profile",
           },
-          rejectReason: 1,
           artworkName: 1,
           artworkCreationYear: 1,
           artworkSeries: 1,
           productDescription: 1,
-          collectionList: 1,
           media: 1,
           additionalInfo: 1,
           commercialization: {
@@ -1675,186 +1661,172 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           pricing: 1,
           inventoryShipping: 1,
           discipline: 1,
-          promotions: 1,
           restriction: 1,
           tags: 1,
         },
       },
     ]);
 
-    if (preview == "false") {
-      artworks = await ArtWork.find({ owner: artwork[0].owner._id })
-        .limit(7)
-        .sort({ createdAt: -1 })
-        .lean(true);
-    }
+    return res.status(200).send({
+      data: artwork[0],
+      artworks: artworks,
+    });
   }
-
-  res.status(200).send({
-    data: artwork[0],
-    artworks: artworks,
-    url: "https://dev.freshartclub.com/images",
-  });
 });
 
 const getHomeArtwork = catchAsyncError(async (req, res, next) => {
-  const [newAdded, homeArt, artists, commingSoon, freshartCircle] =
-    await Promise.all([
-      ArtWork.find(
-        {
-          status: "published",
-          "inventoryShipping.comingSoon": false,
-          isDeleted: false,
-          // createdAt: { $gt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
-        },
-        {
-          media: "$media.mainImage",
-          artworkName: 1,
-          additionalInfo: 1,
-          provideArtistName: 1,
-          price: {
-            $cond: {
-              if: { $eq: ["$commercialization.activeTab", "purchase"] },
-              then: "$commercialization.basePrice",
-              else: "",
-            },
-          },
-          discipline: 1,
-          "inventoryShipping.comingSoon": 1,
-        }
-      )
-        .limit(10)
-        .populate("owner", "artistName artistSurname1 artistSurname2")
-        .sort({ createdAt: -1 })
-        .lean(true),
-      HomeArtwork.aggregate([
-        {
-          $match: {
-            type: "Home-Page",
+  const [newAdded, homeArt, artists, commingSoon, freshartCircle] = await Promise.all([
+    ArtWork.find(
+      {
+        status: "published",
+        "inventoryShipping.comingSoon": false,
+        isDeleted: false,
+        // createdAt: { $gt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) },
+      },
+      {
+        media: "$media.mainImage",
+        artworkName: 1,
+        additionalInfo: 1,
+        provideArtistName: 1,
+        price: {
+          $cond: {
+            if: { $eq: ["$commercialization.activeTab", "purchase"] },
+            then: "$commercialization.basePrice",
+            else: "",
           },
         },
-        {
-          $lookup: {
-            from: "artworks",
-            localField: "artworks",
-            foreignField: "_id",
-            as: "artwork",
-          },
+        discipline: 1,
+        "inventoryShipping.comingSoon": 1,
+      }
+    )
+      .limit(10)
+      .populate("owner", "artistName artistSurname1 artistSurname2")
+      .sort({ createdAt: -1 })
+      .lean(true),
+    HomeArtwork.aggregate([
+      {
+        $match: {
+          type: "Home-Page",
         },
-        {
-          $lookup: {
-            from: "artists",
-            localField: "owner",
-            foreignField: "_id",
-            as: "user",
-          },
+      },
+      {
+        $lookup: {
+          from: "artworks",
+          localField: "artworks",
+          foreignField: "_id",
+          as: "artwork",
         },
-        {
-          $project: {
-            artworksTitle: 1,
-            owner: {
-              artistName: "$user.artistName",
-              artistSurname1: "$user.artistAurname1",
-              artistSurname2: "$user.artistAurname",
-            },
-            artworks: {
-              $map: {
-                input: "$artwork",
-                as: "item",
-                in: {
-                  _id: "$$item._id",
-                  artworkId: "$$item.artworkId",
-                  artworkName: "$$item.artworkName",
-                  media: "$$item.media.mainImage",
-                  additionalInfo: "$$item.additionalInfo",
-                  provideArtistName: "$$item.provideArtistName",
-                  price: {
-                    $cond: {
-                      if: {
-                        $eq: ["$$item.commercialization.activeTab", "purchase"],
-                      },
-                      then: "$$item.commercialization.basePrice",
-                      else: "",
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "owner",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $project: {
+          artworksTitle: 1,
+          owner: {
+            artistName: "$user.artistName",
+            artistSurname1: "$user.artistAurname1",
+            artistSurname2: "$user.artistAurname",
+          },
+          artworks: {
+            $map: {
+              input: "$artwork",
+              as: "item",
+              in: {
+                _id: "$$item._id",
+                artworkId: "$$item.artworkId",
+                artworkName: "$$item.artworkName",
+                media: "$$item.media.mainImage",
+                additionalInfo: "$$item.additionalInfo",
+                provideArtistName: "$$item.provideArtistName",
+                price: {
+                  $cond: {
+                    if: {
+                      $eq: ["$$item.commercialization.activeTab", "purchase"],
                     },
+                    then: "$$item.commercialization.basePrice",
+                    else: "",
                   },
-                  discipline: "$$item.discipline",
-                  comingSoon: "$$item.inventoryShipping.comingSoon",
                 },
+                discipline: "$$item.discipline",
+                comingSoon: "$$item.inventoryShipping.comingSoon",
               },
             },
           },
         },
-        { $sort: { createdAt: -1 } },
-      ]),
-      Artist.find(
-        {
-          isActivated: true,
-          isDeleted: false,
-        },
-        {
-          artistName: 1,
-          artistSurname1: 1,
-          artistSurname2: 1,
-          aboutArtist: 1,
-          profile: 1,
-        }
-      )
-        .limit(10)
-        .sort({ createdAt: -1 })
-        .lean(true),
-      ArtWork.find(
-        {
-          "inventoryShipping.comingSoon": true,
-          status: "published",
-          isDeleted: false,
-        },
-        {
-          media: "$media.mainImage",
-          artworkName: 1,
-          additionalInfo: 1,
-          provideArtistName: 1,
-          price: {
-            $cond: {
-              if: { $eq: ["$commercialization.activeTab", "purchase"] },
-              then: "$commercialization.basePrice",
-              else: "",
-            },
-          },
-          discipline: 1,
-          "inventoryShipping.comingSoon": 1,
-        }
-      )
-        .limit(10)
-        .populate("owner", "artistName artistSurname1 artistSurname2")
-        .sort({ createdAt: -1 })
-        .lean(true),
-      Circle.aggregate([
-        {
-          $match: {
-            foradmin: true,
+      },
+      { $sort: { createdAt: -1 } },
+    ]),
+    Artist.find(
+      {
+        isActivated: true,
+        isDeleted: false,
+      },
+      {
+        artistName: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        aboutArtist: 1,
+        profile: 1,
+      }
+    )
+      .limit(10)
+      .sort({ createdAt: -1 })
+      .lean(true),
+    ArtWork.find(
+      {
+        "inventoryShipping.comingSoon": true,
+        status: "published",
+        isDeleted: false,
+      },
+      {
+        media: "$media.mainImage",
+        artworkName: 1,
+        additionalInfo: 1,
+        provideArtistName: 1,
+        price: {
+          $cond: {
+            if: { $eq: ["$commercialization.activeTab", "purchase"] },
+            then: "$commercialization.basePrice",
+            else: "",
           },
         },
-        {
-          $project: {
-            title: 1,
-            description: 1,
-            content: 1,
-            mainImage: 1,
-            coverImage: 1,
-            categories: 1,
-            foradmin: 1,
-            status: 1,
-          },
+        discipline: 1,
+        "inventoryShipping.comingSoon": 1,
+      }
+    )
+      .limit(10)
+      .populate("owner", "artistName artistSurname1 artistSurname2")
+      .sort({ createdAt: -1 })
+      .lean(true),
+    Circle.aggregate([
+      {
+        $match: {
+          foradmin: true,
         },
-      ]),
-    ]);
+      },
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          content: 1,
+          mainImage: 1,
+          coverImage: 1,
+          categories: 1,
+          foradmin: 1,
+          status: 1,
+        },
+      },
+    ]),
+  ]);
 
-  const trending = homeArt.find(
-    (item) => item.artworksTitle === "Trending Artworks"
-  ).artworks;
-  const highlighted = homeArt.find(
-    (item) => item.artworksTitle === "Highlighted Artworks"
-  ).artworks;
+  const trending = homeArt.find((item) => item.artworksTitle === "Trending Artworks").artworks;
+  const highlighted = homeArt.find((item) => item.artworksTitle === "Highlighted Artworks").artworks;
 
   res.status(200).send({
     newAdded,
@@ -1892,16 +1864,9 @@ const addToRecentView = catchAsyncError(async (req, res, next) => {
 });
 
 const getRecentlyView = catchAsyncError(async (req, res, next) => {
-  const recentViewed = await RecentlyView.findOne(
-    { owner: req.user._id },
-    { artworks: 1 }
-  ).lean();
+  const recentViewed = await RecentlyView.findOne({ owner: req.user._id }, { artworks: 1 }).lean();
 
-  if (
-    !recentViewed ||
-    !recentViewed.artworks ||
-    recentViewed.artworks.length === 0
-  ) {
+  if (!recentViewed || !recentViewed.artworks || recentViewed.artworks.length === 0) {
     return res.status(200).send({
       data: [],
     });
@@ -1925,10 +1890,7 @@ const getRecentlyView = catchAsyncError(async (req, res, next) => {
 const validateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  const artwork = await ArtWork.findOne(
-    { _id: id },
-    { status: 1, owner: 1, artworkName: 1 }
-  ).lean(true);
+  const artwork = await ArtWork.findOne({ _id: id }, { status: 1, owner: 1, artworkName: 1 }).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status === "pending") {
@@ -1946,9 +1908,7 @@ const validateArtwork = catchAsyncError(async (req, res, next) => {
     );
     return res.status(200).send({ message: "Artwork successfully validated" });
   } else {
-    return res
-      .status(400)
-      .send({ message: "Artwork is in draft or already validated" });
+    return res.status(400).send({ message: "Artwork is in draft or already validated" });
   }
 });
 
@@ -2009,38 +1969,21 @@ const addSeriesToArtist = catchAsyncError(async (req, res, next) => {
   if (!id) id = req.user._id;
   const { seriesName } = req.body;
 
-  if (!seriesName)
-    return res.status(400).send({ message: "Series name is required" });
+  if (!seriesName) return res.status(400).send({ message: "Series name is required" });
 
-  const result = await Artist.updateOne(
-    { _id: id, artistSeriesList: { $ne: seriesName } },
-    { $addToSet: { artistSeriesList: seriesName.trim() } }
-  );
+  const result = await Artist.updateOne({ _id: id, artistSeriesList: { $ne: seriesName } }, { $addToSet: { artistSeriesList: seriesName.trim() } });
 
   if (result.matchedCount === 0) {
-    return res
-      .status(400)
-      .send({ message: "Artist not found or series already exists" });
+    return res.status(400).send({ message: "Artist not found or series already exists" });
   }
 
   return res.status(200).send({ message: "Series added successfully" });
 });
 
 const getAllArtworks = catchAsyncError(async (req, res, next) => {
-  let {
-    type,
-    limit,
-    cursor,
-    direction,
-    currPage,
-    s,
-    discipline,
-    theme,
-    technic,
-  } = req.query;
+  let { type, limit, cursor, direction, currPage, s, discipline, theme, technic } = req.query;
 
-  if (!type)
-    return res.status(400).send({ message: "Artwork Type is required" });
+  if (!type) return res.status(400).send({ message: "Artwork Type is required" });
 
   type = type.toLowerCase();
   s = s ? s : "";
@@ -2115,9 +2058,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
   ]);
 
   const hasNextPage =
-    (currPage === 1 && artworkList.length > limit) ||
-    artworkList.length > limit ||
-    (direction === "prev" && artworkList.length === limit);
+    (currPage === 1 && artworkList.length > limit) || artworkList.length > limit || (direction === "prev" && artworkList.length === limit);
 
   if (hasNextPage && direction) {
     if (direction === "next") artworkList.pop();
@@ -2133,9 +2074,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     artworkList.reverse();
   }
 
-  const nextCursor = hasNextPage
-    ? artworkList[artworkList.length - 1]._id
-    : null;
+  const nextCursor = hasNextPage ? artworkList[artworkList.length - 1]._id : null;
 
   const prevCursor = hasPrevPage ? artworkList[0]._id : null;
 

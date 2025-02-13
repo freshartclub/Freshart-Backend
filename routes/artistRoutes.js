@@ -39,6 +39,8 @@ const {
   markReadNotification,
   deleteNotification,
   getUserPlans,
+  checkArtistToken,
+  getUnAutorisedCartItems,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -80,9 +82,11 @@ router.post("/resend-otp", resendOTP);
 
 router.patch("/change-password", validateToken, changePassword);
 
+router.get("/check-artist-token", validateToken, checkArtistToken);
+
 router.get("/get-artist", validateToken, getArtistDetails);
 
-router.get("/get-artist-detail/:id", validateToken, getArtistDetailById);
+router.get("/get-artist-detail/:id", getArtistDetailById);
 
 router.patch("/logout", validateToken, logOut);
 
@@ -110,23 +114,11 @@ router.get("/get-series-list", validateToken, getAllSeriesList);
 
 router.get("/get-billing-address", validateToken, getBillingAddresses);
 
-router.post(
-  "/add-billing-address/:addressId?",
-  validateToken,
-  addBillingAddress
-);
+router.post("/add-billing-address/:addressId?", validateToken, addBillingAddress);
 
-router.patch(
-  "/remove-billing-address/:addressId",
-  validateToken,
-  removeBillingAddress
-);
+router.patch("/remove-billing-address/:addressId", validateToken, removeBillingAddress);
 
-router.patch(
-  "/set-default-address/:addressId",
-  validateToken,
-  setDefaultBillingAddress
-);
+router.patch("/set-default-address/:addressId", validateToken, setDefaultBillingAddress);
 
 router.patch("/revalidate-profile", validateToken, artistReValidate);
 
@@ -140,13 +132,13 @@ router.patch("/modify-artwork/:id", validateToken, artistModifyArtwork);
 
 router.get("/get-all-artists", validateToken, getActivedArtists);
 
-router.get("/get-artwork/:id", validateToken, getArtworkById);
+router.get("/get-artwork/:id", getArtworkById);
 
 router.patch("/delete-artwork/:id", validateToken, removeArtwork);
 
 router.patch("/publish-artwork/:id", validateToken, publishArtwork);
 
-router.get("/get-home-artworks", validateToken, getHomeArtwork);
+router.get("/get-home-artworks", getHomeArtwork);
 
 router.post("/add-to-recent/:id", validateToken, addToRecentView);
 
@@ -160,15 +152,13 @@ router.get("/get-liked-items", validateToken, getLikedItems);
 
 router.get("/get-cart", validateToken, getCartItems);
 
+router.get("/get-unauthorized-cart", getUnAutorisedCartItems);
+
 router.get("/get-all-incidents", validateToken, getActiveIncident);
 
-router.get("/get-all-artworks", validateToken, getAllArtworks);
+router.get("/get-all-artworks", getAllArtworks);
 
-router.get(
-  "/get-artist-artworks-by-series/:id",
-  validateToken,
-  getArtworkGroupBySeries
-);
+router.get("/get-artist-artworks-by-series/:id", validateToken, getArtworkGroupBySeries);
 
 router.patch("/like-unlike-artwork/:id", validateToken, likeOrUnlikeArtwork);
 

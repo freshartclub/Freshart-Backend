@@ -10,12 +10,7 @@ const Ticket = require("../models/ticketModel");
 const PickList = require("../models/pickListModel");
 const Discipline = require("../models/disciplineModel");
 const Notification = require("../models/notificationModel");
-const {
-  createLog,
-  fileUploadFunc,
-  generateRandomOTP,
-  generateRandomId,
-} = require("../functions/common");
+const { createLog, fileUploadFunc, generateRandomOTP, generateRandomId } = require("../functions/common");
 const objectId = require("mongoose").Types.ObjectId;
 const APIErrorLog = createLog("API_error_log");
 const { checkValidations } = require("../functions/checkValidation");
@@ -42,12 +37,7 @@ const isStrongPassword = (password) => {
   const numericRegex = /\d/;
   const specialCharRegex = /[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]/;
 
-  if (
-    uppercaseRegex.test(password) &&
-    lowercaseRegex.test(password) &&
-    numericRegex.test(password) &&
-    specialCharRegex.test(password)
-  ) {
+  if (uppercaseRegex.test(password) && lowercaseRegex.test(password) && numericRegex.test(password) && specialCharRegex.test(password)) {
     return true;
   } else {
     return false;
@@ -89,10 +79,7 @@ const sendLoginOTP = async (req, res) => {
 
       sendMail("sample-email", mailVaribles, admins.email);
 
-      await Admin.updateOne(
-        { _id: admins._id, isDeleted: false },
-        { $set: { OTP: otp } }
-      );
+      await Admin.updateOne({ _id: admins._id, isDeleted: false }, { $set: { OTP: otp } });
 
       return res.status(200).send({
         id: admins._id,
@@ -126,11 +113,7 @@ const validateOTP = async (req, res) => {
     };
 
     if (admins && admins.OTP == otp) {
-      const token = jwt.sign(
-        { user: adminField },
-        process.env.ACCESS_TOKEN_SECERT,
-        { expiresIn: "30d" }
-      );
+      const token = jwt.sign({ user: adminField }, process.env.ACCESS_TOKEN_SECERT, { expiresIn: "30d" });
 
       Admin.updateOne(
         { _id: admins._id, isDeleted: false },
@@ -180,10 +163,7 @@ const resendOTP = async (req, res) => {
 
       sendMail("sample-email", mailVaribles, admins.email);
 
-      await Admin.updateOne(
-        { _id: admins._id, isDeleted: false },
-        { $set: { OTP: otp } }
-      );
+      await Admin.updateOne({ _id: admins._id, isDeleted: false }, { $set: { OTP: otp } });
 
       return res.status(200).send({
         id: admins._id,
@@ -204,10 +184,7 @@ const logOut = async (req, res) => {
     const { 1: token } = req.headers.authorization.split(" ");
     const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECERT);
 
-    await Admin.updateOne(
-      { _id: decodeToken.user._id },
-      { $pull: { tokens: token } }
-    );
+    await Admin.updateOne({ _id: decodeToken.user._id }, { $pull: { tokens: token } });
     return res.status(200).send({ message: "Logout successfully" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
@@ -297,10 +274,7 @@ const artistRegister = async (req, res) => {
             uploadDocs: uploadDocs,
           });
         } else {
-          const filename = req.body?.uploadDocs.replace(
-            "https://freshartclub.com/images/documents/",
-            ""
-          );
+          const filename = req.body?.uploadDocs.replace("https://freshartclub.com/images/documents/", "");
           docsArr.push({
             documentName: req.body?.documentName,
             uploadDocs: filename,
@@ -315,10 +289,7 @@ const artistRegister = async (req, res) => {
             });
             uploadDocs.shift();
           } else {
-            const filename = element.replace(
-              "https://freshartclub.com/images/documents/",
-              ""
-            );
+            const filename = element.replace("https://freshartclub.com/images/documents/", "");
             docsArr.push({
               documentName: req.body?.documentName[i],
               uploadDocs: filename,
@@ -350,10 +321,7 @@ const artistRegister = async (req, res) => {
 
     const newImageArr =
       additionalImages?.map((element) => {
-        if (
-          typeof element === "string" &&
-          element.includes("https://freshartclub.com/images/users")
-        ) {
+        if (typeof element === "string" && element.includes("https://freshartclub.com/images/users")) {
           return element.replace("https://freshartclub.com/images/users/", "");
         }
         return element;
@@ -361,20 +329,13 @@ const artistRegister = async (req, res) => {
 
     const newVideoArr =
       additionalVideos?.map((element) => {
-        if (
-          typeof element === "string" &&
-          element.includes("https://freshartclub.com/images/users")
-        ) {
+        if (typeof element === "string" && element.includes("https://freshartclub.com/images/users")) {
           return element.replace("https://freshartclub.com/images/users/", "");
         }
         return element;
       }) || [];
 
-    const count = fileData?.data
-      ? req.body.count === "4"
-        ? 4
-        : 7
-      : Number(req.body.count);
+    const count = fileData?.data ? (req.body.count === "4" ? 4 : 7) : Number(req.body.count);
 
     switch (count) {
       case 1:
@@ -523,11 +484,10 @@ const artistRegister = async (req, res) => {
         };
 
         if (Array.isArray(req.body.PublishingCatalog)) {
-          obj["commercilization"]["publishingCatalog"] =
-            req.body.PublishingCatalog.map((item) => ({
-              PublishingCatalog: objectId(item.PublishingCatalog),
-              ArtistFees: item.ArtistFees,
-            }));
+          obj["commercilization"]["publishingCatalog"] = req.body.PublishingCatalog.map((item) => ({
+            PublishingCatalog: objectId(item.PublishingCatalog),
+            ArtistFees: item.ArtistFees,
+          }));
         } else {
           obj["commercilization"]["publishingCatalog"] = [];
         }
@@ -562,14 +522,8 @@ const artistRegister = async (req, res) => {
       case 7:
         obj["documents"] = docsArr;
         obj["otherTags"] = {
-          intTags:
-            typeof req.body.intTags === "string"
-              ? [req.body.intTags]
-              : req.body.intTags,
-          extTags:
-            typeof req.body.extTags === "string"
-              ? [req.body.extTags]
-              : req.body.extTags,
+          intTags: typeof req.body.intTags === "string" ? [req.body.intTags] : req.body.intTags,
+          extTags: typeof req.body.extTags === "string" ? [req.body.extTags] : req.body.extTags,
         };
 
         if (req.body?.isActivated && req.body?.isActivated == "true") {
@@ -601,9 +555,7 @@ const artistRegister = async (req, res) => {
               .toLowerCase()
               .replace(/(^\w{1})|(\s{1}\w{1})/g, (match) => match.toUpperCase())
               .trim(),
-            managerPhone: req.body.managerArtistPhone
-              .replace(/[- )(]/g, "")
-              .trim(),
+            managerPhone: req.body.managerArtistPhone.replace(/[- )(]/g, "").trim(),
             managerEmail: req.body.managerArtistEmail.toLowerCase(),
             managerGender: req.body.managerArtistGender,
             address: {
@@ -615,13 +567,8 @@ const artistRegister = async (req, res) => {
             },
           };
 
-          if (
-            req.body.managerArtistLanguage &&
-            req.body.managerArtistLanguage.length
-          ) {
-            obj["managerDetails"]["language"] = Array.isArray(
-              req.body.managerArtistLanguage
-            )
+          if (req.body.managerArtistLanguage && req.body.managerArtistLanguage.length) {
+            obj["managerDetails"]["language"] = Array.isArray(req.body.managerArtistLanguage)
               ? req.body.managerArtistLanguage
               : [req.body.managerArtistLanguage];
           }
@@ -649,15 +596,9 @@ const artistRegister = async (req, res) => {
         const artistId = objectId(req.params.id);
         await Promise.all(
           req.body.PublishingCatalog.map(async (item) => {
-            await Catalog.updateMany(
-              { artProvider: artistId },
-              { $pull: { artProvider: artistId } }
-            );
+            await Catalog.updateMany({ artProvider: artistId }, { $pull: { artProvider: artistId } });
 
-            await Catalog.updateOne(
-              { _id: item.PublishingCatalog },
-              { $addToSet: { artProvider: artistId } }
-            );
+            await Catalog.updateOne({ _id: item.PublishingCatalog }, { $addToSet: { artProvider: artistId } });
           })
         );
       }
@@ -668,9 +609,7 @@ const artistRegister = async (req, res) => {
       });
 
       if (isExistingAritst) {
-        return res
-          .status(400)
-          .send({ message: "Artist already exist with this email" });
+        return res.status(400).send({ message: "Artist already exist with this email" });
       }
 
       obj["isArtistRequestStatus"] = "processing";
@@ -716,9 +655,7 @@ const addDiscipline = async (req, res) => {
       });
 
       if (isExisting) {
-        return res
-          .status(400)
-          .send({ message: "Discipline with this name already exist." });
+        return res.status(400).send({ message: "Discipline with this name already exist." });
       }
     }
 
@@ -766,9 +703,7 @@ const getDisciplineById = async (req, res) => {
       _id: req.params.id,
     }).lean(true);
 
-    res
-      .status(200)
-      .send({ data: discipline, url: "https://dev.freshartclub.com/images" });
+    res.status(200).send({ data: discipline, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -804,9 +739,7 @@ const addStyles = async (req, res) => {
       });
 
       if (isExisting) {
-        return res
-          .status(400)
-          .send({ message: "Style with this name already exist." });
+        return res.status(400).send({ message: "Style with this name already exist." });
       }
     }
 
@@ -889,9 +822,7 @@ const addTechnic = async (req, res) => {
       });
 
       if (isExisting) {
-        return res
-          .status(400)
-          .send({ message: "Technic with this name already exist." });
+        return res.status(400).send({ message: "Technic with this name already exist." });
       }
     }
 
@@ -974,9 +905,7 @@ const addTheme = async (req, res) => {
       });
 
       if (isExisting) {
-        return res
-          .status(400)
-          .send({ message: "Theme with this name already exist." });
+        return res.status(400).send({ message: "Theme with this name already exist." });
       }
     }
 
@@ -1059,9 +988,7 @@ const addMediaSupport = async (req, res) => {
       });
 
       if (isExisting) {
-        return res
-          .status(400)
-          .send({ message: "Media with this name already exist." });
+        return res.status(400).send({ message: "Media with this name already exist." });
       }
     }
 
@@ -1143,9 +1070,7 @@ const createInsignias = async (req, res) => {
       });
 
       if (isExisting) {
-        return res
-          .status(400)
-          .send({ message: "Discipline with this name already exist." });
+        return res.status(400).send({ message: "Discipline with this name already exist." });
       }
     }
 
@@ -1227,10 +1152,7 @@ const getInsignias = async (req, res) => {
     const data = await Insignia.aggregate([
       {
         $match: {
-          $or: [
-            { credentialName: { $regex: s, $options: "i" } },
-            { credentialGroup: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ credentialName: { $regex: s, $options: "i" } }, { credentialGroup: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -1327,10 +1249,7 @@ const deleteInsignia = async (req, res) => {
       return res.status(400).send({ message: "Insignia already deleted" });
     }
 
-    Insignia.updateOne(
-      { _id: id },
-      { $set: { isDeleted: true, isActive: false } }
-    ).then();
+    Insignia.updateOne({ _id: id }, { $set: { isDeleted: true, isActive: false } }).then();
     return res.status(200).send({ message: "Insignia deleted successfully" });
   } catch (error) {
     APIErrorLog.error(error);
@@ -1472,11 +1391,7 @@ const getAllArtists = async (req, res) => {
       role: "artist",
       ...dateFilter,
       ...(status ? { profileStatus: status } : {}),
-      $or: [
-        { artistId: { $regex: s, $options: "i" } },
-        { artistName: { $regex: s, $options: "i" } },
-        { email: { $regex: s, $options: "i" } },
-      ],
+      $or: [{ artistId: { $regex: s, $options: "i" } }, { artistName: { $regex: s, $options: "i" } }, { email: { $regex: s, $options: "i" } }],
     };
 
     const totalCount = await Artist.countDocuments(matchStage);
@@ -1519,10 +1434,7 @@ const getAllArtists = async (req, res) => {
       { $limit: limit + 1 },
     ]);
 
-    const hasNextPage =
-      (currPage == 1 && artists.length > limit) ||
-      artists.length > limit ||
-      (direction === "prev" && artists.length === limit);
+    const hasNextPage = (currPage == 1 && artists.length > limit) || artists.length > limit || (direction === "prev" && artists.length === limit);
 
     if (hasNextPage && direction) {
       if (direction === "next") artists.pop();
@@ -1572,11 +1484,7 @@ const getAllCompletedArtists = async (req, res) => {
     const matchStage = {
       isDeleted: false,
       isActivated: true,
-      $or: [
-        { artistId: { $regex: s, $options: "i" } },
-        { artistName: { $regex: s, $options: "i" } },
-        { email: { $regex: s, $options: "i" } },
-      ],
+      $or: [{ artistId: { $regex: s, $options: "i" } }, { artistName: { $regex: s, $options: "i" } }, { email: { $regex: s, $options: "i" } }],
     };
 
     const totalCount = await Artist.countDocuments(matchStage);
@@ -1613,10 +1521,7 @@ const getAllCompletedArtists = async (req, res) => {
       { $limit: limit + 1 },
     ]);
 
-    const hasNextPage =
-      (currPage == 1 && artists.length > limit) ||
-      artists.length > limit ||
-      (direction === "prev" && artists.length === limit);
+    const hasNextPage = (currPage == 1 && artists.length > limit) || artists.length > limit || (direction === "prev" && artists.length === limit);
 
     if (hasNextPage && direction) {
       if (direction === "next") artists.pop();
@@ -1716,9 +1621,7 @@ const getArtistRequestList = async (req, res) => {
       },
     ]);
 
-    res
-      .status(200)
-      .send({ data: artists, url: "https://dev.freshartclub.com/images" });
+    res.status(200).send({ data: artists, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1742,11 +1645,7 @@ const getArtistPendingList = async (req, res) => {
           isDeleted: false,
           isActivated: false,
           pageCount: { $gt: 0 },
-          $or: [
-            { artistId: { $regex: s, $options: "i" } },
-            { artistName: { $regex: s, $options: "i" } },
-            { email: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ artistId: { $regex: s, $options: "i" } }, { artistName: { $regex: s, $options: "i" } }, { email: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -1772,9 +1671,7 @@ const getArtistPendingList = async (req, res) => {
       },
     ]);
 
-    res
-      .status(200)
-      .send({ data: artistlist, url: "https://dev.freshartclub.com/images" });
+    res.status(200).send({ data: artistlist, url: "https://dev.freshartclub.com/images" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
@@ -1793,15 +1690,9 @@ const createNewUser = async (req, res) => {
 
     let checkUser = null;
     if (id !== "null") {
-      checkUser = await Artist.findOne(
-        { _id: id },
-        { profile: 1, isArtistRequestStatus: 1, pageCount: 1 }
-      ).lean(true);
+      checkUser = await Artist.findOne({ _id: id }, { profile: 1, isArtistRequestStatus: 1, pageCount: 1 }).lean(true);
 
-      if (checkUser.pageCount > 0)
-        return res
-          .status(400)
-          .send({ message: `Artist Account already created` });
+      if (checkUser.pageCount > 0) return res.status(400).send({ message: `Artist Account already created` });
     }
 
     const fileData = await fileUploadFunc(req, res);
@@ -1827,11 +1718,7 @@ const createNewUser = async (req, res) => {
     };
 
     obj["profile"] = {
-      mainImage: isfileData
-        ? fileData.data.avatar[0].filename
-        : checkUser?.profile?.mainImage
-        ? checkUser?.profile?.mainImage
-        : null,
+      mainImage: isfileData ? fileData.data.avatar[0].filename : checkUser?.profile?.mainImage ? checkUser?.profile?.mainImage : null,
     };
 
     obj["address"] = {
@@ -1864,9 +1751,7 @@ const createNewUser = async (req, res) => {
         });
 
         if (isExitingUser) {
-          return res
-            .status(400)
-            .send({ message: "User with this email already exists" });
+          return res.status(400).send({ message: "User with this email already exists" });
         }
 
         obj["userId"] = "UID-" + generateRandomId(nUser);
@@ -1886,9 +1771,7 @@ const createNewUser = async (req, res) => {
         }).then();
         // sendMail("sample-email", mailVaribles, user.email);
 
-        return res
-          .status(200)
-          .send({ message: "User created successfully", id: user._id });
+        return res.status(200).send({ message: "User created successfully", id: user._id });
       } else {
         obj["userId"] = "UID-" + generateRandomId(nUser);
         obj["pageCount"] = 1;
@@ -1908,9 +1791,7 @@ const createNewUser = async (req, res) => {
           ],
         }).then();
 
-        return res
-          .status(200)
-          .send({ message: "User created successfully", id: id });
+        return res.status(200).send({ message: "User created successfully", id: id });
       }
     } else {
       obj["pageCount"] = 1;
@@ -1919,10 +1800,7 @@ const createNewUser = async (req, res) => {
       obj["artistId"] = "AID-" + generateRandomId();
 
       let condition = { $set: obj };
-      Artist.updateOne(
-        { _id: id === "null" ? req.body._id : id, isDeleted: false },
-        condition
-      ).then();
+      Artist.updateOne({ _id: id === "null" ? req.body._id : id, isDeleted: false }, condition).then();
 
       Notification.create({
         user: id === "null" ? req.body._id : id,
@@ -1960,11 +1838,7 @@ const suspendedArtistList = async (req, res) => {
       {
         $match: {
           isDeleted: true,
-          $or: [
-            { artistId: { $regex: s, $options: "i" } },
-            { artistName: { $regex: s, $options: "i" } },
-            { email: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ artistId: { $regex: s, $options: "i" } }, { artistName: { $regex: s, $options: "i" } }, { email: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -2104,10 +1978,7 @@ const getAllUsers = async (req, res) => {
       { $limit: limit + 1 },
     ]);
 
-    const hasNextPage =
-      (currPage == 1 && users.length > limit) ||
-      users.length > limit ||
-      (direction === "prev" && users.length === limit);
+    const hasNextPage = (currPage == 1 && users.length > limit) || users.length > limit || (direction === "prev" && users.length === limit);
 
     if (hasNextPage && direction) {
       if (direction === "next") users.pop();
@@ -2245,10 +2116,7 @@ const suspendArtist = async (req, res) => {
       { new: true, projection: "email artistName" }
     ).lean();
 
-    if (!artist)
-      return res
-        .status(400)
-        .send({ message: `Artist already suspended/not found` });
+    if (!artist) return res.status(400).send({ message: `Artist already suspended/not found` });
 
     const findEmail = await EmailType.findOne({
       emailType: "artist-suspended-mail",
@@ -2287,10 +2155,7 @@ const unSuspendArtist = async (req, res) => {
       { new: true, projection: "email artistName" }
     ).lean();
 
-    if (!artist)
-      return res
-        .status(400)
-        .send({ message: `Artist already unsuspended/not found` });
+    if (!artist) return res.status(400).send({ message: `Artist already unsuspended/not found` });
 
     const findEmail = await EmailType.findOne({
       emailType: "artist-unsuspended-mail",
@@ -2327,14 +2192,9 @@ const rejectArtistRequest = async (req, res) => {
       { new: true, projection: "email artistName" }
     ).lean();
 
-    if (!user)
-      return res
-        .status(400)
-        .send({ message: `Artsit request already rejected/not found` });
+    if (!user) return res.status(400).send({ message: `Artsit request already rejected/not found` });
 
-    return res
-      .status(200)
-      .send({ message: "Artist request rejected successfully" });
+    return res.status(200).send({ message: "Artist request rejected successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2354,14 +2214,9 @@ const unRejectArtistRequest = async (req, res) => {
       { $set: { isArtistRequestStatus: "pending" } },
       { new: true, projection: "email artistName" }
     ).lean();
-    if (!user)
-      return res
-        .status(400)
-        .send({ message: `Artist request already in pending` });
+    if (!user) return res.status(400).send({ message: `Artist request already in pending` });
 
-    return res
-      .status(200)
-      .send({ message: "Artist request un-rejected successfully" });
+    return res.status(200).send({ message: "Artist request un-rejected successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2382,14 +2237,9 @@ const banArtistRequest = async (req, res) => {
       { new: true, projection: "email artistName" }
     ).lean();
 
-    if (!user)
-      return res
-        .status(400)
-        .send({ message: `Artist already banned/not found` });
+    if (!user) return res.status(400).send({ message: `Artist already banned/not found` });
 
-    return res
-      .status(200)
-      .send({ message: "Artist request banned successfully" });
+    return res.status(200).send({ message: "Artist request banned successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2410,14 +2260,9 @@ const unBanArtistRequest = async (req, res) => {
       { new: true, projection: "email artistName" }
     ).lean();
 
-    if (!user)
-      return res
-        .status(400)
-        .send({ message: `Artist request already in pending` });
+    if (!user) return res.status(400).send({ message: `Artist request already in pending` });
 
-    return res
-      .status(200)
-      .send({ message: "Artist request un-banned successfully" });
+    return res.status(200).send({ message: "Artist request un-banned successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2448,8 +2293,7 @@ const changeArtistPassword = async (req, res) => {
 
     if (!isStrongPassword(newPassword)) {
       return res.status(400).send({
-        message:
-          "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+        message: "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
       });
     }
 
@@ -2471,10 +2315,7 @@ const changeArtistPassword = async (req, res) => {
     };
 
     await Promise.all([
-      Artist.updateOne(
-        { _id: id, isDeleted: false },
-        { $set: { password: md5(newPassword) } }
-      ),
+      Artist.updateOne({ _id: id, isDeleted: false }, { $set: { password: md5(newPassword) } }),
       sendMail("sample-email", mailVaribles, user.email),
     ]);
 
@@ -2495,16 +2336,7 @@ const addTicket = async (req, res) => {
 
     const fileData = await fileUploadFunc(req, res);
 
-    const {
-      id,
-      ticketType,
-      status,
-      impact,
-      urgency,
-      priority,
-      subject,
-      message,
-    } = req.body;
+    const { id, ticketType, status, impact, urgency, priority, subject, message } = req.body;
 
     const randomNumber = Math.floor(100000 + Math.random() * 900000);
     const year = new Date().getFullYear();
@@ -2595,8 +2427,7 @@ const ticketList = async (req, res) => {
           ...(filterType && filterOption
             ? filterType == "feedback"
               ? {
-                  "ticketFeedback.isLiked":
-                    filterOption == "true" ? true : false,
+                  "ticketFeedback.isLiked": filterOption == "true" ? true : false,
                   ticketFeedback: { $exists: true },
                 }
               : { [filterType]: filterOption }
@@ -2666,9 +2497,7 @@ const ticketDetail = async (req, res) => {
     if (!admin) return res.status(400).send({ message: `Admin not found` });
 
     const { id } = req.params;
-    const ticketData = await Ticket.findById(id)
-      .populate("user", "email artistName artistSurname1 artistSurname2")
-      .lean(true);
+    const ticketData = await Ticket.findById(id).populate("user", "email artistName artistSurname1 artistSurname2").lean(true);
 
     return res.status(200).send({ data: ticketData });
   } catch (error) {
@@ -2710,9 +2539,7 @@ const replyTicket = async (req, res) => {
       userType,
       ticket: id,
       ticketType,
-      ticketImg: fileData?.data?.ticketImg
-        ? fileData.data.ticketImg[0].filename
-        : null,
+      ticketImg: fileData?.data?.ticketImg ? fileData.data.ticketImg[0].filename : null,
       status,
       message,
     });
@@ -2762,11 +2589,7 @@ const getTicketReplies = async (req, res) => {
           ticket: 1,
           createdAt: 1,
           artistName: {
-            $cond: [
-              { $eq: ["$userType", "user"] },
-              "$ownerInfo.artistName",
-              null,
-            ],
+            $cond: [{ $eq: ["$userType", "user"] }, "$ownerInfo.artistName", null],
           },
           email: {
             $cond: [{ $eq: ["$userType", "user"] }, "$ownerInfo.email", null],
@@ -2806,6 +2629,7 @@ const addFAQ = async (req, res) => {
       faqQues: req.body.faqQues,
       faqAns: req.body.faqAns,
       tags: req.body.tags,
+      forhomepage: req.body.forhomepage == "true" ? true : false,
     };
 
     const condition = {
@@ -2842,11 +2666,7 @@ const getFAQList = async (req, res) => {
       {
         $match: {
           isDeleted: false,
-          $or: [
-            { faqQues: { $regex: s, $options: "i" } },
-            { tags: { $regex: s, $options: "i" } },
-            { faqGrp: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ faqQues: { $regex: s, $options: "i" } }, { tags: { $regex: s, $options: "i" } }, { faqGrp: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -2943,11 +2763,7 @@ const getKBList = async (req, res) => {
     const kbList = await KB.aggregate([
       {
         $match: {
-          $or: [
-            { kbTitle: { $regex: s, $options: "i" } },
-            { tags: { $regex: s, $options: "i" } },
-            { kbGrp: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ kbTitle: { $regex: s, $options: "i" } }, { tags: { $regex: s, $options: "i" } }, { kbGrp: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -3071,8 +2887,7 @@ const approveArtistChanges = async (req, res) => {
     }
 
     const data = req.body;
-    if (!data.note)
-      return res.status(400).send({ message: "Note is required" });
+    if (!data.note) return res.status(400).send({ message: "Note is required" });
 
     let obj = {};
 
@@ -3129,9 +2944,7 @@ const approveArtistChanges = async (req, res) => {
     ]);
 
     return res.status(200).send({
-      message: `Artist Profile Changes ${
-        req.body.isApproved ? "Approved" : "Rejected"
-      }`,
+      message: `Artist Profile Changes ${req.body.isApproved ? "Approved" : "Rejected"}`,
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -3160,20 +2973,14 @@ const getReviewDetailArtwork = async (req, res) => {
       {
         $set: {
           catalogField: {
-            $ifNull: [
-              "$commercialization.purchaseCatalog",
-              "$commercialization.subscriptionCatalog",
-            ],
+            $ifNull: ["$commercialization.purchaseCatalog", "$commercialization.subscriptionCatalog"],
           },
         },
       },
       {
         $set: {
           catalogReviewField: {
-            $ifNull: [
-              "$reviewDetails.commercialization.purchaseCatalog",
-              "$reviewDetails.commercialization.subscriptionCatalog",
-            ],
+            $ifNull: ["$reviewDetails.commercialization.purchaseCatalog", "$reviewDetails.commercialization.subscriptionCatalog"],
           },
         },
       },
@@ -3338,8 +3145,7 @@ const approveArtworkChanges = async (req, res) => {
     }
 
     const data = req.body;
-    if (!data.note)
-      return res.status(400).send({ message: "Note is required" });
+    if (!data.note) return res.status(400).send({ message: "Note is required" });
 
     let obj = {};
 
@@ -3369,9 +3175,7 @@ const approveArtworkChanges = async (req, res) => {
         obj["commercialization"] = {
           activeTab: data?.commercialization?.activeTab,
           purchaseOption: data?.commercialization?.purchaseOption,
-          subscriptionCatalog: objectId(
-            data?.commercialization?.subscriptionCatalog
-          ),
+          subscriptionCatalog: objectId(data?.commercialization?.subscriptionCatalog),
         };
       } else {
         obj["commercialization"] = {
@@ -3382,24 +3186,14 @@ const approveArtworkChanges = async (req, res) => {
       }
 
       const newCatalogId =
-        data.commercialization?.activeTab === "subscription"
-          ? data.commercialization?.subscriptionCatalog
-          : data.commercialization?.purchaseCatalog;
+        data.commercialization?.activeTab === "subscription" ? data.commercialization?.subscriptionCatalog : data.commercialization?.purchaseCatalog;
 
-      const existingCatalogId =
-        artwork.commercialization?.purchaseCatalog ||
-        artwork.commercialization?.subscriptionCatalog;
+      const existingCatalogId = artwork.commercialization?.purchaseCatalog || artwork.commercialization?.subscriptionCatalog;
 
       if (newCatalogId !== existingCatalogId) {
         Promise.all([
-          Catalog.updateOne(
-            { _id: existingCatalogId, artworkList: artwork._id },
-            { $pull: { artworkList: artwork._id } }
-          ),
-          Catalog.updateOne(
-            { _id: newCatalogId, artworkList: { $ne: artwork._id } },
-            { $push: { artworkList: artwork._id } }
-          ),
+          Catalog.updateOne({ _id: existingCatalogId, artworkList: artwork._id }, { $pull: { artworkList: artwork._id } }),
+          Catalog.updateOne({ _id: newCatalogId, artworkList: { $ne: artwork._id } }, { $push: { artworkList: artwork._id } }),
         ]);
       }
     } else {
@@ -3480,9 +3274,7 @@ const reValidateArtist = async (req, res) => {
       "%email%": artist.email,
       "%msg%": findEmail.emailDesc,
       "%name%": artist.artistName,
-      "%newDate%": new Date(
-        new Date().setDate(new Date().getDate() + 30)
-      ).toLocaleDateString("en-GB"),
+      "%newDate%": new Date(new Date().setDate(new Date().getDate() + 30)).toLocaleDateString("en-GB"),
     };
 
     let obj = {
@@ -3497,9 +3289,7 @@ const reValidateArtist = async (req, res) => {
         {
           $set: {
             lastRevalidationDate: new Date(),
-            nextRevalidationDate: new Date(
-              new Date().setDate(new Date().getDate() + 30)
-            ),
+            nextRevalidationDate: new Date(new Date().setDate(new Date().getDate() + 30)),
           },
           $push: { previousRevalidationDate: obj },
         }
@@ -3537,15 +3327,10 @@ const deleteArtistSeries = async (req, res) => {
     name = name.trim();
 
     if (!artist.artistSeriesList.includes(name)) {
-      return res
-        .status(400)
-        .send({ message: "Series not found in artist's series list" });
+      return res.status(400).send({ message: "Series not found in artist's series list" });
     }
 
-    const existingArtwork = await ArtWork.findOne(
-      { owner: artist._id, artworkSeries: name.trim() },
-      { _id: 1 }
-    ).lean(true);
+    const existingArtwork = await ArtWork.findOne({ owner: artist._id, artworkSeries: name.trim() }, { _id: 1 }).lean(true);
 
     if (existingArtwork) {
       return res.status(400).send({ message: "Series used in other artworks" });
@@ -3570,12 +3355,7 @@ const updateJSONFile = async (req, res) => {
 
     const { fileType } = req.query;
 
-    const validJson = Object.fromEntries(
-      Object.entries(req.body).map(([key, value]) => [
-        key.replace(/^"|"$/g, ""),
-        value,
-      ])
-    );
+    const validJson = Object.fromEntries(Object.entries(req.body).map(([key, value]) => [key.replace(/^"|"$/g, ""), value]));
 
     const UPLOADS_DIR = path.join(__dirname, "../public/uploads/lang");
     const filePath = path.join(UPLOADS_DIR, fileType);
@@ -3609,9 +3389,7 @@ const getJSONFile = async (req, res) => {
 
     fs.readdir(UPLOADS_DIR, (err, files) => {
       if (err) {
-        return res
-          .status(500)
-          .json({ message: "Error reading files", error: err });
+        return res.status(500).json({ message: "Error reading files", error: err });
       }
       return res.status(200).send({ data: files });
     });
@@ -3750,13 +3528,7 @@ const downloadArtworkDataCSV = async (req, res) => {
       },
     ]);
     artworkList.forEach((item) => {
-      const fullArtistName = [
-        item.artistName,
-        item.artistSurname1 || "",
-        item.artistSurname2 || "",
-      ]
-        .filter(Boolean)
-        .join(" ");
+      const fullArtistName = [item.artistName, item.artistSurname1 || "", item.artistSurname2 || ""].filter(Boolean).join(" ");
 
       worksheet.addRow({
         artworkName: item.artworkName || "N/A",
@@ -3764,21 +3536,13 @@ const downloadArtworkDataCSV = async (req, res) => {
         artistName: fullArtistName || "Unknown Artist",
         discipline: item.discipline || "N/A",
         commercialization: item.commercialization || "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
         status: item.status || "N/A",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="Artwork_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="Artwork_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -3829,11 +3593,7 @@ const downloadArtistDataCSV = async (req, res) => {
           role: "artist",
           ...(weeksAgo ? { nextRevalidationDate: { $lte: weeksAgo } } : {}),
           ...(status ? { profileStatus: status } : {}),
-          $or: [
-            { artistId: { $regex: s, $options: "i" } },
-            { artistName: { $regex: s, $options: "i" } },
-            { email: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ artistId: { $regex: s, $options: "i" } }, { artistName: { $regex: s, $options: "i" } }, { email: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -3861,12 +3621,7 @@ const downloadArtistDataCSV = async (req, res) => {
     ]);
 
     artists.forEach((item) => {
-      const fullArtistName = [
-        item.artistName,
-        item.nickName ? `"${item.nickName}"` : "",
-        item.artistSurname1 || "",
-        item.artistSurname2 || "",
-      ]
+      const fullArtistName = [item.artistName, item.nickName ? `"${item.nickName}"` : "", item.artistSurname1 || "", item.artistSurname2 || ""]
         .filter(Boolean)
         .join(" ");
 
@@ -3880,21 +3635,13 @@ const downloadArtistDataCSV = async (req, res) => {
         province: item.state || "N/A",
         country: item.country || "N/A",
         suspended: item.isDeleted ? "Suspended" : "No",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
         status: item.isActivated ? "Active" : "Inactive",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="All_Artist_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="All_Artist_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -3948,21 +3695,13 @@ const downloadDisciplineDataCSV = async (req, res) => {
       worksheet.addRow({
         disciplineName: item.disciplineName || "N/A",
         disciplineDescription: item.disciplineDescription || "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
         status: item.isDeleted ? "In-Active" : "Active",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="Discipline_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="Discipline_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -4013,10 +3752,7 @@ const downloadCategoryDataCSV = async (req, res) => {
       },
       {
         $match: {
-          $or: [
-            { [fieldName]: { $regex: s, $options: "i" } },
-            { "discipline.disciplineName": { $regex: s, $options: "i" } },
-          ],
+          $or: [{ [fieldName]: { $regex: s, $options: "i" } }, { "discipline.disciplineName": { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -4043,23 +3779,14 @@ const downloadCategoryDataCSV = async (req, res) => {
     categoryList.forEach((item) => {
       worksheet.addRow({
         [fieldName]: item[fieldName] || "N/A",
-        discipline:
-          item.discipline.map((d) => d.disciplineName).join(", \n") || "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        discipline: item.discipline.map((d) => d.disciplineName).join(", \n") || "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
         status: item.isDeleted ? "In-Active" : "Active",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="Discipline_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="Discipline_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -4113,21 +3840,13 @@ const downloadPicklistDataCSV = async (req, res) => {
       worksheet.addRow({
         picklistName: item.picklistName || "N/A",
         picklist: item.picklist.map((d) => d.name).join(", \n") || "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
         status: item.isDeleted ? "In-Active" : "Active",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="Picklist_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="Picklist_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -4160,10 +3879,7 @@ const downloadInsigniaDataCSV = async (req, res) => {
     const insigniaList = await Insignia.aggregate([
       {
         $match: {
-          $or: [
-            { credentialName: { $regex: s, $options: "i" } },
-            { credentialGroup: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ credentialName: { $regex: s, $options: "i" } }, { credentialGroup: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -4187,21 +3903,13 @@ const downloadInsigniaDataCSV = async (req, res) => {
         credentialName: item.credentialName || "N/A",
         credentialGroup: item.credentialGroup || "N/A",
         credentialPriority: item.credentialPriority || "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
         status: item.isDeleted ? "In-Active" : "Active",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="Insignia_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="Insignia_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -4234,11 +3942,7 @@ const downloadKBDataCSV = async (req, res) => {
     const kbList = await KB.aggregate([
       {
         $match: {
-          $or: [
-            { kbTitle: { $regex: s, $options: "i" } },
-            { tags: { $regex: s, $options: "i" } },
-            { kbGrp: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ kbTitle: { $regex: s, $options: "i" } }, { tags: { $regex: s, $options: "i" } }, { kbGrp: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -4262,16 +3966,11 @@ const downloadKBDataCSV = async (req, res) => {
         kbTitle: item.kbTitle || "N/A",
         kbDesc: item.kbDesc || "N/A",
         tags: item.tags ? item.tags.join(", ") : "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", 'attachment; filename="KB_List.xlsx"');
 
     await workbook.xlsx.write(res);
@@ -4306,11 +4005,7 @@ const downloadFAQDataCSV = async (req, res) => {
       {
         $match: {
           isDeleted: false,
-          $or: [
-            { faqQues: { $regex: s, $options: "i" } },
-            { tags: { $regex: s, $options: "i" } },
-            { faqGrp: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ faqQues: { $regex: s, $options: "i" } }, { tags: { $regex: s, $options: "i" } }, { faqGrp: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -4334,20 +4029,12 @@ const downloadFAQDataCSV = async (req, res) => {
         faqQues: item.faqQues || "N/A",
         faqAns: item.faqAns || "N/A",
         tags: item.tags ? item.tags.join(", ") : "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="FAQ_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="FAQ_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();
@@ -4386,10 +4073,7 @@ const downloadCouponDataCSV = async (req, res) => {
     const coupons = await Coupon.aggregate([
       {
         $match: {
-          $or: [
-            { code: { $regex: s, $options: "i" } },
-            { name: { $regex: s, $options: "i" } },
-          ],
+          $or: [{ code: { $regex: s, $options: "i" } }, { name: { $regex: s, $options: "i" } }],
         },
       },
       {
@@ -4422,31 +4106,19 @@ const downloadCouponDataCSV = async (req, res) => {
         code: item.code || "N/A",
         name: item.name || "N/A",
         note: item.note || "N/A",
-        validFrom: item.validFrom
-          ? new Date(item.validFrom).toLocaleDateString()
-          : "N/A",
-        validTo: item.validTo
-          ? new Date(item.validTo).toLocaleDateString()
-          : "N/A",
+        validFrom: item.validFrom ? new Date(item.validFrom).toLocaleDateString() : "N/A",
+        validTo: item.validTo ? new Date(item.validTo).toLocaleDateString() : "N/A",
         restriction: item.restriction ? item.restriction.join(", ") : "N/A",
         usage: item.usage || "N/A",
         extension: item.extension || "N/A",
         discount: item.discount || "N/A",
         disAmount: item.disAmount || "N/A",
-        createdAt: item.createdAt
-          ? new Date(item.createdAt).toLocaleDateString()
-          : "N/A",
+        createdAt: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A",
       });
     });
 
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader(
-      "Content-Disposition",
-      'attachment; filename="Coupon_List.xlsx"'
-    );
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", 'attachment; filename="Coupon_List.xlsx"');
 
     await workbook.xlsx.write(res);
     res.end();

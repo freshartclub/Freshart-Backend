@@ -1,12 +1,7 @@
 const Artist = require("../models/artistModel");
 const Artwork = require("../models/artWorksModel");
 const jwt = require("jsonwebtoken");
-const {
-  createLog,
-  fileUploadFunc,
-  generateRandomId,
-  generateRandomOTP,
-} = require("../functions/common");
+const { createLog, fileUploadFunc, generateRandomId, generateRandomOTP } = require("../functions/common");
 const { sendMail } = require("../functions/mailer");
 const APIErrorLog = createLog("API_error_log");
 const TicketReply = require("../models/ticketReplyModel");
@@ -24,12 +19,7 @@ const isStrongPassword = (password) => {
   const numericRegex = /\d/;
   const specialCharRegex = /[!@#$%^&*()_+{}\[\]:;<>,.?~\\/-]/;
 
-  if (
-    uppercaseRegex.test(password) &&
-    lowercaseRegex.test(password) &&
-    numericRegex.test(password) &&
-    specialCharRegex.test(password)
-  ) {
+  if (uppercaseRegex.test(password) && lowercaseRegex.test(password) && numericRegex.test(password) && specialCharRegex.test(password)) {
     return true;
   } else {
     return false;
@@ -41,9 +31,7 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res
-        .status(400)
-        .send({ message: "Email and password is required" });
+      return res.status(400).send({ message: "Email and password is required" });
     }
 
     const user = await Artist.findOne({
@@ -67,18 +55,11 @@ const login = async (req, res) => {
       password: user.password,
     };
 
-    const token = jwt.sign(
-      { user: userField },
-      process.env.ACCESS_TOKEN_SECERT,
-      {
-        expiresIn: "30d",
-      }
-    );
+    const token = jwt.sign({ user: userField }, process.env.ACCESS_TOKEN_SECERT, {
+      expiresIn: "30d",
+    });
 
-    await Artist.updateOne(
-      { _id: user._id, isDeleted: false },
-      { $push: { tokens: token } }
-    );
+    await Artist.updateOne({ _id: user._id, isDeleted: false }, { $push: { tokens: token } });
 
     return res.status(200).send({
       token,
@@ -124,10 +105,7 @@ const sendVerifyEmailOTP = async (req, res) => {
       });
 
       if (isExist) {
-        await Artist.updateOne(
-          { email: email, isDeleted: false },
-          { $set: { OTP: otp } }
-        );
+        await Artist.updateOne({ email: email, isDeleted: false }, { $set: { OTP: otp } });
       } else {
         await Artist.create({
           email: email,
@@ -147,8 +125,7 @@ const sendVerifyEmailOTP = async (req, res) => {
 
       if (!isStrongPassword(password)) {
         return res.status(400).send({
-          message:
-            "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+          message: "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
         });
       }
 
@@ -232,13 +209,9 @@ const verifyEmailOTP = async (req, res) => {
       ).lean(true);
 
       if (!user) return res.status(400).send({ message: "User not found" });
-      if (otp !== user.OTP)
-        return res.status(400).send({ message: "Invalid OTP" });
+      if (otp !== user.OTP) return res.status(400).send({ message: "Invalid OTP" });
 
-      await Artist.updateOne(
-        { email: email, isDeleted: false },
-        { $unset: { OTP: "" } }
-      );
+      await Artist.updateOne({ email: email, isDeleted: false }, { $unset: { OTP: "" } });
 
       return res.status(200).send({
         message: "Email verified Successfully",
@@ -253,8 +226,7 @@ const verifyEmailOTP = async (req, res) => {
       ).lean(true);
 
       if (!user) return res.status(400).send({ message: "User not found" });
-      if (otp !== user.OTP)
-        return res.status(400).send({ message: "Invalid OTP" });
+      if (otp !== user.OTP) return res.status(400).send({ message: "Invalid OTP" });
 
       const userField = {
         _id: user._id,
@@ -262,11 +234,7 @@ const verifyEmailOTP = async (req, res) => {
         password: user.password,
       };
 
-      const token = jwt.sign(
-        { user: userField },
-        process.env.ACCESS_TOKEN_SECERT,
-        { expiresIn: "30d" }
-      );
+      const token = jwt.sign({ user: userField }, process.env.ACCESS_TOKEN_SECERT, { expiresIn: "30d" });
 
       await Artist.updateOne(
         { _id: user._id, isDeleted: false },
@@ -287,9 +255,7 @@ const verifyEmailOTP = async (req, res) => {
         ],
       });
 
-      return res
-        .status(200)
-        .send({ token, id: user._id, message: "Email verified Successfully" });
+      return res.status(200).send({ token, id: user._id, message: "Email verified Successfully" });
     }
   } catch (error) {
     APIErrorLog.error(error);
@@ -301,9 +267,7 @@ const sendSMSOTP = async (req, res) => {
   try {
     const { phone, email } = req.body;
 
-    const authHeader = Buffer.from(
-      `${process.env.API_SMS_USER}:${process.env.API_SMS_PWD}`
-    ).toString("base64");
+    const authHeader = Buffer.from(`${process.env.API_SMS_USER}:${process.env.API_SMS_PWD}`).toString("base64");
 
     const otp = generateRandomOTP();
 
@@ -326,10 +290,7 @@ const sendSMSOTP = async (req, res) => {
 
     const response = await axios.post(url, data, { headers });
 
-    await Artist.updateOne(
-      { email: email.toLowerCase(), isDeleted: false },
-      { $set: { OTP: otp } }
-    );
+    await Artist.updateOne({ email: email.toLowerCase(), isDeleted: false }, { $set: { OTP: otp } });
 
     return res.status(200).send({ message: "OTP sent Successfully" });
   } catch (error) {
@@ -352,10 +313,7 @@ const verifySMSOTP = async (req, res) => {
       return res.status(400).send({ message: "Invalid OTP" });
     }
 
-    Artist.updateOne(
-      { email: email.toLowerCase(), isDeleted: false },
-      { $unset: { OTP: "" } }
-    ).then();
+    Artist.updateOne({ email: email.toLowerCase(), isDeleted: false }, { $unset: { OTP: "" } }).then();
 
     return res.status(200).send({
       message: "Phone Number verified Successfully",
@@ -398,10 +356,7 @@ const sendForgotPasswordOTP = async (req, res) => {
 
     await sendMail("sample-email", mailVaribles, user.email);
 
-    Artist.updateOne(
-      { _id: user._id, isDeleted: false },
-      { $set: { OTP: otp } }
-    ).then();
+    Artist.updateOne({ _id: user._id, isDeleted: false }, { $set: { OTP: otp } }).then();
 
     return res.status(200).send({
       id: user._id,
@@ -435,14 +390,9 @@ const validateOTP = async (req, res) => {
       return res.status(400).send({ message: "Invalid OTP" });
     }
 
-    await Artist.updateOne(
-      { _id: user._id, isDeleted: false },
-      { $unset: { OTP: "" } }
-    );
+    await Artist.updateOne({ _id: user._id, isDeleted: false }, { $unset: { OTP: "" } });
 
-    return res
-      .status(200)
-      .send({ message: "OTP validated successfully", id: user._id });
+    return res.status(200).send({ message: "OTP validated successfully", id: user._id });
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
@@ -464,22 +414,17 @@ const resetPassword = async (req, res) => {
       });
       if (!artist) return res.status(400).send({ message: "Artist not found" });
       if (!artist?.passwordLinkToken) {
-        return res
-          .status(400)
-          .send({ message: "Link is either expired/broken" });
+        return res.status(400).send({ message: "Link is either expired/broken" });
       }
 
       if (!isStrongPassword(newPassword)) {
         return res.status(400).send({
-          message:
-            "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+          message: "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
         });
       }
 
       if (newPassword !== confirmPassword) {
-        return res
-          .status(400)
-          .send({ message: "Password and confirm password does not match" });
+        return res.status(400).send({ message: "Password and confirm password does not match" });
       }
 
       await Artist.updateOne(
@@ -503,14 +448,11 @@ const resetPassword = async (req, res) => {
 
       if (!isStrongPassword(newPassword)) {
         return res.status(400).send({
-          message:
-            "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+          message: "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
         });
       }
       if (newPassword !== confirmPassword) {
-        return res
-          .status(400)
-          .send({ message: "Password and confirm password does not match" });
+        return res.status(400).send({ message: "Password and confirm password does not match" });
       }
 
       await Artist.updateOne(
@@ -545,15 +487,12 @@ const changePassword = async (req, res) => {
 
     if (!isStrongPassword(newPassword)) {
       return res.status(400).send({
-        message:
-          "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
+        message: "Password must contain one Uppercase, Lowercase, Numeric and Special Character",
       });
     }
 
     if (newPassword !== confirmPassword) {
-      return res
-        .status(400)
-        .send({ message: "Password and confirm password does not match" });
+      return res.status(400).send({ message: "Password and confirm password does not match" });
     }
 
     const user = await Artist.findOne(
@@ -595,10 +534,7 @@ const becomeArtist = async (req, res) => {
     const fileData = await fileUploadFunc(req, res);
     if (fileData.type !== "success") {
       return res.status(fileData.status).send({
-        message:
-          fileData?.type === "fileNotFound"
-            ? "Please upload the documents"
-            : fileData.type,
+        message: fileData?.type === "fileNotFound" ? "Please upload the documents" : fileData.type,
       });
     }
 
@@ -613,8 +549,7 @@ const becomeArtist = async (req, res) => {
 
       if (user && user?.isArtistRequestStatus === "pending") {
         return res.status(400).send({
-          message:
-            "You have already requested to become Artist. Your requset is in process",
+          message: "You have already requested to become Artist. Your requset is in process",
         });
       } else if (user && user?.isArtistRequestStatus === "approved") {
         return res.status(400).send({
@@ -626,8 +561,7 @@ const becomeArtist = async (req, res) => {
         });
       } else if (user && user?.isArtistRequestStatus === "processing") {
         return res.status(400).send({
-          message:
-            "You have already requested to become Artist. Your requset is in process",
+          message: "You have already requested to become Artist. Your requset is in process",
         });
       }
     } else {
@@ -641,8 +575,7 @@ const becomeArtist = async (req, res) => {
 
       if (user && user?.isArtistRequestStatus === "pending") {
         return res.status(400).send({
-          message:
-            "You have already requested to become Artist. Your requset is in process",
+          message: "You have already requested to become Artist. Your requset is in process",
         });
       } else if (user && user?.isArtistRequestStatus === "approved") {
         return res.status(400).send({
@@ -654,8 +587,7 @@ const becomeArtist = async (req, res) => {
         });
       } else if (user && user?.isArtistRequestStatus === "processing") {
         return res.status(400).send({
-          message:
-            "You have already requested to become Artist. Your requset is in process",
+          message: "You have already requested to become Artist. Your requset is in process",
         });
       }
     }
@@ -766,10 +698,7 @@ const becomeArtist = async (req, res) => {
         }
       );
     } else {
-      Artist.updateOne(
-        { email: req.body.email.toLowerCase(), isDeleted: false },
-        condition
-      ).then();
+      Artist.updateOne({ email: req.body.email.toLowerCase(), isDeleted: false }, condition).then();
     }
 
     const name = req.body.artistName;
@@ -793,9 +722,7 @@ const becomeArtist = async (req, res) => {
 
     await sendMail("sample-email", mailVariable, email);
 
-    return res
-      .status(200)
-      .send({ message: "Your Become Artist request sent successfully" });
+    return res.status(200).send({ message: "Your Become Artist request sent successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -808,16 +735,48 @@ const logOut = async (req, res) => {
     const { 1: token } = req.headers.authorization.split(" ");
     const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECERT);
 
-    await Artist.updateOne(
-      { _id: decodeToken.user._id },
-      { $pull: { tokens: token } }
-    );
+    await Artist.updateOne({ _id: decodeToken.user._id }, { $pull: { tokens: token } });
 
     return res.status(200).send({ message: "Logout successfully" });
   } catch (error) {
     APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
     // error response
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const checkArtistToken = async (req, res) => {
+  try {
+    const artist = await Artist.aggregate([
+      {
+        $match: {
+          _id: req.user._id,
+          isDeleted: false,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          "commercilization.artProvider": 1,
+          mainImage: "$profile.mainImage",
+          phone: 1,
+          email: 1,
+          gender: 1,
+          isActivated: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).send({
+      artist: artist[0],
+      message: `welcome Back ${artist[0].artistName}!`,
+    });
+  } catch (error) {
+    APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -899,10 +858,7 @@ const getArtistDetails = async (req, res) => {
                     as: "catalog",
                     in: {
                       ArtistFees: {
-                        $arrayElemAt: [
-                          "$commercilization.publishingCatalog.ArtistFees",
-                          { $indexOfArray: ["$lookupCatalog", "$$catalog"] },
-                        ],
+                        $arrayElemAt: ["$commercilization.publishingCatalog.ArtistFees", { $indexOfArray: ["$lookupCatalog", "$$catalog"] }],
                       },
                       catalogName: "$$catalog.catalogName",
                       _id: "$$catalog._id",
@@ -929,8 +885,6 @@ const getArtistDetails = async (req, res) => {
 
     res.status(200).send({
       artist: artist[0],
-      url: "https://dev.freshartclub.com/images",
-      message: `welcome ${artist.artistName ? artist.artistName : "Back"}`,
     });
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
@@ -1019,10 +973,7 @@ const completeProfile = async (req, res) => {
 
     if (fileData.type !== "success") {
       return res.status(400).send({
-        message:
-          fileData?.type === "fileNotFound"
-            ? "Please upload the Image"
-            : fileData.type,
+        message: fileData?.type === "fileNotFound" ? "Please upload the Image" : fileData.type,
       });
     }
 
@@ -1042,14 +993,9 @@ const completeProfile = async (req, res) => {
       },
     };
 
-    const artist = await Artist.findOneAndUpdate(
-      { _id: id, isDeleted: false },
-      { $set: obj }
-    ).lean(true);
+    const artist = await Artist.findOneAndUpdate({ _id: id, isDeleted: false }, { $set: obj }).lean(true);
 
-    return res
-      .status(200)
-      .send({ message: "Profile completed successfully", data: artist });
+    return res.status(200).send({ message: "Profile completed successfully", data: artist });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1082,12 +1028,8 @@ const editUserProfile = async (req, res) => {
 
     let obj = {
       artistName: req.body.artistName ? req.body.artistName : user.artistName,
-      artistSurname1: req.body.artistSurname1
-        ? req.body.artistSurname1
-        : user.artistSurname1,
-      artistSurname2: req.body.artistSurname2
-        ? req.body.artistSurname2
-        : user.artistSurname2,
+      artistSurname1: req.body.artistSurname1 ? req.body.artistSurname1 : user.artistSurname1,
+      artistSurname2: req.body.artistSurname2 ? req.body.artistSurname2 : user.artistSurname2,
       email: req.body.email ? req.body.email : user.email,
       phone: req.body.phone ? req.body.phone : user.phone,
     };
@@ -1099,10 +1041,7 @@ const editUserProfile = async (req, res) => {
       };
     }
 
-    await Artist.updateOne(
-      { _id: user._id, isDeleted: false },
-      { $set: obj }
-    ).lean(true);
+    await Artist.updateOne({ _id: user._id, isDeleted: false }, { $set: obj }).lean(true);
 
     return res.status(200).send({ message: "Profile updated successfully" });
   } catch (error) {
@@ -1143,9 +1082,7 @@ const editArtistProfile = async (req, res) => {
 
     if (req?.body?.existingAdditionalImage) {
       if (typeof req?.body?.existingAdditionalImage === "string") {
-        additionalImages.push(
-          req?.body?.existingAdditionalImage.replace(/^"|"$/g, "")
-        );
+        additionalImages.push(req?.body?.existingAdditionalImage.replace(/^"|"$/g, ""));
       } else {
         const cleanedImages = cleanArray(req?.body?.existingAdditionalImage);
         additionalImages = [...additionalImages, ...cleanedImages];
@@ -1160,9 +1097,7 @@ const editArtistProfile = async (req, res) => {
 
     if (req?.body?.existingAdditionalVideo) {
       if (typeof req?.body?.existingAdditionalVideo === "string") {
-        additionalVideos.push(
-          req?.body?.existingAdditionalVideo.replace(/^"|"$/g, "")
-        );
+        additionalVideos.push(req?.body?.existingAdditionalVideo.replace(/^"|"$/g, ""));
       } else {
         const cleanedImages = cleanArray(req?.body?.existingAdditionalVideo);
         additionalVideos = [...additionalVideos, ...cleanedImages];
@@ -1170,9 +1105,7 @@ const editArtistProfile = async (req, res) => {
     }
 
     if (req.body.cvEntries) {
-      const cvEntries = Array.isArray(req.body.cvEntries)
-        ? req.body.cvEntries.map((item) => JSON.parse(item))
-        : req.body.cvEntries;
+      const cvEntries = Array.isArray(req.body.cvEntries) ? req.body.cvEntries.map((item) => JSON.parse(item)) : req.body.cvEntries;
 
       if (typeof cvEntries === "string") {
         const obj = JSON.parse(cvEntries);
@@ -1185,9 +1118,7 @@ const editArtistProfile = async (req, res) => {
     }
 
     if (req.body.accounts) {
-      const accounts = Array.isArray(req.body.accounts)
-        ? req.body.accounts.map((item) => JSON.parse(item))
-        : req.body.accounts;
+      const accounts = Array.isArray(req.body.accounts) ? req.body.accounts.map((item) => JSON.parse(item)) : req.body.accounts;
 
       if (typeof accounts === "string") {
         const obj = JSON.parse(accounts);
@@ -1200,9 +1131,7 @@ const editArtistProfile = async (req, res) => {
     }
 
     if (req.body.discipline) {
-      const disciplines = Array.isArray(req.body.discipline)
-        ? req.body.discipline.map((item) => JSON.parse(item))
-        : req.body.discipline;
+      const disciplines = Array.isArray(req.body.discipline) ? req.body.discipline.map((item) => JSON.parse(item)) : req.body.discipline;
 
       if (typeof disciplines === "string") {
         const obj = JSON.parse(disciplines);
@@ -1210,11 +1139,7 @@ const editArtistProfile = async (req, res) => {
       } else {
         disciplines.forEach((element) => {
           const discipline = element.discipline;
-          const style = Array.isArray(element.style)
-            ? element.style.map((s) =>
-                typeof s === "object" && s.value ? s.value : s
-              )
-            : [];
+          const style = Array.isArray(element.style) ? element.style.map((s) => (typeof s === "object" && s.value ? s.value : s)) : [];
 
           disciplineArr.push({
             discipline: discipline,
@@ -1250,16 +1175,10 @@ const editArtistProfile = async (req, res) => {
         cv: cvArr,
       },
       profile: {
-        mainImage: fileData?.data?.mainImage
-          ? fileData?.data?.mainImage[0].filename
-          : processBodyImg(req.body?.mainImage),
+        mainImage: fileData?.data?.mainImage ? fileData?.data?.mainImage[0].filename : processBodyImg(req.body?.mainImage),
         additionalImage: additionalImages,
-        inProcessImage: fileData.data?.inProcessImage
-          ? fileData.data.inProcessImage[0].filename
-          : processBodyImg(req.body?.inProcessImage),
-        mainVideo: fileData.data?.mainVideo
-          ? fileData.data.mainVideo[0].filename
-          : processBodyImg(req.body?.mainVideo),
+        inProcessImage: fileData.data?.inProcessImage ? fileData.data.inProcessImage[0].filename : processBodyImg(req.body?.inProcessImage),
+        mainVideo: fileData.data?.mainVideo ? fileData.data.mainVideo[0].filename : processBodyImg(req.body?.mainVideo),
         additionalVideo: additionalVideos,
       },
       address: {
@@ -1287,13 +1206,8 @@ const editArtistProfile = async (req, res) => {
         },
       };
 
-      if (
-        req.body.managerArtistLanguage &&
-        req.body.managerArtistLanguage.length
-      ) {
-        obj["managerDetails"]["language"] = Array.isArray(
-          req.body.managerArtistLanguage
-        )
+      if (req.body.managerArtistLanguage && req.body.managerArtistLanguage.length) {
+        obj["managerDetails"]["language"] = Array.isArray(req.body.managerArtistLanguage)
           ? req.body.managerArtistLanguage
           : [req.body.managerArtistLanguage];
       }
@@ -1304,10 +1218,7 @@ const editArtistProfile = async (req, res) => {
 
     obj["links"] = accountArr;
 
-    Artist.updateOne(
-      { _id: artist._id, isDeleted: false },
-      { $set: { reviewDetails: obj, profileStatus: "under-review" } }
-    ).then();
+    Artist.updateOne({ _id: artist._id, isDeleted: false }, { $set: { reviewDetails: obj, profileStatus: "under-review" } }).then();
     return res.status(200).send({
       message: "Profile saved and Pending to be Validated by Fresh Art Club",
     });
@@ -1346,10 +1257,7 @@ const createTicket = async (req, res) => {
       ticketId: ticketId,
       urgency,
       impact,
-      ticketImg:
-        fileData.data?.ticketImg && fileData.data?.ticketImg?.length > 0
-          ? fileData.data.ticketImg[0].filename
-          : null,
+      ticketImg: fileData.data?.ticketImg && fileData.data?.ticketImg?.length > 0 ? fileData.data.ticketImg[0].filename : null,
     };
 
     const ticketData = await Ticket.create(payload);
@@ -1370,9 +1278,7 @@ const ticketDetail = async (req, res) => {
     const { id } = req.params;
 
     const [ticketData, replyData] = await Promise.all([
-      Ticket.findOneAndUpdate({ _id: id }, { $set: { isRead: false } }).lean(
-        true
-      ),
+      Ticket.findOneAndUpdate({ _id: id }, { $set: { isRead: false } }).lean(true),
       TicketReply.aggregate([
         { $match: { ticket: objectId(id) } },
         {
@@ -1454,10 +1360,7 @@ const replyTicketUser = async (req, res) => {
       return res.status(400).send({ message: "Ticket not found" });
     }
 
-    Ticket.updateOne(
-      { _id: id },
-      { $set: { status: status, ticketType: ticketType } }
-    ).then();
+    Ticket.updateOne({ _id: id }, { $set: { status: status, ticketType: ticketType } }).then();
 
     const reply = await TicketReply.create({
       user: userType === "admin" ? null : req.user._id,
@@ -1466,9 +1369,7 @@ const replyTicketUser = async (req, res) => {
       ticketType,
       status,
       message,
-      ticketImg: fileData?.data?.ticketImg
-        ? fileData.data.ticketImg[0].filename
-        : null,
+      ticketImg: fileData?.data?.ticketImg ? fileData.data.ticketImg[0].filename : null,
     });
 
     return res.status(201).json({
@@ -1544,41 +1445,23 @@ const addToCart = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const artist = await Artist.findOne(
-      { _id: req.user._id },
-      { cart: 1 }
-    ).lean(true);
-
+    const artist = await Artist.exists({ _id: req.user._id });
     if (!artist) {
       return res.status(400).send({ message: "Artist not found" });
     }
 
     const result = await Artist.updateOne(
+      { _id: req.user._id, "cart.item": { $ne: id } },
       {
-        _id: req.user._id,
-        "cart.item": id,
-      },
-      {
-        $inc: { "cart.$.quantity": 1 }, // Increment quantity if the item exists
+        $push: { cart: { item: id, quantity: 1 } },
       }
     );
 
     if (result.modifiedCount === 0) {
-      await Artist.updateOne(
-        { _id: req.user._id },
-        {
-          $push: { cart: { item: id, quantity: 1 } }, // Add new item with quantity 1
-        }
-      );
-
-      return res
-        .status(200)
-        .send({ message: "Item added to cart successfully" });
+      return res.status(400).send({ message: "Item already added to cart" });
     }
 
-    return res
-      .status(200)
-      .send({ message: `${result.modifiedCount} item(s) updated in cart` });
+    return res.status(200).send({ message: "Item added to cart successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1627,9 +1510,7 @@ const removeFromCart = async (req, res) => {
       }
     );
 
-    return res
-      .status(200)
-      .send({ message: `${result.modifiedCount} item(s) removed from cart` });
+    return res.status(200).send({ message: `${result.modifiedCount} item(s) removed from cart` });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1645,17 +1526,11 @@ const likeOrUnlikeArtwork = async (req, res) => {
       return res.status(400).send({ message: "Invalid action" });
     }
 
-    const updateArtist =
-      action === "like"
-        ? { $addToSet: { likedArtworks: id } }
-        : { $pull: { likedArtworks: id } };
+    const updateArtist = action === "like" ? { $addToSet: { likedArtworks: id } } : { $pull: { likedArtworks: id } };
 
     const updateLikes = action === "like" ? 1 : -1;
 
-    await Promise.all([
-      Artist.updateOne({ _id: req.user._id }, updateArtist),
-      Artwork.updateOne({ _id: id }, { $inc: { numLikes: updateLikes } }),
-    ]);
+    await Promise.all([Artist.updateOne({ _id: req.user._id }, updateArtist), Artwork.updateOne({ _id: id }, { $inc: { numLikes: updateLikes } })]);
 
     return res.status(200).send({
       message: `Artwork ${action === "like" ? "liked" : "unliked"}`,
@@ -1668,20 +1543,68 @@ const likeOrUnlikeArtwork = async (req, res) => {
 
 const getCartItems = async (req, res) => {
   try {
-    const data = await Artist.findOne({ _id: req.user._id }, { cart: 1 })
-      .populate({
-        path: "cart",
-        select: "item quantity",
-        populate: {
-          path: "item",
-          select: "artworkName pricing media.mainImage commercialization",
+    const data = await Artist.aggregate([
+      { $match: { _id: req.user._id } },
+      {
+        $lookup: {
+          from: "artworks",
+          localField: "cart.item",
+          foreignField: "_id",
+          as: "cartItems",
         },
-      })
-      .lean(true);
+      },
+      {
+        $project: {
+          _id: 0,
+          cart: {
+            $map: {
+              input: "$cartItems",
+              as: "item",
+              in: {
+                _id: "$$item._id",
+                quantity: "$$item.quantity",
+                artworkName: "$$item.artworkName",
+                media: "$$item.media",
+                commercialization: "$$item.commercialization",
+                pricing: "$$item.pricing",
+              },
+            },
+          },
+        },
+      },
+    ]);
 
-    return res
-      .status(200)
-      .send({ data, url: "https://dev.freshartclub.com/images" });
+    return res.status(200).send({ data: data[0] });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const getUnAutorisedCartItems = async (req, res) => {
+  try {
+    let { ids } = req.query;
+
+    ids = ids.split(",").map((id) => objectId(id));
+
+    if (ids.length > 0) {
+      const data = await Artwork.aggregate([
+        { $match: { _id: { $in: ids } } },
+        {
+          $project: {
+            _id: 1,
+            artworkName: 1,
+            media: 1,
+            commercialization: 1,
+            pricing: 1,
+          },
+        },
+      ]);
+
+      return res.status(200).send({ data: { cart: data } });
+    }
+
+    return res.status(200).send({ data: { cart: [] } });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1740,10 +1663,7 @@ const getLikedItems = async (req, res) => {
 
 const getBillingAddresses = async (req, res) => {
   try {
-    const data = await Artist.findOne(
-      { _id: req.user._id },
-      { billingInfo: 1 }
-    ).lean(true);
+    const data = await Artist.findOne({ _id: req.user._id }, { billingInfo: 1 }).lean(true);
 
     if (!data) {
       return res.status(400).send({ message: "Artist not found" });
@@ -1758,10 +1678,7 @@ const getBillingAddresses = async (req, res) => {
 
 const addBillingAddress = async (req, res) => {
   try {
-    const artist = await Artist.findOne(
-      { _id: req.user._id },
-      { billingInfo: 1 }
-    ).lean(true);
+    const artist = await Artist.findOne({ _id: req.user._id }, { billingInfo: 1 }).lean(true);
 
     if (!artist) {
       return res.status(400).send({ message: "User not found" });
@@ -1799,10 +1716,7 @@ const addBillingAddress = async (req, res) => {
         }
       );
     } else {
-      await Artist.updateOne(
-        { _id: req.user._id },
-        { $push: { billingInfo: obj } }
-      );
+      await Artist.updateOne({ _id: req.user._id }, { $push: { billingInfo: obj } });
     }
 
     return res.status(200).send({ message: "New Billing address added" });
@@ -1816,19 +1730,13 @@ const removeBillingAddress = async (req, res) => {
   try {
     const { addressId } = req.params;
 
-    const artist = await Artist.findOne(
-      { _id: req.user._id },
-      { billingInfo: 1 }
-    ).lean(true);
+    const artist = await Artist.findOne({ _id: req.user._id }, { billingInfo: 1 }).lean(true);
 
     if (!artist) {
       return res.status(400).send({ message: "Artist not found" });
     }
 
-    await Artist.updateOne(
-      { _id: req.user._id },
-      { $pull: { billingInfo: { _id: addressId } } }
-    );
+    await Artist.updateOne({ _id: req.user._id }, { $pull: { billingInfo: { _id: addressId } } });
 
     return res.status(200).send({ message: "Billing address removed" });
   } catch (error) {
@@ -1841,24 +1749,15 @@ const setDefaultBillingAddress = async (req, res) => {
   try {
     const { addressId } = req.params;
 
-    const artist = await Artist.findOne(
-      { _id: req.user._id, "billingInfo._id": addressId },
-      { billingInfo: 1 }
-    ).lean(true);
+    const artist = await Artist.findOne({ _id: req.user._id, "billingInfo._id": addressId }, { billingInfo: 1 }).lean(true);
 
     if (!artist) {
       return res.status(404).send({ message: "Address not found" });
     }
 
-    await Artist.updateOne(
-      { _id: req.user._id },
-      { $set: { "billingInfo.$[].isDefault": false } }
-    );
+    await Artist.updateOne({ _id: req.user._id }, { $set: { "billingInfo.$[].isDefault": false } });
 
-    await Artist.updateOne(
-      { _id: req.user._id, "billingInfo._id": addressId },
-      { $set: { "billingInfo.$.isDefault": true } }
-    );
+    await Artist.updateOne({ _id: req.user._id, "billingInfo._id": addressId }, { $set: { "billingInfo.$.isDefault": true } });
 
     return res.status(200).send({ message: "Default Billing Address Updated" });
   } catch (error) {
@@ -1869,10 +1768,7 @@ const setDefaultBillingAddress = async (req, res) => {
 
 const deleteArtistSeries = async (req, res) => {
   try {
-    const artist = await Artist.findOne(
-      { _id: req.user._id },
-      { artistSeriesList: 1 }
-    ).lean(true);
+    const artist = await Artist.findOne({ _id: req.user._id }, { artistSeriesList: 1 }).lean(true);
     if (!artist) {
       return res.status(400).send({ message: "Artist not found" });
     }
@@ -1883,24 +1779,16 @@ const deleteArtistSeries = async (req, res) => {
     }
 
     if (!artist.artistSeriesList.includes(name)) {
-      return res
-        .status(400)
-        .send({ message: "Series not found in artist's series list" });
+      return res.status(400).send({ message: "Series not found in artist's series list" });
     }
 
-    const existingArtwork = await Artwork.findOne(
-      { owner: artist._id, artworkSeries: name.trim() },
-      { _id: 1 }
-    ).lean(true);
+    const existingArtwork = await Artwork.findOne({ owner: artist._id, artworkSeries: name.trim() }, { _id: 1 }).lean(true);
 
     if (existingArtwork) {
       return res.status(400).send({ message: "Series used in other artworks" });
     }
 
-    await Artist.updateOne(
-      { _id: req.user._id },
-      { $pull: { artistSeriesList: name.trim() } }
-    );
+    await Artist.updateOne({ _id: req.user._id }, { $pull: { artistSeriesList: name.trim() } });
 
     return res.status(200).send({ message: "Series deleted successfully" });
   } catch (error) {
@@ -1935,9 +1823,7 @@ const artistReValidate = async (req, res) => {
       "%email%": artist.email,
       "%msg%": findEmail.emailDesc,
       "%name%": artist.artistName,
-      "%newDate%": new Date(
-        new Date().setDate(new Date().getDate() + 30)
-      ).toLocaleDateString("en-GB"),
+      "%newDate%": new Date(new Date().setDate(new Date().getDate() + 30)).toLocaleDateString("en-GB"),
     };
 
     let obj = {
@@ -1952,9 +1838,7 @@ const artistReValidate = async (req, res) => {
         {
           $set: {
             lastRevalidationDate: new Date(),
-            nextRevalidationDate: new Date(
-              new Date().setDate(new Date().getDate() + 30)
-            ),
+            nextRevalidationDate: new Date(new Date().setDate(new Date().getDate() + 30)),
           },
           $push: { previousRevalidationDate: obj },
         }
@@ -1970,10 +1854,7 @@ const artistReValidate = async (req, res) => {
 
 const getNotificationsOfUser = async (req, res) => {
   try {
-    const notifications = await Notification.findOne(
-      { user: req.user._id },
-      { notifications: { $elemMatch: { isDeleted: false } } }
-    ).lean(true);
+    const notifications = await Notification.findOne({ user: req.user._id }, { notifications: { $elemMatch: { isDeleted: false } } }).lean(true);
 
     return res.status(200).send({ data: notifications });
   } catch (error) {
@@ -1987,20 +1868,12 @@ const markReadNotification = async (req, res) => {
     const { id } = req.params;
 
     if (id) {
-      await Notification.updateOne(
-        { user: req.user._id, "notifications._id": id },
-        { $set: { "notifications.$.isRead": true } }
-      );
+      await Notification.updateOne({ user: req.user._id, "notifications._id": id }, { $set: { "notifications.$.isRead": true } });
     } else {
-      await Notification.updateOne(
-        { user: req.user._id },
-        { $set: { "notifications.$[].isRead": true } }
-      );
+      await Notification.updateOne({ user: req.user._id }, { $set: { "notifications.$[].isRead": true } });
     }
 
-    return res
-      .status(200)
-      .send({ message: "Notifications marked as read successfully" });
+    return res.status(200).send({ message: "Notifications marked as read successfully" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2012,15 +1885,9 @@ const deleteNotification = async (req, res) => {
     const { id } = req.params;
 
     if (id) {
-      await Notification.updateOne(
-        { user: req.user._id, "notifications._id": id },
-        { $set: { "notifications.$.isDeleted": true } }
-      );
+      await Notification.updateOne({ user: req.user._id, "notifications._id": id }, { $set: { "notifications.$.isDeleted": true } });
     } else {
-      await Notification.updateOne(
-        { user: req.user._id },
-        { $set: { "notifications.$[].isDeleted": true } }
-      );
+      await Notification.updateOne({ user: req.user._id }, { $set: { "notifications.$[].isDeleted": true } });
     }
 
     return res.status(200).send({ message: "Deleted Successfully" });
@@ -2053,6 +1920,7 @@ module.exports = {
   resetPassword,
   resendOTP,
   changePassword,
+  checkArtistToken,
   getArtistDetails,
   getArtistDetailById,
   logOut,
@@ -2069,6 +1937,7 @@ module.exports = {
   removeFromCart,
   likeOrUnlikeArtwork,
   getCartItems,
+  getUnAutorisedCartItems,
   getLikedItems,
   getBillingAddresses,
   addBillingAddress,

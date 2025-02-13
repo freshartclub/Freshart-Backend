@@ -43,10 +43,7 @@ const addPlan = catchAsyncError(async (req, res) => {
     status: req.body.status,
   };
 
-  const plans = await Plan.find(
-    { planGrp: req.body.planGrp },
-    { defaultPlan: 1 }
-  ).lean(true);
+  const plans = await Plan.find({ planGrp: req.body.planGrp }, { defaultPlan: 1 }).lean(true);
 
   if (plans.length > 0) {
     const defaultPlan = plans.find((plan) => plan.defaultPlan === true);
@@ -74,15 +71,10 @@ const addPlan = catchAsyncError(async (req, res) => {
     const newPlan = await Plan.create(payload);
 
     if (parsedCatalogs) {
-      await Catalog.updateMany(
-        { _id: { $in: parsedCatalogs } },
-        { $addToSet: { subPlan: newPlan._id } }
-      );
+      await Catalog.updateMany({ _id: { $in: parsedCatalogs } }, { $addToSet: { subPlan: newPlan._id } });
     }
 
-    return res
-      .status(201)
-      .send({ message: "Plan added successfully", data: newPlan });
+    return res.status(201).send({ message: "Plan added successfully", data: newPlan });
   } else {
     const plan = await Plan.findOne({ _id: id }, { planImg: 1 }).lean(true);
 
@@ -97,34 +89,19 @@ const addPlan = catchAsyncError(async (req, res) => {
     if (parsedCatalogs) {
       const catalogsToUpdate = parsedCatalogs;
 
-      const existingCatalogs = await Catalog.find(
-        { subPlan: id },
-        { _id: 1 }
-      ).lean();
+      const existingCatalogs = await Catalog.find({ subPlan: id }, { _id: 1 }).lean();
 
-      const existingCatalogIds = existingCatalogs.map((catalog) =>
-        catalog._id.toString()
-      );
+      const existingCatalogIds = existingCatalogs.map((catalog) => catalog._id.toString());
 
-      const catalogsToAdd = catalogsToUpdate.filter(
-        (catalogId) => !existingCatalogIds.includes(catalogId)
-      );
-      const catalogsToRemove = existingCatalogIds.filter(
-        (catalogId) => !catalogsToUpdate.includes(catalogId)
-      );
+      const catalogsToAdd = catalogsToUpdate.filter((catalogId) => !existingCatalogIds.includes(catalogId));
+      const catalogsToRemove = existingCatalogIds.filter((catalogId) => !catalogsToUpdate.includes(catalogId));
 
       if (catalogsToAdd.length > 0) {
-        await Catalog.updateMany(
-          { _id: { $in: catalogsToAdd } },
-          { $addToSet: { subPlan: id } }
-        );
+        await Catalog.updateMany({ _id: { $in: catalogsToAdd } }, { $addToSet: { subPlan: id } });
       }
 
       if (catalogsToRemove.length > 0) {
-        await Catalog.updateMany(
-          { _id: { $in: catalogsToRemove } },
-          { $pull: { subPlan: id } }
-        );
+        await Catalog.updateMany({ _id: { $in: catalogsToRemove } }, { $pull: { subPlan: id } });
       }
     }
 
