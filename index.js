@@ -8,7 +8,12 @@ const fs = require("fs");
 
 connectDb();
 const app = express();
-app.use(cors());
+app.use(
+  cors({
+    origin: "*",
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  })
+);
 
 const session = require("express-session");
 const port = process.env.PORT || 4000;
