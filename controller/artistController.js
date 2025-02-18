@@ -767,6 +767,7 @@ const checkArtistToken = async (req, res) => {
           email: 1,
           gender: 1,
           isActivated: 1,
+          userId: 1,
         },
       },
     ]);
