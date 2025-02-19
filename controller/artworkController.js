@@ -1515,18 +1515,19 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
             owner: {
               _id: "$ownerInfo._id",
               artistName: "$ownerInfo.artistName",
-              artistId: "$ownerInfo.artistId",
+              // artistId: "$ownerInfo.artistId",
               artistSurname1: "$ownerInfo.artistSurname1",
               artistSurname2: "$ownerInfo.artistSurname2",
-              address: "$ownerInfo.address",
+              address: { city: "$ownerInfo.address.city", country: "$ownerInfo.address.country" },
               aboutArtist: "$ownerInfo.aboutArtist",
-              profile: "$ownerInfo.profile",
+              profile: "$ownerInfo.profile.mainImage",
             },
             artworkName: 1,
             artworkCreationYear: 1,
             artworkSeries: 1,
             productDescription: 1,
             media: 1,
+            discipline: "$discipline.artworkDiscipline",
             additionalInfo: 1,
             commercialization: {
               $mergeObjects: [
