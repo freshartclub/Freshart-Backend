@@ -1,12 +1,6 @@
 const express = require("express");
 const validateAdminToken = require("../middleware/adminValidateToken");
-const {
-  addCircle,
-  getCircle,
-  getCircleList,
-  getArtistCircleList,
-  getCircleById,
-} = require("../controller/circleController");
+const { addCircle, getCircle, getCircleList, getArtistCircleList, getCircleById, getUserCircleList } = require("../controller/circleController");
 const validateToken = require("../middleware/validateTokenHandler");
 
 const router = express.Router();
@@ -20,5 +14,7 @@ router.get("/get-all-circles", validateAdminToken, getCircleList);
 router.get("/get-artist-circle-list", validateToken, getArtistCircleList);
 
 router.get("/get-circle-by-id/:id", validateToken, getCircleById);
+
+router.get("/get-circles", validateToken, getUserCircleList);
 
 module.exports = router;

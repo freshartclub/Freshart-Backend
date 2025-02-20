@@ -1982,12 +1982,33 @@ const addSeriesToArtist = catchAsyncError(async (req, res, next) => {
 });
 
 const getAllArtworks = catchAsyncError(async (req, res, next) => {
-  let { type, limit, cursor, direction, currPage, s, discipline, theme, technic } = req.query;
+  let {
+    type,
+    limit,
+    cursor,
+    direction,
+    currPage,
+    s,
+    discipline,
+    theme,
+    technic,
+    style,
+    color,
+    orientation,
+    comingsoon,
+    depth,
+    height,
+    weight,
+    width,
+  } = req.query;
+
+  console.log(req.query);
 
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
 
   type = type.toLowerCase();
   s = s ? s : "";
+  // weight = weight ?
 
   limit = parseInt(limit) || 10;
   cursor = cursor || null;
@@ -2005,6 +2026,10 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(discipline && { "discipline.artworkDiscipline": discipline }),
     ...(theme && { "additionalInfo.artworkTheme": theme }),
     ...(technic && { "additionalInfo.artworkTechnic": technic }),
+    ...(style && { "additionalInfo.artworkStyle": { $in: [style] } }),
+    ...(color && { "additionalInfo.colors": { $in: [color] } }),
+    ...(orientation && { "additionalInfo.artworkOrientation": orientation }),
+    ...(comingsoon && { "inventoryShipping.comingSoon": comingsoon == "Yes" ? true : false }),
   };
 
   const totalCount = await ArtWork.countDocuments(matchStage);

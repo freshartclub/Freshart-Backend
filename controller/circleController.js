@@ -26,6 +26,7 @@ const addCircle = catchAsyncError(async (req, res) => {
     content: req.body.content,
     categories: JSON.parse(req.body.categories),
     status: req.body.status,
+    type: req.body.type,
   };
 
   if (req.body?.foradmin == "true") {
@@ -36,37 +37,21 @@ const addCircle = catchAsyncError(async (req, res) => {
   }
 
   if (id) {
-    const circle = await Circle.findOne(
-      { _id: id },
-      { mainImage: 1, coverImage: 1, title: 1, managers: 1, foradmin: 1 }
-    ).lean(true);
+    const circle = await Circle.findOne({ _id: id }, { mainImage: 1, coverImage: 1, title: 1, managers: 1, foradmin: 1 }).lean(true);
 
-    obj["mainImage"] = fileData.data?.mainImage
-      ? fileData.data?.mainImage[0]?.filename
-      : circle.mainImage;
-    obj["coverImage"] = fileData.data?.backImage
-      ? fileData.data?.backImage[0]?.filename
-      : circle.coverImage;
+    obj["mainImage"] = fileData.data?.mainImage ? fileData.data?.mainImage[0]?.filename : circle.mainImage;
+    obj["coverImage"] = fileData.data?.backImage ? fileData.data?.backImage[0]?.filename : circle.coverImage;
 
     const newManagers = JSON.parse(req.body.managers);
-    const existingManagers = circle?.managers
-      ? circle.managers.map((m) => String(m))
-      : [];
+    const existingManagers = circle?.managers ? circle.managers.map((m) => String(m)) : [];
 
-    const addedManagers = newManagers.filter(
-      (manager) => !existingManagers.includes(manager)
-    );
-    const removedManagers = existingManagers.filter(
-      (manager) => !newManagers.includes(manager)
-    );
+    const addedManagers = newManagers.filter((manager) => !existingManagers.includes(manager));
+    const removedManagers = existingManagers.filter((manager) => !newManagers.includes(manager));
 
     await Circle.updateOne({ _id: id }, { $set: obj });
 
     if (addedManagers.length > 0) {
-      const addedArtists = await Artist.find(
-        { _id: { $in: addedManagers } },
-        { email: 1, artistName: 1 }
-      ).lean(true);
+      const addedArtists = await Artist.find({ _id: { $in: addedManagers } }, { email: 1, artistName: 1 }).lean(true);
 
       const assignEmailTemplate = await EmailType.findOne({
         emailType: "circle-assign-manager",
@@ -86,10 +71,7 @@ const addCircle = catchAsyncError(async (req, res) => {
     }
 
     if (removedManagers.length > 0) {
-      const removedArtists = await Artist.find(
-        { _id: { $in: removedManagers } },
-        { email: 1, artistName: 1 }
-      ).lean(true);
+      const removedArtists = await Artist.find({ _id: { $in: removedManagers } }, { email: 1, artistName: 1 }).lean(true);
 
       const revokeEmailTemplate = await EmailType.findOne({
         emailType: "circle-access-revoked",
@@ -115,10 +97,7 @@ const addCircle = catchAsyncError(async (req, res) => {
 
     await Circle.create(obj);
 
-    const artists = await Artist.find(
-      { _id: { $in: JSON.parse(req.body.managers) } },
-      { email: 1, artistName: 1 }
-    ).lean(true);
+    const artists = await Artist.find({ _id: { $in: JSON.parse(req.body.managers) } }, { email: 1, artistName: 1 }).lean(true);
 
     const findEmail = await EmailType.findOne({
       emailType: "circle-assign-manager",
@@ -169,6 +148,7 @@ const getCircle = catchAsyncError(async (req, res) => {
       $project: {
         title: 1,
         description: 1,
+        type: 1,
         content: 1,
         mainImage: 1,
         coverImage: 1,
@@ -215,10 +195,7 @@ const getCircleList = catchAsyncError(async (req, res) => {
   const circle = await Circle.aggregate([
     {
       $match: {
-        $or: [
-          { title: { $regex: s, $options: "i" } },
-          { description: { $regex: s, $options: "i" } },
-        ],
+        $or: [{ title: { $regex: s, $options: "i" } }, { description: { $regex: s, $options: "i" } }],
       },
     },
     {
@@ -236,6 +213,7 @@ const getCircleList = catchAsyncError(async (req, res) => {
         content: 1,
         mainImage: 1,
         coverImage: 1,
+        type: 1,
         categories: 1,
         createdAt: 1,
         foradmin: 1,
@@ -286,15 +264,13 @@ const getArtistCircleList = catchAsyncError(async (req, res) => {
       $match: {
         managers: { $elemMatch: { _id: objectId(req.user._id) } },
         foradmin: false,
-        $or: [
-          { title: { $regex: s, $options: "i" } },
-          { description: { $regex: s, $options: "i" } },
-        ],
+        $or: [{ title: { $regex: s, $options: "i" } }, { description: { $regex: s, $options: "i" } }],
       },
     },
     {
       $project: {
         title: 1,
+        type: 1,
         description: 1,
         content: 1,
         mainImage: 1,
@@ -331,6 +307,7 @@ const getCircleById = catchAsyncError(async (req, res) => {
         description: 1,
         content: 1,
         mainImage: 1,
+        type: 1,
         coverImage: 1,
         foradmin: 1,
         categories: 1,
@@ -360,6 +337,38 @@ const getCircleById = catchAsyncError(async (req, res) => {
   return res.status(200).send({ data: circle[0] });
 });
 
+const getUserCircleList = catchAsyncError(async (req, res) => {
+  const id = req.user._id;
+  if (!id) return res.status(400).send({ message: "User Not Found" });
+
+  const circles = await Circle.aggregate([
+    {
+      $lookup: {
+        from: "artists",
+        localField: "managers",
+        foreignField: "_id",
+        as: "managers",
+      },
+    },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        content: 1,
+        mainImage: 1,
+        type: 1,
+        categories: 1,
+        status: 1,
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
+    },
+  ]);
+
+  return res.status(200).send({ data: circles });
+});
+
 const createPostInCircle = catchAsyncError(async (req, res) => {
   const { id, postId } = req.params;
   const circle = await Circle.findById({ _id: id }).lean(true);
@@ -368,9 +377,7 @@ const createPostInCircle = catchAsyncError(async (req, res) => {
   }
 
   if (!circle.managers.includes(req.user._id)) {
-    return res
-      .status(400)
-      .send({ message: "You don't have access to the resource" });
+    return res.status(400).send({ message: "You don't have access to the resource" });
   }
 
   if (postId) {
@@ -417,5 +424,6 @@ module.exports = {
   getCircle,
   getCircleList,
   getArtistCircleList,
+  getUserCircleList,
   getCircleById,
 };

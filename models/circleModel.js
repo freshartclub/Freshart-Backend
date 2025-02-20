@@ -16,6 +16,7 @@ const circleSchema = new mongoose.Schema(
     managers: [{ type: mongoose.Schema.Types.ObjectId }],
     members: [{ type: mongoose.Schema.Types.ObjectId }],
     status: { type: String, default: "Draft" },
+    type: { type: String, default: "Public" },
   },
   {
     timestamps: true,
