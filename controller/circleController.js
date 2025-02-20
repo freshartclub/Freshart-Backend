@@ -371,12 +371,13 @@ const getUserCircleList = catchAsyncError(async (req, res) => {
 
 const createPostInCircle = catchAsyncError(async (req, res) => {
   const { id, postId } = req.params;
+
   const circle = await Circle.findById({ _id: id }).lean(true);
   if (!circle) {
     return res.status(400).send({ message: "Circle not found" });
   }
 
-  if (!circle.managers.includes(req.user._id)) {
+  if (!circle.managers.map((id) => id.toString()).includes(req.user._id.toString())) {
     return res.status(400).send({ message: "You don't have access to the resource" });
   }
 
@@ -405,6 +406,7 @@ const createPostInCircle = catchAsyncError(async (req, res) => {
       circleFile: fileData.data?.circleFile[0]?.filename,
     });
   }
+  return res.status(200).send({ message: "Post Created" });
 });
 
 const getAllPostOfCircle = catchAsyncError(async (req, res) => {
@@ -426,4 +428,6 @@ module.exports = {
   getArtistCircleList,
   getUserCircleList,
   getCircleById,
+  createPostInCircle,
+  getAllPostOfCircle,
 };

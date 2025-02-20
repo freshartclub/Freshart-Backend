@@ -7,12 +7,7 @@ const path = require("path");
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     if (file?.fieldname === "collectionFile") {
-      if (
-        file.mimetype === "image/jpg" ||
-        file.mimetype === "image/png" ||
-        file.mimetype === "image/jpeg" ||
-        file.mimetype === "image/webp"
-      ) {
+      if (file.mimetype === "image/jpg" || file.mimetype === "image/png" || file.mimetype === "image/jpeg" || file.mimetype === "image/webp") {
         return cb(null, "./public/uploads/users");
       } else {
         return cb(null, "./public/uploads/videos");
@@ -20,12 +15,7 @@ const storage = multer.diskStorage({
     }
 
     if (file?.fieldname === "ticketImg") {
-      if (
-        file.mimetype === "image/jpg" ||
-        file.mimetype === "image/png" ||
-        file.mimetype === "image/jpeg" ||
-        file.mimetype === "image/webp"
-      ) {
+      if (file.mimetype === "image/jpg" || file.mimetype === "image/png" || file.mimetype === "image/jpeg" || file.mimetype === "image/webp") {
         return cb(null, "./public/uploads/users");
       } else {
         return cb(null, "./public/uploads/documents");
@@ -36,9 +26,7 @@ const storage = multer.diskStorage({
       cb(null, "./public/uploads/documents");
     }
 
-    if (
-      ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)
-    ) {
+    if (["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)) {
       return cb(null, "./public/uploads/videos");
     }
 
@@ -46,10 +34,7 @@ const storage = multer.diskStorage({
   },
 
   filename: function (req, file, cb) {
-    const fileExtension = file.originalname.substr(
-      file.originalname.lastIndexOf(".") + 1,
-      file.originalname.length
-    );
+    const fileExtension = file.originalname.substr(file.originalname.lastIndexOf(".") + 1, file.originalname.length);
     let data = req?.user?._id;
     if (
       [
@@ -73,6 +58,7 @@ const storage = multer.diskStorage({
         "evidenceImg",
         "planImg",
         "carouselImg",
+        "circleFile",
       ].includes(file?.fieldname)
     ) {
       data = mongoose.Types.ObjectId();
@@ -82,30 +68,19 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const imageMimeTypes = new Set([
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-  ]);
+  const imageMimeTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
   const videoMimeTypes = new Set(["video/mp4", "video/webm", "video/mkv"]);
   const docExtensions = new Set(["docx", "xlsx", "csv", "txt"]);
 
   if (file?.fieldname === "uploadDocs") {
     const fileExtension = file.originalname.split(".").pop();
-    if (
-      docExtensions.has(fileExtension) ||
-      file.mimetype === "application/pdf"
-    ) {
+    if (docExtensions.has(fileExtension) || file.mimetype === "application/pdf") {
       return cb(null, true);
     }
   }
 
   if (file?.fieldname === "collectionFile") {
-    if (
-      videoMimeTypes.has(file.mimetype) ||
-      imageMimeTypes.has(file.mimetype)
-    ) {
+    if (videoMimeTypes.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
       return cb(null, true);
     }
   }
@@ -116,10 +91,7 @@ const fileFilter = (req, file, cb) => {
     }
   }
 
-  if (
-    ["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname) &&
-    videoMimeTypes.has(file.mimetype)
-  ) {
+  if (["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname) && videoMimeTypes.has(file.mimetype)) {
     return cb(null, true);
   }
 
@@ -156,6 +128,7 @@ const upload = multer({
   { name: "evidenceImg", maxCount: 5 },
   { name: "planImg", maxCount: 1 },
   { name: "carouselImg", maxCount: 1 },
+  { name: "circleFile", maxCount: 1 },
 ]);
 
 const processImages = async (req, res) => {
@@ -176,10 +149,7 @@ const processImages = async (req, res) => {
           //   });
           // }
 
-          await sharp(`./public/uploads/users/${file.filename}`)
-            .resize({ width: 800 })
-            .jpeg({ quality: 60 })
-            .toFile(compressedPath);
+          await sharp(`./public/uploads/users/${file.filename}`).resize({ width: 800 }).jpeg({ quality: 60 }).toFile(compressedPath);
 
           // await sharp(`./public/uploads/users/${file.filename}`)
           //   .resize({ width: 800 })
