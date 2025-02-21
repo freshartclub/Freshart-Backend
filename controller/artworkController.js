@@ -140,10 +140,10 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkTheme: req.body.artworkTheme,
     artworkOrientation: req.body.artworkOrientation,
     material: req.body.material,
-    weight: req.body.weight,
-    length: req.body.lenght,
-    height: req.body.height,
-    width: req.body.width,
+    weight: Number(req.body.weight),
+    length: Number(req.body.lenght),
+    height: Number(req.body.height),
+    width: Number(req.body.width),
     hangingAvailable: req.body.hangingAvailable,
     framed: req.body.framed,
     artworkStyle: typeof req.body.artworkStyle === "string" ? [req.body.artworkStyle] : req.body.artworkStyle,
@@ -183,7 +183,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       basePrice: req.body.basePrice,
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: req.body.artistFees,
+      artistFees: Number(req.body.artistFees),
     };
   } else {
     obj["pricing"] = {
@@ -192,7 +192,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       acceptOfferPrice: req.body.acceptOfferPrice,
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: req.body.artistFees,
+      artistFees: Number(req.body.artistFees),
     };
   }
 
@@ -494,10 +494,10 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkTheme: req.body.artworkTheme,
     artworkOrientation: req.body.artworkOrientation,
     material: req.body.material,
-    weight: req.body.weight,
-    length: req.body.length,
-    height: req.body.height,
-    width: req.body.width,
+    weight: Number(req.body.weight),
+    length: Number(req.body.length),
+    height: Number(req.body.height),
+    width: Number(req.body.width),
     hangingAvailable: req.body.hangingAvailable,
     framed: req.body.framed,
     artworkStyle: styleArr,
@@ -537,7 +537,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       basePrice: req.body.basePrice,
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: req.body.artistFees,
+      artistFees: Number(req.body.artistFees),
     };
   } else {
     obj["pricing"] = {
@@ -546,7 +546,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
       acceptOfferPrice: req.body.acceptOfferPrice,
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: req.body.artistFees,
+      artistFees: Number(req.body.artistFees),
     };
   }
 
@@ -618,7 +618,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
         $push: {
           notifications: {
             subject: "Draft Artwork Editted",
-            message: `You have editted a draft Artwork - "${artwork.artworkName}"`,
+            message: `You have editted a draft Artwork - "${obj.artworkName}"`,
           },
         },
       }
@@ -832,10 +832,10 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     artworkTheme: req.body.artworkTheme,
     artworkOrientation: req.body.artworkOrientation,
     material: req.body.material,
-    weight: req.body.weight,
-    length: req.body.length,
-    height: req.body.height,
-    width: req.body.width,
+    weight: Number(req.body.weight),
+    length: Number(req.body.length),
+    height: Number(req.body.height),
+    width: Number(req.body.width),
     hangingAvailable: req.body.hangingAvailable,
     framed: req.body.framed,
     artworkStyle: styleArr,
@@ -872,7 +872,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   if (req.body?.activeTab === "subscription") {
     obj["pricing"] = {
       currency: req.body.currency,
-      basePrice: req.body.basePrice,
+      basePrice: Number(req.body.basePrice),
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
       artistFees: req.body.artistFees,
@@ -880,7 +880,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
   } else {
     obj["pricing"] = {
       currency: req.body.currency,
-      basePrice: req.body.basePrice,
+      basePrice: Number(req.body.basePrice),
       acceptOfferPrice: req.body.acceptOfferPrice,
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
@@ -1385,6 +1385,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
   let artworks = [];
 
   if (req.user?.roles && req.user?.roles === "superAdmin") {
+    console.log(id);
     artwork = await ArtWork.aggregate([
       {
         $match: {
@@ -1467,6 +1468,10 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
         },
       },
     ]);
+
+    return res.status(200).send({
+      data: artwork[0],
+    });
   } else {
     if (preview == "false") {
       artwork = await ArtWork.aggregate([
@@ -2002,13 +2007,25 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     width,
   } = req.query;
 
-  console.log(req.query);
-
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
 
   type = type.toLowerCase();
   s = s ? s : "";
-  // weight = weight ?
+
+  weight = weight.split(",");
+  height = height.split(",");
+  width = width.split(",");
+  depth = depth ? depth.split(",") : [];
+
+  if (weight[0] == 0 && weight[1] == 300) weight = [];
+  if (height[0] == 0 && height[1] == 300) height = [];
+  if (width[0] == 0 && width[1] == 300) width = [];
+  if (depth && depth[0] == 0 && depth[1] == 300) depth = [];
+
+  console.log("weight", weight);
+  console.log("height", height);
+  console.log("width", width);
+  console.log("depth", depth);
 
   limit = parseInt(limit) || 10;
   cursor = cursor || null;
@@ -2030,9 +2047,16 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(color && { "additionalInfo.colors": { $in: [color] } }),
     ...(orientation && { "additionalInfo.artworkOrientation": orientation }),
     ...(comingsoon && { "inventoryShipping.comingSoon": comingsoon == "Yes" ? true : false }),
+
+    ...(weight.length > 0 && { "additionalInfo.weight": { $gte: Number(weight[0]), $lte: Number(weight[1]) } }),
+    ...(height.length > 0 && { "additionalInfo.height": { $gte: Number(height[0]), $lte: Number(height[1]) } }),
+    ...(width.length > 0 && { "additionalInfo.width": { $gte: Number(width[0]), $lte: Number(width[1]) } }),
+    ...(depth.length > 0 && { "additionalInfo.length": { $gte: Number(depth[0]), $lte: Number(depth[1]) } }),
   };
 
   const totalCount = await ArtWork.countDocuments(matchStage);
+
+  console.log("totalCount", totalCount);
 
   if (cursor) {
     if (direction === "next") {
@@ -2055,6 +2079,14 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
       $unwind: {
         path: "$ownerInfo",
         preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $addFields: {
+        "additionalInfo.weight": { $toDouble: "$additionalInfo.weight" },
+        "additionalInfo.height": { $toDouble: "$additionalInfo.height" },
+        "additionalInfo.width": { $toDouble: "$additionalInfo.width" },
+        "additionalInfo.length": { $toDouble: "$additionalInfo.length" },
       },
     },
     { $match: matchStage },
@@ -2082,6 +2114,8 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     { $sort: { _id: direction === "prev" ? 1 : -1 } },
     { $limit: limit + 1 },
   ]);
+
+  console.log("artworkList", artworkList.length);
 
   const hasNextPage =
     (currPage === 1 && artworkList.length > limit) || artworkList.length > limit || (direction === "prev" && artworkList.length === limit);
