@@ -672,9 +672,9 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  if (artworkData.status !== "published" || artworkData.status !== "modified") {
+  if (artworkData.status == "modified") {
     return res.status(400).send({
-      message: `You cannot modify this artwork`,
+      message: `Artwork is already modified`,
     });
   }
 
