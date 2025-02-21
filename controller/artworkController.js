@@ -180,19 +180,19 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (req.body?.activeTab === "subscription") {
     obj["pricing"] = {
       currency: req.body.currency,
-      basePrice: req.body.basePrice,
+      basePrice: Number(req.body.basePrice),
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: Number(req.body.artistFees),
+      artistFees: req.body.artistFees,
     };
   } else {
     obj["pricing"] = {
       currency: req.body.currency,
-      basePrice: req.body.basePrice,
+      basePrice: Number(req.body.basePrice),
       acceptOfferPrice: req.body.acceptOfferPrice,
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: Number(req.body.artistFees),
+      artistFees: req.body.artistFees,
     };
   }
 
@@ -534,19 +534,19 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
   if (req.body?.activeTab === "subscription") {
     obj["pricing"] = {
       currency: req.body.currency,
-      basePrice: req.body.basePrice,
+      basePrice: Number(req.body.basePrice),
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: Number(req.body.artistFees),
+      artistFees: req.body.artistFees,
     };
   } else {
     obj["pricing"] = {
       currency: req.body.currency,
-      basePrice: req.body.basePrice,
+      basePrice: Number(req.body.basePrice),
       acceptOfferPrice: req.body.acceptOfferPrice,
       dpersentage: Number(req.body.dpersentage),
       vatAmount: Number(req.body.vatAmount),
-      artistFees: Number(req.body.artistFees),
+      artistFees: req.body.artistFees,
     };
   }
 
@@ -942,7 +942,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
 const publishArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  const artwork = await ArtWork.findOne({ _id: id, isDeleted: false }, { status: 1, artworkName: 1 }).lean(true);
+  const artwork = await ArtWork.findOne({ _id: id, isDeleted: false }, { owner: 1, status: 1, artworkName: 1 }).lean(true);
   if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
   if (artwork.status !== "draft") {
@@ -952,7 +952,7 @@ const publishArtwork = catchAsyncError(async (req, res, next) => {
   if (req.user?.roles && req.user?.roles === "superAdmin") {
     ArtWork.updateOne({ _id: id }, { status: "published" }).then();
     Notification.updateOne(
-      { user: req.user._id },
+      { user: artwork.owner },
       {
         $push: {
           notifications: {
@@ -2005,6 +2005,11 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     height,
     weight,
     width,
+    price,
+    tag,
+    discount,
+    purchase,
+    purchaseOption,
   } = req.query;
 
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
@@ -2016,16 +2021,13 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
   height = height.split(",");
   width = width.split(",");
   depth = depth ? depth.split(",") : [];
+  price = price ? price.split(",") : [];
 
   if (weight[0] == 0 && weight[1] == 300) weight = [];
   if (height[0] == 0 && height[1] == 300) height = [];
   if (width[0] == 0 && width[1] == 300) width = [];
+  if (price[0] == 0 && price[1] == 10000) price = [];
   if (depth && depth[0] == 0 && depth[1] == 300) depth = [];
-
-  console.log("weight", weight);
-  console.log("height", height);
-  console.log("width", width);
-  console.log("depth", depth);
 
   limit = parseInt(limit) || 10;
   cursor = cursor || null;
@@ -2052,11 +2054,14 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(height.length > 0 && { "additionalInfo.height": { $gte: Number(height[0]), $lte: Number(height[1]) } }),
     ...(width.length > 0 && { "additionalInfo.width": { $gte: Number(width[0]), $lte: Number(width[1]) } }),
     ...(depth.length > 0 && { "additionalInfo.length": { $gte: Number(depth[0]), $lte: Number(depth[1]) } }),
+    ...(price.length > 0 && { "pricing.basePrice": { $gte: Number(price[0]), $lte: Number(price[1]) } }),
+    ...(tag && { "tags.extTags": { $regex: tag, $options: "i" } }),
+    ...(discount && { "pricing.dpersentage": discount == "Yes" ? { $gt: 0 } : { $eq: 0 } }),
+    ...(purchase && { "commercialization.purchaseType": purchase }),
+    ...(purchaseOption && type == "subscription" && { "commercialization.purchaseOption": purchaseOption == "Yes" }),
   };
 
   const totalCount = await ArtWork.countDocuments(matchStage);
-
-  console.log("totalCount", totalCount);
 
   if (cursor) {
     if (direction === "next") {
@@ -2079,14 +2084,6 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
       $unwind: {
         path: "$ownerInfo",
         preserveNullAndEmptyArrays: true,
-      },
-    },
-    {
-      $addFields: {
-        "additionalInfo.weight": { $toDouble: "$additionalInfo.weight" },
-        "additionalInfo.height": { $toDouble: "$additionalInfo.height" },
-        "additionalInfo.width": { $toDouble: "$additionalInfo.width" },
-        "additionalInfo.length": { $toDouble: "$additionalInfo.length" },
       },
     },
     { $match: matchStage },
@@ -2114,8 +2111,6 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     { $sort: { _id: direction === "prev" ? 1 : -1 } },
     { $limit: limit + 1 },
   ]);
-
-  console.log("artworkList", artworkList.length);
 
   const hasNextPage =
     (currPage === 1 && artworkList.length > limit) || artworkList.length > limit || (direction === "prev" && artworkList.length === limit);
