@@ -8,9 +8,13 @@ const commentSchema = new mongoose.Schema(
     owner: {
       type: mongoose.Schema.Types.ObjectId,
     },
+    commentUser: {
+      type: String,
+    },
     post: {
       type: mongoose.Schema.Types.ObjectId,
     },
+
     commentFiles: {
       type: String,
     },

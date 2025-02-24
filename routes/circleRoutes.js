@@ -9,6 +9,8 @@ const {
   getUserCircleList,
   createPostInCircle,
   getAllPostOfCircle,
+  postCommentInCircle,
+  getAllComments,
 } = require("../controller/circleController");
 const validateToken = require("../middleware/validateTokenHandler");
 
@@ -29,5 +31,9 @@ router.get("/get-circles", validateToken, getUserCircleList);
 router.patch("/create-post/:id", validateToken, createPostInCircle);
 
 router.get("/get-all-circle-post/:id", validateToken, getAllPostOfCircle);
+
+router.post("/post-comment/:id", validateToken, postCommentInCircle);
+
+router.get("/get-all-comments/:id", validateToken, getAllComments);
 
 module.exports = router;

@@ -8,6 +8,7 @@ const objectId = require("mongoose").Types.ObjectId;
 const EmailType = require("../models/emailTypeModel");
 const { sendMail } = require("../functions/mailer");
 const Post = require("../models/postsModel");
+const Comment = require("../models/commentModel");
 
 const addCircle = catchAsyncError(async (req, res) => {
   const admin = await Admin.countDocuments({
@@ -421,6 +422,75 @@ const getAllPostOfCircle = catchAsyncError(async (req, res) => {
   return res.status(200).send({ data: allPosts });
 });
 
+const postCommentInCircle = catchAsyncError(async (req, res) => {
+  const { id, postId } = req.params;
+  const { comment, commentFiles, name } = req.body;
+
+  const circle = await Circle.findById(id).lean();
+  if (!circle) {
+    return res.status(404).json({
+      success: false,
+      message: "Circle not found",
+    });
+  }
+
+  const isManager = circle.managers.map((id) => id.toString()).includes(req.user._id.toString());
+
+  if (!isManager) {
+    return res.status(403).json({
+      success: false,
+      message: "You don't have permission to post comments in this circle",
+    });
+  }
+
+  await Comment.create({
+    comment,
+    owner: req.user._id,
+    postId: postId,
+    commentUser: name,
+    commentFiles,
+  });
+
+  return res.status(201).json({
+    success: true,
+    message: "Comment posted successfully",
+  });
+});
+
+const getAllComments = catchAsyncError(async (req, res) => {
+  const { id, postId } = req.params;
+
+  const circle = await Circle.findById(id).lean();
+  if (!circle) {
+    return res.status(404).json({
+      success: false,
+      message: "Circle not found",
+    });
+  }
+
+  const isManager = circle.managers.map((id) => id.toString()).includes(req.user._id.toString());
+
+  if (!isManager) {
+    return res.status(403).json({
+      success: false,
+      message: "You don't have permission to view comments in this circle",
+    });
+  }
+
+  const comments = await Comment.find({ post: postId }).sort({ createdAt: -1 }).lean();
+
+  console.log(comments);
+
+  return res.status(200).json({
+    success: true,
+    message: "Comments retrieved successfully",
+    data: {
+      comments,
+      total: comments.length,
+    },
+  });
+});
+
 module.exports = {
   addCircle,
   getCircle,
@@ -430,4 +500,6 @@ module.exports = {
   getCircleById,
   createPostInCircle,
   getAllPostOfCircle,
+  postCommentInCircle,
+  getAllComments,
 };
