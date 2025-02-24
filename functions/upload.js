@@ -34,7 +34,7 @@ const storage = multer.diskStorage({
   },
 
   filename: function (req, file, cb) {
-    const fileExtension = file.originalname.substr(file.originalname.lastIndexOf(".") + 1, file.originalname.length);
+    const fileExtension = path.extname(file.originalname).slice(1);
     let data = req?.user?._id;
     if (
       [
