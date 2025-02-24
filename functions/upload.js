@@ -91,7 +91,7 @@ const fileFilter = (req, file, cb) => {
   }
 
   if (file?.fieldname === "ticketImg") {
-    if (docExtensions.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
+    if (docMimeTypes.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
       return cb(null, true);
     }
   }
