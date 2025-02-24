@@ -70,11 +70,16 @@ const storage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const imageMimeTypes = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp"]);
   const videoMimeTypes = new Set(["video/mp4", "video/webm", "video/mkv"]);
-  const docExtensions = new Set(["docx", "xlsx", "csv", "txt"]);
+  const docMimeTypes = new Set([
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/csv",
+    "text/plain",
+    "application/pdf",
+  ]);
 
   if (file?.fieldname === "uploadDocs") {
-    const fileExtension = file.originalname.split(".").pop();
-    if (docExtensions.has(fileExtension) || file.mimetype === "application/pdf") {
+    if (docMimeTypes.has(file.mimetype)) {
       return cb(null, true);
     }
   }
