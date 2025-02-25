@@ -287,86 +287,95 @@ const getArtistCircleList = catchAsyncError(async (req, res) => {
 const getCircleById = catchAsyncError(async (req, res) => {
   const _id = req.user._id;
 
-  const circle = await Circle.aggregate([
-    {
-      $match: {
-        _id: objectId(req.params.id),
+  const [circle, followCount] = await Promise.all([
+    Circle.aggregate([
+      {
+        $match: {
+          _id: objectId(req.params.id),
+        },
       },
-    },
-    {
-      $lookup: {
-        from: "artists",
-        localField: "managers",
-        foreignField: "_id",
-        as: "managers",
+      {
+        $lookup: {
+          from: "artists",
+          localField: "managers",
+          foreignField: "_id",
+          as: "managers",
+        },
       },
-    },
-    {
-      $project: {
-        title: 1,
-        description: 1,
-        content: 1,
-        mainImage: 1,
-        type: 1,
-        coverImage: 1,
-        foradmin: 1,
-        categories: 1,
-        status: 1,
-        managers: {
-          $map: {
-            input: "$managers",
-            as: "manager",
-            in: {
-              _id: "$$manager._id",
-              artistName: "$$manager.artistName",
-              artistSurname1: "$$manager.artistSurname1",
-              artistSurname2: "$$manager.artistSurname2",
-              artistId: "$$manager.artistId",
-              img: "$$manager.profile.mainImage",
-              address: {
-                city: "$$manager.address.city",
-                country: "$$manager.address.country",
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          content: 1,
+          mainImage: 1,
+          type: 1,
+          coverImage: 1,
+          foradmin: 1,
+          categories: 1,
+          status: 1,
+          managers: {
+            $map: {
+              input: "$managers",
+              as: "manager",
+              in: {
+                _id: "$$manager._id",
+                artistName: "$$manager.artistName",
+                artistSurname1: "$$manager.artistSurname1",
+                artistSurname2: "$$manager.artistSurname2",
+                artistId: "$$manager.artistId",
+                img: "$$manager.profile.mainImage",
+                address: {
+                  city: "$$manager.address.city",
+                  country: "$$manager.address.country",
+                },
               },
             },
           },
         },
       },
-    },
+    ]),
+
+    Follower.countDocuments({ circle: req.params.id }).lean(),
   ]);
 
-  if (circle[0].type == "Private") {
-    const authorise = circle[0].managers.find((manager) => manager._id.toString() == _id);
-    const isMember = await Follower.exists({ circle: req.params.id, user: _id });
+  const isMember = await Follower.exists({ circle: req.params.id, user: _id });
+  let authorise = false;
 
+  if (circle[0].type == "Private") {
+    authorise = circle[0].managers.find((manager) => manager._id.toString() == _id);
     if (!authorise && !isMember) return res.status(400).send({ message: "Access Denied" });
   }
 
-  return res.status(200).send({ data: circle[0] });
+  return res.status(200).send({ data: circle[0], followCount: followCount, authorise: authorise ? true : false, isMember: isMember ? true : false });
 });
 
 const getUserCircleList = catchAsyncError(async (req, res) => {
   const id = req.user._id;
   if (!id) return res.status(400).send({ message: "User Not Found" });
 
-  const circles = await Circle.aggregate([
-    {
-      $project: {
-        title: 1,
-        description: 1,
-        content: 1,
-        mainImage: 1,
-        managers: 1,
-        type: 1,
-        categories: 1,
-        status: 1,
+  const [circles, follow] = await Promise.all([
+    Circle.aggregate([
+      {
+        $project: {
+          title: 1,
+          description: 1,
+          content: 1,
+          mainImage: 1,
+          managers: 1,
+          type: 1,
+          categories: 1,
+          status: 1,
+          followers: 1,
+        },
       },
-    },
-    {
-      $sort: { createdAt: -1 },
-    },
+      {
+        $sort: { createdAt: -1 },
+      },
+    ]),
+    Follower.findOne({ user: id }),
   ]);
 
-  return res.status(200).send({ data: circles });
+  return res.status(200).send({ data: circles, follow: follow });
 });
 
 const createPostInCircle = catchAsyncError(async (req, res) => {
@@ -640,8 +649,10 @@ const sendFollowRequest = catchAsyncError(async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send({ message: "Circle Id not found" });
 
-  const circle = await Circle.findById(id, { title: 1, type: 1 }).lean();
+  const circle = await Circle.findById(id, { title: 1, type: 1, managers: 1 }).lean();
   if (!circle) return res.status(400).send({ message: "Circle not found" });
+
+  if (circle.managers.map(String).includes(String(req.user._id))) return res.status(400).send({ message: "You are manager of this circle" });
 
   const requestExists = await FollowRequest.exists({ circle: id, user: req.user._id });
   if (requestExists) return res.status(400).send({ message: "You have already sent a follow request" });
@@ -667,7 +678,41 @@ const getFollowRequsetOfCircle = catchAsyncError(async (req, res) => {
 
   if (!circle.managers.map(String).includes(String(req.user._id))) return res.status(400).send({ message: "You are not a manager of this circle" });
 
-  const requestExists = await FollowRequest.find({ circle: id });
+  const requestExists = await FollowRequest.aggregate([
+    {
+      $match: {
+        circle: objectId(id),
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $unwind: { path: "$user", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: {
+          artistName: "$user.artistName",
+          artistSurname1: "$user.artistSurname1",
+          artistSurname2: "$user.artistSurname2",
+          img: "$user.profile.mainImage",
+          location: {
+            city: "$user.address.city",
+            country: "$user.address.country",
+          },
+        },
+      },
+    },
+    { $sort: { createdAt: 1 } },
+  ]);
+
   return res.status(200).send({ data: requestExists });
 });
 
@@ -689,6 +734,21 @@ const approveFollowRequest = catchAsyncError(async (req, res) => {
   return res.status(200).send({ message: "Follow Request Approved" });
 });
 
+const rejectFollowRequest = catchAsyncError(async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Circle Id not found" });
+
+  const circle = await Circle.findById(id, { managers: 1 }).lean();
+  if (!circle) return res.status(400).send({ message: "Circle not found" });
+
+  if (!circle.managers.map(String).includes(String(req.user._id))) return res.status(400).send({ message: "You are not a manager of this circle" });
+
+  const request = await FollowRequest.deleteOne(objectId(req.body.requestId));
+  if (request.deletedCount === 0) return res.status(400).send({ message: "Follow Request not found" });
+
+  return res.status(200).send({ message: "Follow Request Rejected" });
+});
+
 const getAllFollowerOfCircle = catchAsyncError(async (req, res) => {
   const { id } = req.params;
   if (!id) return res.status(400).send({ message: "Circle Id not found" });
@@ -696,8 +756,71 @@ const getAllFollowerOfCircle = catchAsyncError(async (req, res) => {
   const circle = await Circle.findById(id, { managers: 1 }).lean();
   if (!circle) return res.status(400).send({ message: "Circle not found" });
 
-  const followers = await Follower.find({ circle: id }).lean();
+  const followers = await Follower.aggregate([
+    {
+      $match: {
+        circle: { $in: [objectId(id)] },
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $unwind: { path: "$user", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: {
+          _id: "$user._id",
+          artistName: "$user.artistName",
+          artistSurname1: "$user.artistSurname1",
+          artistSurname2: "$user.artistSurname2",
+          img: "$user.profile.mainImage",
+          location: {
+            city: "$user.address.city",
+            country: "$user.address.country",
+          },
+        },
+      },
+    },
+    { $sort: { createdAt: 1 } },
+  ]);
+
   return res.status(200).send({ data: followers });
+});
+
+const unfollowCircle = catchAsyncError(async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Circle Id not found" });
+
+  const circle = await Circle.findById(id, { managers: 1 }).lean();
+  if (!circle) return res.status(400).send({ message: "Circle not found" });
+
+  const result = await Follower.updateOne({ user: req.user._id, circle: objectId(id) }, { $pull: { circle: id } });
+  if (result.modifiedCount === 0 && result.upsertedCount === 0) return res.status(400).send({ message: "Already unfollowed" });
+
+  return res.status(200).send({ message: "Circle Unfollowed" });
+});
+
+const removeFollower = catchAsyncError(async (req, res) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Circle Id not found" });
+
+  const circle = await Circle.findById(id, { managers: 1 }).lean();
+  if (!circle) return res.status(400).send({ message: "Circle not found" });
+
+  if (!circle.managers.map(String).includes(String(req.user._id))) return res.status(400).send({ message: "You are not a manager of this circle" });
+
+  const result = await Follower.updateOne({ user: req.body.userId }, { $pull: { circle: id } });
+  if (result.modifiedCount === 0) return res.status(400).send({ message: "Already removed" });
+
+  return res.status(200).send({ message: "Follower removed" });
 });
 
 module.exports = {
@@ -717,4 +840,7 @@ module.exports = {
   getFollowRequsetOfCircle,
   approveFollowRequest,
   getAllFollowerOfCircle,
+  rejectFollowRequest,
+  unfollowCircle,
+  removeFollower,
 };

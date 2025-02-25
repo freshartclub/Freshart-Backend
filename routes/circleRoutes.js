@@ -17,6 +17,9 @@ const {
   getFollowRequsetOfCircle,
   approveFollowRequest,
   getAllFollowerOfCircle,
+  unfollowCircle,
+  rejectFollowRequest,
+  removeFollower,
 } = require("../controller/circleController");
 const validateToken = require("../middleware/validateTokenHandler");
 
@@ -52,6 +55,12 @@ router.get("/get-request/:id", validateToken, getFollowRequsetOfCircle);
 
 router.patch("/approve-request/:id", validateToken, approveFollowRequest);
 
+router.patch("/delete-request/:id", validateToken, rejectFollowRequest);
+
 router.get("/get-followers/:id", validateToken, getAllFollowerOfCircle);
+
+router.patch("/unfollow/:id", validateToken, unfollowCircle);
+
+router.patch("/remove-follower/:id", validateToken, removeFollower);
 
 module.exports = router;
