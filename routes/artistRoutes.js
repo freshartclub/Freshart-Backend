@@ -59,6 +59,7 @@ const {
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
+const { getUserSideCollections, getUserSideCollectionById } = require("../controller/collectionController");
 
 router.post("/login", login);
 
@@ -169,6 +170,12 @@ router.get("/get-notifications", validateToken, getNotificationsOfUser);
 router.patch("/read-notification/:id?", validateToken, markReadNotification);
 
 router.patch("/delete-notification/:id?", validateToken, deleteNotification);
+
+// ------------------------ collections ----------------------------------
+
+router.get("/get-all-collections", getUserSideCollections);
+
+router.get("/get-collection/:id", getUserSideCollectionById);
 
 // -------------------------- plans ---------------------------------------------
 

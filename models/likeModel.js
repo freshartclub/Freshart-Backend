@@ -2,17 +2,15 @@ const mongoose = require("mongoose");
 
 const likeSchema = new mongoose.Schema(
   {
-    like: {
-      type: String,
-      enum: ["like", "love", "haha", "wow", "sad", "angry"],
-    },
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Artist",
     },
     post: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Post",
+    },
+    reaction: {
+      type: String,
+      enum: ["like", "love", "haha", "wow", "sad", "angry"],
     },
   },
   {
@@ -21,5 +19,7 @@ const likeSchema = new mongoose.Schema(
 );
 
 likeSchema.index({ post: 1 });
+
+likeSchema.index({ post: 1, owner: 1 });
 
 module.exports = mongoose.model("Like", likeSchema);

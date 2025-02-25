@@ -1,6 +1,7 @@
 const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
 const { fileUploadFunc } = require("../functions/common");
+const objectId = require("mongoose").Types.ObjectId;
 const Collection = require("../models/collectionModel");
 
 const addCollection = catchAsyncError(async (req, res, next) => {
@@ -23,10 +24,8 @@ const addCollection = catchAsyncError(async (req, res, next) => {
       collectionName: req.body.collectionName,
     }).lean(true);
 
-    if (isExist !== 1) {
-      return res
-        .status(400)
-        .send({ message: `Collection with this name already exist` });
+    if (isExist > 0) {
+      return res.status(400).send({ message: `Collection with this name already exist` });
     }
 
     collection = await Collection.findOne(
@@ -41,18 +40,14 @@ const addCollection = catchAsyncError(async (req, res, next) => {
     }).lean(true);
 
     if (isExist) {
-      return res
-        .status(400)
-        .send({ message: `Collection with this name already exist` });
+      return res.status(400).send({ message: `Collection with this name already exist` });
     }
   }
 
   let artworkListArr = [];
 
   if (req.body.artworkList) {
-    const artworkList = Array.isArray(req.body.artworkList)
-      ? req.body.artworkList.map((item) => JSON.parse(item))
-      : req.body.artworkList;
+    const artworkList = Array.isArray(req.body.artworkList) ? req.body.artworkList.map((item) => JSON.parse(item)) : req.body.artworkList;
 
     if (typeof artworkList === "string") {
       const obj = JSON.parse(artworkList);
@@ -81,10 +76,7 @@ const addCollection = catchAsyncError(async (req, res, next) => {
   obj["expertDetails"] = {
     expertDesc: req.body.expertDesc,
     createdBy: req.body.createdBy,
-    expertImg:
-      fileData.data?.expertImg !== undefined
-        ? fileData.data?.expertImg[0].filename
-        : collection?.expertDetails?.expertImg,
+    expertImg: fileData.data?.expertImg !== undefined ? fileData.data?.expertImg[0].filename : collection?.expertDetails?.expertImg,
   };
 
   if (fileData.data?.collectionFile !== undefined) {
@@ -97,7 +89,7 @@ const addCollection = catchAsyncError(async (req, res, next) => {
     await Collection.create(obj);
     return res.status(200).send({ message: "Collection added successfully" });
   } else {
-    Collection.updateOne({ _id: id }, condition).then();
+    await Collection.updateOne({ _id: id }, condition);
     return res.status(200).send({ message: "Collection updated successfully" });
   }
 });
@@ -141,9 +133,7 @@ const getAllCollections = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  res
-    .status(200)
-    .send({ data: collection, url: "https://dev.freshartclub.com/images" });
+  res.status(200).send({ data: collection, url: "https://dev.freshartclub.com/images" });
 });
 
 const getCollectionById = catchAsyncError(async (req, res, next) => {
@@ -171,9 +161,7 @@ const getCollectionById = catchAsyncError(async (req, res, next) => {
     })
     .lean(true);
 
-  res
-    .status(200)
-    .send({ data: collection, url: "https://dev.freshartclub.com/images" });
+  res.status(200).send({ data: collection });
 });
 
 const searchCollection = catchAsyncError(async (req, res, next) => {
@@ -231,10 +219,7 @@ const deleteArtworkFromCollection = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Collection not found" });
   }
 
-  await Collection.updateOne(
-    { _id: id },
-    { $pull: { artworkList: { artworkId: artworkId } } }
-  );
+  await Collection.updateOne({ _id: id }, { $pull: { artworkList: { artworkId: artworkId } } });
 
   res.status(200).send({ message: "Artwork removed from collection" });
 });
@@ -252,10 +237,7 @@ const deleteCollection = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Please provide collection id" });
   }
 
-  const collection = await Collection.findOne(
-    { _id: id },
-    { isDeleted: 1 }
-  ).lean(true);
+  const collection = await Collection.findOne({ _id: id }, { isDeleted: 1 }).lean(true);
 
   if (!collection) {
     return res.status(400).send({ message: "Collection not found" });
@@ -283,10 +265,7 @@ const restoreCollection = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Please provide collection id" });
   }
 
-  const collection = await Collection.findOne(
-    { _id: id },
-    { isDeleted: 1 }
-  ).lean(true);
+  const collection = await Collection.findOne({ _id: id }, { isDeleted: 1 }).lean(true);
 
   if (!collection) {
     return res.status(400).send({ message: "Collection not found" });
@@ -301,6 +280,87 @@ const restoreCollection = catchAsyncError(async (req, res, next) => {
   res.status(200).send({ message: "Collection restored successfully" });
 });
 
+// --------------------------- User Side (Frontend) ----------------------
+
+const getUserSideCollections = catchAsyncError(async (req, res, next) => {
+  const collection = await Collection.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        collectionName: 1,
+        collectionDesc: 1,
+        collectionFile: 1,
+        status: 1,
+        isDeleted: 1,
+        collectionTags: 1,
+        createdAt: 1,
+      },
+    },
+    { $sort: { createdAt: -1 } },
+  ]);
+
+  res.status(200).send({ data: collection });
+});
+
+const getUserSideCollectionById = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+
+  if (!id) {
+    return res.status(400).send({ message: "Please provide collection id" });
+  }
+
+  const collection = await Collection.aggregate([
+    {
+      $match: {
+        _id: objectId(id),
+        isDeleted: false,
+      },
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "artworkList.artworkId",
+        foreignField: "_id",
+        as: "arts",
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        collectionName: 1,
+        collectionDesc: 1,
+        collectionFile: 1,
+        status: 1,
+        isDeleted: 1,
+        collectionTags: 1,
+        createdAt: 1,
+        artworks: {
+          $map: {
+            input: "$arts",
+            as: "art",
+            in: {
+              _id: "$$art._id",
+              artworkName: "$$art.artworkName",
+              media: "$$art.media.mainImage",
+            },
+          },
+        },
+      },
+    },
+  ]);
+
+  if (collection.length == 0 || !collection) {
+    return res.status(400).send({ message: "Collection Not Found" });
+  }
+
+  res.status(200).send({ data: collection[0] });
+});
+
 module.exports = {
   addCollection,
   getAllCollections,
@@ -309,4 +369,6 @@ module.exports = {
   deleteArtworkFromCollection,
   deleteCollection,
   restoreCollection,
+  getUserSideCollections,
+  getUserSideCollectionById,
 };
