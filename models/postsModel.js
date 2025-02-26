@@ -4,6 +4,7 @@ const postSchema = new mongoose.Schema(
   {
     circle: { type: mongoose.Schema.Types.ObjectId },
     owner: { type: mongoose.Schema.Types.ObjectId },
+    commentCount: { type: Number, default: 0 },
     isDeleted: {
       type: Boolean,
       default: false,

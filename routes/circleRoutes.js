@@ -20,6 +20,8 @@ const {
   unfollowCircle,
   rejectFollowRequest,
   removeFollower,
+  adminFollowerList,
+  deleteCircle,
 } = require("../controller/circleController");
 const validateToken = require("../middleware/validateTokenHandler");
 
@@ -30,6 +32,10 @@ router.post("/add-circle/:id?", validateAdminToken, addCircle);
 router.get("/get-circle/:id", validateAdminToken, getCircle);
 
 router.get("/get-all-circles", validateAdminToken, getCircleList);
+
+router.get("/get-all-follower-circles/:id", validateAdminToken, adminFollowerList);
+
+router.patch("/delete-circle/:id", validateAdminToken, deleteCircle);
 
 router.get("/get-artist-circle-list", validateToken, getArtistCircleList);
 

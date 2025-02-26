@@ -11,7 +11,6 @@ const followRequset = new mongoose.Schema(
 );
 
 followRequset.index({ user: 1 });
-
 followRequset.index({ circle: 1 });
 
 module.exports = mongoose.model("FollowRequest", followRequset);

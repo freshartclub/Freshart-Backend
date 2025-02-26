@@ -191,17 +191,22 @@ const getCircleList = catchAsyncError(async (req, res) => {
   if (!admin) return res.status(400).send({ message: `Admin not found` });
 
   let { s } = req.query;
+  if (!s || s === "undefined") s = "";
 
-  if (s == "undefined") {
-    s = "";
-  } else if (typeof s === "undefined") {
-    s = "";
-  }
+  let { sortType } = req.query;
 
-  const circle = await Circle.aggregate([
+  let sort = {
+    ...(sortType == "post" && { postCount: -1 }),
+    ...(sortType == "follower" && { followerCount: -1 }),
+    ...(sortType == "view" && { viewCount: -1 }),
+    ...(sortType == "none" && { createdAt: -1 }),
+    ...(sortType == "name" && { title: 1 }),
+  };
+
+  const circles = await Circle.aggregate([
     {
       $match: {
-        $or: [{ title: { $regex: s, $options: "i" } }, { description: { $regex: s, $options: "i" } }],
+        $or: [{ title: { $regex: s, $options: "i" } }, { categories: { $elemMatch: { $regex: s, $options: "i" } } }],
       },
     },
     {
@@ -213,8 +218,18 @@ const getCircleList = catchAsyncError(async (req, res) => {
       },
     },
     {
+      $lookup: {
+        from: "posts",
+        localField: "_id",
+        foreignField: "circle",
+        pipeline: [{ $sort: { createdAt: -1 } }, { $limit: 1 }, { $project: { createdAt: 1, _id: 0 } }],
+        as: "latestPost",
+      },
+    },
+    {
       $project: {
         title: 1,
+        isDeleted: 1,
         description: 1,
         content: 1,
         mainImage: 1,
@@ -222,8 +237,12 @@ const getCircleList = catchAsyncError(async (req, res) => {
         type: 1,
         categories: 1,
         createdAt: 1,
+        viewCount: 1,
         foradmin: 1,
         status: 1,
+        postCount: 1,
+        followerCount: 1,
+        latestPost: { $first: "$latestPost" },
         managers: {
           $map: {
             input: "$managers",
@@ -240,12 +259,77 @@ const getCircleList = catchAsyncError(async (req, res) => {
         },
       },
     },
-    {
-      $sort: { createdAt: -1 },
-    },
+    { $sort: sort },
   ]);
 
-  return res.status(200).send({ data: circle });
+  return res.status(200).send({ data: circles });
+});
+
+const adminFollowerList = catchAsyncError(async (req, res) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: `Circle id not found` });
+
+  const members = await Follower.aggregate([
+    {
+      $match: {
+        circle: objectId(id),
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        as: "user",
+      },
+    },
+    {
+      $unwind: "$user",
+    },
+    {
+      $project: {
+        _id: 1,
+        createdAt: 1,
+        user: {
+          _id: "$user._id",
+          artistName: "$user.artistName",
+          artistSurname1: "$user.artistSurname1",
+          artistSurname2: "$user.artistSurname2",
+          email: "$user.email",
+          userId: "$user.userId",
+          img: "$user.profile.mainImage",
+        },
+      },
+    },
+    { $sort: { createdAt: -1 } },
+  ]);
+
+  return res.status(200).send({ data: members });
+});
+
+const deleteCircle = catchAsyncError(async (req, res) => {
+  const admin = await Admin.countDocuments({
+    _id: req.user._id,
+    isDeleted: false,
+  }).lean(true);
+
+  if (!admin) return res.status(400).send({ message: `Admin not found` });
+
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: `Circle ID not found` });
+
+  const circle = await Circle.findOne({ _id: id }).lean(true);
+  if (!circle) return res.status(404).send({ message: "Circle not found" });
+
+  await Circle.updateOne({ _id: id }, { $set: { isDeleted: !circle.isDeleted } });
+  return res.status(200).send({ message: `Circle ${!circle.isDeleted ? "deleted" : "restored"} successfully` });
 });
 
 const getArtistCircleList = catchAsyncError(async (req, res) => {
@@ -261,6 +345,7 @@ const getArtistCircleList = catchAsyncError(async (req, res) => {
     {
       $match: {
         managers: { $in: [objectId(req.user._id)] },
+        isDeleted: false,
         foradmin: false,
         $or: [{ title: { $regex: s, $options: "i" } }, { description: { $regex: s, $options: "i" } }],
       },
@@ -270,6 +355,8 @@ const getArtistCircleList = catchAsyncError(async (req, res) => {
         title: 1,
         type: 1,
         description: 1,
+        postCount: 1,
+        followerCount: 1,
         content: 1,
         mainImage: 1,
         categories: 1,
@@ -286,12 +373,14 @@ const getArtistCircleList = catchAsyncError(async (req, res) => {
 
 const getCircleById = catchAsyncError(async (req, res) => {
   const _id = req.user._id;
+  const { view } = req.query;
 
   const [circle, followCount] = await Promise.all([
     Circle.aggregate([
       {
         $match: {
           _id: objectId(req.params.id),
+          isDeleted: false,
         },
       },
       {
@@ -304,12 +393,15 @@ const getCircleById = catchAsyncError(async (req, res) => {
       },
       {
         $project: {
+          _id: 1,
           title: 1,
           description: 1,
           content: 1,
           mainImage: 1,
           type: 1,
           coverImage: 1,
+          postCount: 1,
+          followerCount: 1,
           foradmin: 1,
           categories: 1,
           status: 1,
@@ -338,11 +430,16 @@ const getCircleById = catchAsyncError(async (req, res) => {
     Follower.countDocuments({ circle: req.params.id }).lean(),
   ]);
 
+  if (circle.length == 0) return res.status(400).send({ message: "Circle not found" });
+
+  if (view == "see") {
+    await Circle.updateOne({ _id: circle[0]._id }, { $inc: { viewCount: 1 } });
+  }
+
   const isMember = await Follower.exists({ circle: req.params.id, user: _id });
-  let authorise = false;
+  const authorise = circle[0].managers.find((manager) => manager._id.toString() == _id);
 
   if (circle[0].type == "Private") {
-    authorise = circle[0].managers.find((manager) => manager._id.toString() == _id);
     if (!authorise && !isMember) return res.status(400).send({ message: "Access Denied" });
   }
 
@@ -353,14 +450,20 @@ const getUserCircleList = catchAsyncError(async (req, res) => {
   const id = req.user._id;
   if (!id) return res.status(400).send({ message: "User Not Found" });
 
-  const [circles, follow] = await Promise.all([
+  const [circles, follow, followRequset] = await Promise.all([
     Circle.aggregate([
+      {
+        $match: { isDeleted: false },
+      },
       {
         $project: {
           title: 1,
           description: 1,
           content: 1,
           mainImage: 1,
+          followerCount: 1,
+          postCount: 1,
+          viewCount: 1,
           managers: 1,
           type: 1,
           categories: 1,
@@ -372,10 +475,11 @@ const getUserCircleList = catchAsyncError(async (req, res) => {
         $sort: { createdAt: -1 },
       },
     ]),
-    Follower.findOne({ user: id }),
+    Follower.findOne({ user: id }).lean(),
+    FollowRequest.find({ user: id }).lean(),
   ]);
 
-  return res.status(200).send({ data: circles, follow: follow });
+  return res.status(200).send({ data: circles, follow: follow, followRequset: followRequset });
 });
 
 const createPostInCircle = catchAsyncError(async (req, res) => {
@@ -408,12 +512,15 @@ const createPostInCircle = catchAsyncError(async (req, res) => {
 
     return res.status(200).send({ message: "Post Editted" });
   } else {
-    await Post.create({
-      circle: circle._id,
-      owner: req.user._id,
-      content: req.body.content,
-      file: fileData.data?.circleFile[0]?.filename,
-    });
+    await Promise.all([
+      Post.create({
+        circle: circle._id,
+        owner: req.user._id,
+        content: req.body.content,
+        file: fileData.data?.circleFile[0]?.filename,
+      }),
+      Circle.updateOne({ _id: circle._id }, { $inc: { postCount: 1 } }),
+    ]);
   }
   return res.status(200).send({ message: "Post Created" });
 });
@@ -517,6 +624,7 @@ const getAllPostOfCircle = catchAsyncError(async (req, res) => {
         content: 1,
         createdAt: 1,
         file: 1,
+        commentCount: 1,
         totalLikes: { $ifNull: [{ $arrayElemAt: ["$likesSummary.totalLikes", 0] }, 0] },
         reaction: {
           like: { $ifNull: [{ $arrayElemAt: ["$likesSummary.likeCount", 0] }, 0] },
@@ -552,12 +660,15 @@ const postCommentInCircle = catchAsyncError(async (req, res) => {
     if (!isMember) return res.status(403).send({ message: "Follow this circle to comment" });
   }
 
-  await Comment.create({
-    comment,
-    owner: req.user._id,
-    post: postId,
-    commentFile,
-  });
+  await Promise.all([
+    Comment.create({
+      comment,
+      owner: req.user._id,
+      post: postId,
+      commentFile,
+    }),
+    Post.updateOne({ _id: postId }, { $inc: { commentCount: 1 } }),
+  ]);
 
   return res.status(201).send({
     message: "Comment posted successfully",
@@ -665,7 +776,11 @@ const sendFollowRequest = catchAsyncError(async (req, res) => {
     return res.status(200).send({ message: "Follow Request Sent" });
   }
 
-  await Follower.updateOne({ user: req.user._id }, { $addToSet: { circle: id } }, { upsert: true });
+  await Promise.all([
+    Follower.updateOne({ user: req.user._id }, { $addToSet: { circle: id } }, { upsert: true }),
+    Circle.updateOne({ _id: id }, { $inc: { followerCount: 1 } }),
+  ]);
+
   return res.status(200).send({ message: "Circle Followed" });
 });
 
@@ -731,6 +846,10 @@ const approveFollowRequest = catchAsyncError(async (req, res) => {
   const result = await Follower.updateOne({ user: request.user }, { $addToSet: { circle: request.circle } }, { upsert: true });
   if (result.modifiedCount === 0 && result.upsertedCount === 0) return res.status(400).send({ message: "Follow Request not found" });
 
+  if (result.modifiedCount !== 0) {
+    await Circle.updateOne({ _id: request.circle }, { $inc: { followerCount: 1 } });
+  }
+
   return res.status(200).send({ message: "Follow Request Approved" });
 });
 
@@ -789,7 +908,7 @@ const getAllFollowerOfCircle = catchAsyncError(async (req, res) => {
         },
       },
     },
-    { $sort: { createdAt: 1 } },
+    { $sort: { createdAt: -1 } },
   ]);
 
   return res.status(200).send({ data: followers });
@@ -804,6 +923,10 @@ const unfollowCircle = catchAsyncError(async (req, res) => {
 
   const result = await Follower.updateOne({ user: req.user._id, circle: objectId(id) }, { $pull: { circle: id } });
   if (result.modifiedCount === 0 && result.upsertedCount === 0) return res.status(400).send({ message: "Already unfollowed" });
+
+  if (result.modifiedCount !== 0) {
+    await Circle.updateOne({ _id: id }, { $inc: { followerCount: -1 } });
+  }
 
   return res.status(200).send({ message: "Circle Unfollowed" });
 });
@@ -820,6 +943,10 @@ const removeFollower = catchAsyncError(async (req, res) => {
   const result = await Follower.updateOne({ user: req.body.userId }, { $pull: { circle: id } });
   if (result.modifiedCount === 0) return res.status(400).send({ message: "Already removed" });
 
+  if (result.modifiedCount !== 0) {
+    await Circle.updateOne({ _id: id }, { $inc: { followerCount: -1 } });
+  }
+
   return res.status(200).send({ message: "Follower removed" });
 });
 
@@ -827,6 +954,8 @@ module.exports = {
   addCircle,
   getCircle,
   getCircleList,
+  adminFollowerList,
+  deleteCircle,
   getArtistCircleList,
   getUserCircleList,
   getCircleById,

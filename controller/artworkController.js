@@ -1580,13 +1580,15 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
       ]);
 
       const viewTypes = ["new", "trending", "soon", "highlight", "search"];
-      const type = viewTypes.includes(viewType) ? viewType : "search";
+      const type = viewTypes.includes(viewType) ? viewType : null;
 
-      await ArtWork.updateOne({ _id: objectId(id), "views.type": type }, { $inc: { "views.$.count": 1 } }).then(async (res) => {
-        if (res.matchedCount === 0) {
-          await ArtWork.updateOne({ _id: objectId(id) }, { $push: { views: { type, count: 1 } } });
-        }
-      });
+      if (type !== null) {
+        await ArtWork.updateOne({ _id: objectId(id), "views.type": type }, { $inc: { "views.$.count": 1 } }).then(async (res) => {
+          if (res.matchedCount === 0) {
+            await ArtWork.updateOne({ _id: objectId(id) }, { $push: { views: { type, count: 1 } } });
+          }
+        });
+      }
 
       return res.status(200).send({
         data: artwork[0],
