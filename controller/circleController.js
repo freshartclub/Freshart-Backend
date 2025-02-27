@@ -432,15 +432,15 @@ const getCircleById = catchAsyncError(async (req, res) => {
 
   if (circle.length == 0) return res.status(400).send({ message: "Circle not found" });
 
-  if (view == "see") {
-    await Circle.updateOne({ _id: circle[0]._id }, { $inc: { viewCount: 1 } });
-  }
-
   const isMember = await Follower.exists({ circle: req.params.id, user: _id });
   const authorise = circle[0].managers.find((manager) => manager._id.toString() == _id);
 
   if (circle[0].type == "Private") {
     if (!authorise && !isMember) return res.status(400).send({ message: "Access Denied" });
+  }
+
+  if (view == "see" && !authorise) {
+    await Circle.updateOne({ _id: circle[0]._id }, { $inc: { viewCount: 1 } });
   }
 
   return res.status(200).send({ data: circle[0], followCount: followCount, authorise: authorise ? true : false, isMember: isMember ? true : false });
