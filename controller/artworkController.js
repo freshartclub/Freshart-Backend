@@ -455,7 +455,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     artworkCreationYear: req.body.artworkCreationYear,
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
-    isArtProvider: req.body.isArtProvider ? req.body.isArtProvider : "No",
+    isArtProvider: req.body.isArtProvider == "Yes" ? "Yes" : "No",
     artworkId: artworkData === null ? "ARW-" + generateRandomId() : artworkData?.artworkId,
     owner: artist._id,
   };
@@ -795,7 +795,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     artworkCreationYear: req.body.artworkCreationYear,
     artworkSeries: req.body.artworkSeries ? req.body.artworkSeries : "N/A",
     productDescription: req.body.productDescription,
-    isArtProvider: req.body.isArtProvider ? req.body.isArtProvider : "No",
+    isArtProvider: req.body.isArtProvider == "Yes" ? "Yes" : "No",
   };
 
   if (req.body?.isArtProvider === "Yes") {
