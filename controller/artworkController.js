@@ -2027,13 +2027,13 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
   type = type.toLowerCase();
   s = s ? s : "";
 
-  weight = weight.split(",");
+  // weight = weight.split(",");
   height = height.split(",");
   width = width.split(",");
   depth = depth ? depth.split(",") : [];
   price = price ? price.split(",") : [];
 
-  if (weight[0] == 0 && weight[1] == 300) weight = [];
+  // if (weight[0] == 0 && weight[1] == 300) weight = [];
   if (height[0] == 0 && height[1] == 300) height = [];
   if (width[0] == 0 && width[1] == 300) width = [];
   if (price[0] == 0 && price[1] == 10000) price = [];
@@ -2060,7 +2060,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(orientation && { "additionalInfo.artworkOrientation": orientation }),
     ...(comingsoon && { "inventoryShipping.comingSoon": comingsoon == "Yes" ? true : false }),
 
-    ...(weight.length > 0 && { "additionalInfo.weight": { $gte: Number(weight[0]), $lte: Number(weight[1]) } }),
+    // ...(weight.length > 0 && { "additionalInfo.weight": { $gte: Number(weight[0]), $lte: Number(weight[1]) } }),
     ...(height.length > 0 && { "additionalInfo.height": { $gte: Number(height[0]), $lte: Number(height[1]) } }),
     ...(width.length > 0 && { "additionalInfo.width": { $gte: Number(width[0]), $lte: Number(width[1]) } }),
     ...(depth.length > 0 && { "additionalInfo.length": { $gte: Number(depth[0]), $lte: Number(depth[1]) } }),
