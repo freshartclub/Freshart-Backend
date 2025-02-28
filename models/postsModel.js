@@ -9,6 +9,7 @@ const postSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    title: { type: String },
     content: { type: String },
     file: { type: String },
   },

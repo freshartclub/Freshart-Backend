@@ -497,14 +497,16 @@ const createPostInCircle = catchAsyncError(async (req, res) => {
   const fileData = await fileUploadFunc(req, res);
 
   if (req.body?.postId) {
-    const post = await Post.updateOne(
-      { _id: req.body.postId },
-      {
-        $set: {
-          content: req.body.content,
-        },
-      }
-    );
+    let obj = {
+      title: req.body.title,
+      content: req.body.content,
+    };
+
+    if (fileData?.data) {
+      obj["file"] = fileData?.data.circleFile[0].filename;
+    }
+
+    const post = await Post.updateOne({ _id: req.body.postId }, { $set: obj });
 
     if (post.modifiedCount === 0) {
       return res.status(400).send({ message: "Post Not Found" });
@@ -624,6 +626,7 @@ const getAllPostOfCircle = catchAsyncError(async (req, res) => {
         content: 1,
         createdAt: 1,
         file: 1,
+        title: 1,
         commentCount: 1,
         totalLikes: { $ifNull: [{ $arrayElemAt: ["$likesSummary.totalLikes", 0] }, 0] },
         reaction: {
@@ -726,7 +729,7 @@ const likePost = catchAsyncError(async (req, res) => {
   const post = await Post.exists({ _id: id });
   if (!post) return res.status(400).send({ message: "Post not found" });
 
-  const findLike = await Like.findOne({ post: id, owner: req.user._id });
+  const findLike = await Like.findOne({ post: id, owner: req.user._id }).lean();
 
   if (findLike) {
     if (findLike.reaction == req.body.reaction) {
