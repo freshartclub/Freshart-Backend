@@ -13,6 +13,7 @@ const {
   getArtistOrders,
   getAllOrders,
   giveReview,
+  getToken,
 } = require("../controller/orderController");
 
 const router = express.Router();
@@ -27,28 +28,18 @@ router.get("/get-artist-order", validateToken, getArtistOrders);
 
 router.get("/get-artist-single-order/:id", validateToken, getArtistSingleOrder);
 
-router.patch(
-  "/accept-order-request/:id",
-  validateToken,
-  acceptRejectOrderRequest
-);
+router.patch("/accept-order-request/:id", validateToken, acceptRejectOrderRequest);
 
 router.patch("/upload-evidence/:id", validateToken, uploadEvedience);
 
-router.patch(
-  "/cancel-particular-item/:id",
-  validateToken,
-  cancelParticularItemFromOrder
-);
+router.patch("/cancel-particular-item/:id", validateToken, cancelParticularItemFromOrder);
 
-router.get(
-  "/get-admin-order-detail/:id",
-  validateAdminToken,
-  getAdminOrderDetails
-);
+router.get("/get-admin-order-detail/:id", validateAdminToken, getAdminOrderDetails);
 
 router.get("/get-user-single-order/:id", validateToken, getUserSingleOrder);
 
 router.patch("/give-review/:id/:artworkId", validateToken, giveReview);
+
+router.get("/get-token", getToken);
 
 module.exports = router;

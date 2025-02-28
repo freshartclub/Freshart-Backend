@@ -1335,10 +1335,18 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
               },
             },
           ]
-        : [
+        : artworkType === "purchase"
+        ? [
             {
               $match: {
                 "commercialization.activeTab": { $eq: "purchase" },
+              },
+            },
+          ]
+        : [
+            {
+              $match: {
+                "commercialization.activeTab": { $in: ["purchase", "subscription"] },
               },
             },
           ]),

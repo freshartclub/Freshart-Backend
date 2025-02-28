@@ -5,11 +5,10 @@ const ArtWork = require("../models/artWorksModel");
 const objectId = require("mongoose").Types.ObjectId;
 const { fileUploadFunc } = require("../functions/common");
 const Order = require("../models/orderModel");
+const { getAccessToken } = require("../functions/getAccessToken");
 
 const createOrder = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { cart: 1 }).lean(
-    true
-  );
+  const user = await Artist.findOne({ _id: req.user._id }, { cart: 1 }).lean(true);
   if (!user) return res.status(400).send({ message: "User not found" });
   let items = [];
 
@@ -33,10 +32,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   let order;
   if (type === "purchase") {
     for (const item of items) {
-      const artWork = await ArtWork.findOne(
-        { _id: item.artWork },
-        { pricing: 1 }
-      ).lean(true);
+      const artWork = await ArtWork.findOne({ _id: item.artWork }, { pricing: 1 }).lean(true);
 
       if (!artWork) {
         return res.status(400).send({ message: "Artwork not found" });
@@ -88,14 +84,9 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   }
 
   const itemIds = items.map((item) => objectId(item.artWork));
-  await Artist.updateOne(
-    { _id: user._id },
-    { $pull: { cart: { item: { $in: itemIds } } } }
-  );
+  await Artist.updateOne({ _id: user._id }, { $pull: { cart: { item: { $in: itemIds } } } });
 
-  return res
-    .status(200)
-    .send({ message: "Order Created Successfully", data: order });
+  return res.status(200).send({ message: "Order Created Successfully", data: order });
 });
 
 const getAllOrders = catchAsyncError(async (req, res, next) => {
@@ -301,14 +292,9 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
 const getArtistOrders = catchAsyncError(async (req, res, next) => {
   const loggedUserId = req.user._id;
 
-  const user = await Artist.findOne({ _id: loggedUserId }, { role: 1 }).lean(
-    true
-  );
+  const user = await Artist.findOne({ _id: loggedUserId }, { role: 1 }).lean(true);
   if (!user) return res.status(400).send({ message: "Artist not found" });
-  if (user.role !== "artist")
-    return res
-      .status(400)
-      .send({ message: "You are not authorized to access this page" });
+  if (user.role !== "artist") return res.status(400).send({ message: "You are not authorized to access this page" });
 
   const orders = await Order.aggregate([
     {
@@ -368,8 +354,7 @@ const getArtistOrders = catchAsyncError(async (req, res, next) => {
 const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
-  if (!id)
-    return res.status(400).send({ message: "Please provide valid order id" });
+  if (!id) return res.status(400).send({ message: "Please provide valid order id" });
 
   const artistId = req.user._id;
   const artist = await Artist.countDocuments({ _id: artistId }).lean(true);
@@ -484,8 +469,7 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   const { artworkId } = req.query;
 
-  if (!id || !artworkId)
-    return res.status(400).send({ message: "Please provide valid orderId" });
+  if (!id || !artworkId) return res.status(400).send({ message: "Please provide valid orderId" });
 
   const order = await Order.aggregate([
     {
@@ -545,9 +529,7 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
 
   const getArtwork = order.find((item) => item.items.artWork._id == artworkId);
 
-  const getOtherArtwork = order.filter(
-    (item) => item.items.artWork._id != artworkId
-  );
+  const getOtherArtwork = order.filter((item) => item.items.artWork._id != artworkId);
 
   return res.status(200).send({
     foundArt: getArtwork,
@@ -561,8 +543,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
 
   if (!id) return res.status(404).send({ message: "OrderId not found" });
 
-  if (status !== "accept" && status !== "reject")
-    return res.status(400).send({ message: "Please provide valid status" });
+  if (status !== "accept" && status !== "reject") return res.status(400).send({ message: "Please provide valid status" });
 
   if (status === "accept") {
     status = "accepted";
@@ -677,8 +658,7 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
 
   let imgArr = [];
   const fileData = await fileUploadFunc(req, res);
-  if (fileData.status === 400)
-    return res.status(400).send({ message: "Please provide evidence image" });
+  if (fileData.status === 400) return res.status(400).send({ message: "Please provide evidence image" });
 
   if (fileData.data?.evidenceImg) {
     fileData.data?.evidenceImg.forEach((img) => imgArr.push(img.filename));
@@ -686,8 +666,7 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
 
   const { artworkId } = req.body;
 
-  if (!artworkId)
-    return res.status(400).send({ message: "Please provide artworkId" });
+  if (!artworkId) return res.status(400).send({ message: "Please provide artworkId" });
 
   const existingImg = await Order.findOne(
     {
@@ -697,9 +676,7 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
     { items: 1 }
   ).lean(true);
 
-  const selectedItem = existingImg.items.find(
-    (item) => item.artWork.toString() === artworkId
-  );
+  const selectedItem = existingImg.items.find((item) => item.artWork.toString() === artworkId);
 
   if (selectedItem.evidenceImg && selectedItem.evidenceImg.length > 0) {
     for (let i = 0; i < selectedItem.evidenceImg.length; i++) {
@@ -707,59 +684,47 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  await Order.updateOne(
-    { _id: id, "items.artWork": objectId(artworkId) },
-    { $set: { "items.$.evidenceImg": imgArr } }
-  );
+  await Order.updateOne({ _id: id, "items.artWork": objectId(artworkId) }, { $set: { "items.$.evidenceImg": imgArr } });
 
   return res.status(200).send({ message: "Evidence Uploaded" });
 });
 
-const cancelParticularItemFromOrder = catchAsyncError(
-  async (req, res, next) => {
-    const { id } = req.params;
-    if (!id) return res.status(404).send({ message: "OrderId not found" });
+const cancelParticularItemFromOrder = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) return res.status(404).send({ message: "OrderId not found" });
 
-    const { reason, description, artworkId, title } = req.body;
-    if (!artworkId)
-      return res.status(400).send({ message: "Please provide artworkId" });
+  const { reason, description, artworkId, title } = req.body;
+  if (!artworkId) return res.status(400).send({ message: "Please provide artworkId" });
 
-    let obj = {
-      reason: reason,
-      description: description,
-    };
+  let obj = {
+    reason: reason,
+    description: description,
+  };
 
-    const alreadyCancelled = await Order.findOne({
-      _id: id,
-      "items.artWork": objectId(artworkId),
-      "items.isCancelled": true,
-    });
+  const alreadyCancelled = await Order.findOne({
+    _id: id,
+    "items.artWork": objectId(artworkId),
+    "items.isCancelled": true,
+  });
 
-    if (alreadyCancelled) {
-      return res.status(400).send({ message: "Item already cancelled" });
-    }
-
-    await OrderModel.updateOne(
-      { _id: id, "items.artWork": objectId(artworkId) },
-      { $set: { "items.$.isCancelled": true, "items.$.cancelReason": obj } }
-    );
-
-    return res
-      .status(200)
-      .send({ message: `Artwork - "${title}" cancelled successfully` });
+  if (alreadyCancelled) {
+    return res.status(400).send({ message: "Item already cancelled" });
   }
-);
+
+  await OrderModel.updateOne(
+    { _id: id, "items.artWork": objectId(artworkId) },
+    { $set: { "items.$.isCancelled": true, "items.$.cancelReason": obj } }
+  );
+
+  return res.status(200).send({ message: `Artwork - "${title}" cancelled successfully` });
+});
 
 const giveReview = catchAsyncError(async (req, res, next) => {
   const { id, artworkId } = req.params;
-  if (!id || !artworkId)
-    return res.status(404).send({ message: "OrderId not found" });
+  if (!id || !artworkId) return res.status(404).send({ message: "OrderId not found" });
 
   const { rating, review } = req.body;
-  if (!rating || !review)
-    return res
-      .status(400)
-      .send({ message: "Please provide rating and review" });
+  if (!rating || !review) return res.status(400).send({ message: "Please provide rating and review" });
 
   const updateResult = await Order.updateOne(
     { _id: id, "items.artWork": objectId(artworkId) },
@@ -778,6 +743,12 @@ const giveReview = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ message: "Review given successfully" });
 });
 
+const getToken = catchAsyncError(async (req, res, next) => {
+  const token = await getAccessToken();
+
+  return res.status(200).send({ token: token });
+});
+
 module.exports = {
   createOrder,
   getAllOrders,
@@ -790,4 +761,5 @@ module.exports = {
   getAdminOrderDetails,
   getUserSingleOrder,
   giveReview,
+  getToken,
 };
