@@ -514,12 +514,19 @@ const createPostInCircle = catchAsyncError(async (req, res) => {
 
     return res.status(200).send({ message: "Post Editted" });
   } else {
+    let images = [];
+
+    if (fileData?.data && fileData?.data?.circleFile.length > 0) {
+      images = fileData.data.circleFile.map((image) => image.filename);
+    }
+
     await Promise.all([
       Post.create({
         circle: circle._id,
+        title: req.body.title,
         owner: req.user._id,
         content: req.body.content,
-        file: fileData.data?.circleFile[0]?.filename,
+        file: images,
       }),
       Circle.updateOne({ _id: circle._id }, { $inc: { postCount: 1 } }),
     ]);

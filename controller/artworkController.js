@@ -1888,17 +1888,47 @@ const getRecentlyView = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const artworks = await ArtWork.find(
-    { _id: { $in: recentViewed.artworks } },
+  const artworks = await ArtWork.aggregate([
     {
-      media: 1,
-      artworkName: 1,
-      additionalInfo: 1,
-      discipline: 1,
-    }
-  )
-    .populate("owner", "artistName artistSurname1 artistSurname2")
-    .lean();
+      $match: {
+        _id: { $in: recentViewed.artworks },
+        status: "published",
+      },
+    },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "owner",
+        foreignField: "_id",
+        as: "artist",
+      },
+    },
+    {
+      $unwind: {
+        path: "$artist",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        status: 1,
+        artworkId: 1,
+        owner: {
+          artistName: "$artist.artistName",
+          artistSurname1: "$artist.artistSurname1",
+          artistSurname2: "$artist.artistSurname2",
+        },
+        offensive: "$additionalInfo.offensive",
+        artworkName: 1,
+        media: "$media.mainImage",
+        additionalInfo: 1,
+        pricing: 1,
+        inventoryShipping: 1,
+        discipline: 1,
+      },
+    },
+  ]);
 
   res.status(200).send({ data: artworks });
 });
@@ -2068,7 +2098,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(tag && { "tags.extTags": { $regex: tag, $options: "i" } }),
     ...(discount && { "pricing.dpersentage": discount == "Yes" ? { $gt: 0 } : { $eq: 0 } }),
     ...(purchase && { "commercialization.purchaseType": purchase }),
-    ...(purchaseOption && type == "subscription" && { "commercialization.purchaseOption": purchaseOption == "Yes" }),
+    ...(purchaseOption && type == "subscription" && { "commercialization.purchaseOption": purchaseOption }),
   };
 
   const totalCount = await ArtWork.countDocuments(matchStage);

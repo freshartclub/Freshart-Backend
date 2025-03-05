@@ -11,7 +11,7 @@ const postSchema = new mongoose.Schema(
     },
     title: { type: String },
     content: { type: String },
-    file: { type: String },
+    file: [{ type: String }],
   },
   {
     timestamps: true,
@@ -19,7 +19,5 @@ const postSchema = new mongoose.Schema(
 );
 
 postSchema.index({ circle: 1 });
-
-postSchema.index({ circle: 1, _id: 1 });
 
 module.exports = mongoose.model("Post", postSchema);

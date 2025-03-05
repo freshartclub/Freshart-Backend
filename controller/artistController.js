@@ -1590,7 +1590,7 @@ const getUnAutorisedCartItems = async (req, res) => {
 
     if (ids.length > 0) {
       const data = await Artwork.aggregate([
-        { $match: { _id: { $in: ids } } },
+        { $match: { _id: { $in: ids } }, status: "published" },
         {
           $project: {
             _id: 1,

@@ -222,6 +222,12 @@ const artistSchema = new mongoose.Schema(
       default: 0,
     },
     passwordLinkToken: { type: String },
+    wallet: {
+      id: { type: String },
+      access_token: { type: String },
+      time_created: { type: String },
+      seconds_to_expire: { type: String },
+    },
     referralCode: { type: String },
   },
   {
@@ -230,6 +236,5 @@ const artistSchema = new mongoose.Schema(
 );
 
 artistSchema.index({ email: 1 }, { unique: true });
-artistSchema.index({ _id: 1, isDeleted: 1 });
 
 module.exports = mongoose.model("Artist", artistSchema);

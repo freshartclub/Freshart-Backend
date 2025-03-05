@@ -14,6 +14,14 @@ const storage = multer.diskStorage({
       }
     }
 
+    if (file?.fieldname === "circleFile") {
+      if (file.mimetype === "image/jpg" || file.mimetype === "image/png" || file.mimetype === "image/jpeg" || file.mimetype === "image/webp") {
+        return cb(null, "./public/uploads/users");
+      } else {
+        return cb(null, "./public/uploads/videos");
+      }
+    }
+
     if (file?.fieldname === "ticketImg") {
       if (file.mimetype === "image/jpg" || file.mimetype === "image/png" || file.mimetype === "image/jpeg" || file.mimetype === "image/webp") {
         return cb(null, "./public/uploads/users");
@@ -90,6 +98,12 @@ const fileFilter = (req, file, cb) => {
     }
   }
 
+  if (file?.fieldname === "circleFile") {
+    if (videoMimeTypes.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
+      return cb(null, true);
+    }
+  }
+
   if (file?.fieldname === "ticketImg") {
     if (docMimeTypes.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
       return cb(null, true);
@@ -133,7 +147,7 @@ const upload = multer({
   { name: "evidenceImg", maxCount: 5 },
   { name: "planImg", maxCount: 1 },
   { name: "carouselImg", maxCount: 1 },
-  { name: "circleFile", maxCount: 1 },
+  { name: "circleFile", maxCount: 5 },
 ]);
 
 const processImages = async (req, res) => {

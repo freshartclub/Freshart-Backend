@@ -19,9 +19,7 @@ module.exports.createLog = (logName) => {
 
 module.exports.generateRandomId = (user) => {
   try {
-    const characters = user
-      ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-      : "0123456789";
+    const characters = user ? "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789" : "0123456789";
 
     const length = user ? 8 : 10;
     let result = "";
