@@ -5,19 +5,7 @@ const ArtWork = require("../models/artWorksModel");
 const objectId = require("mongoose").Types.ObjectId;
 const { fileUploadFunc } = require("../functions/common");
 const Order = require("../models/orderModel");
-const axios = require("axios");
-const { getAccessToken, getSingleAccessToken } = require("../functions/getAccessToken");
-
-function isWalletExpired(wallet) {
-  const { time_created, seconds_to_expire } = wallet;
-
-  const createdAt = new Date(time_created);
-  const expiresInMs = seconds_to_expire * 1000;
-  const expirationTime = createdAt.getTime() + expiresInMs;
-  const currentTime = Date.now();
-
-  return currentTime >= expirationTime;
-}
+const crypto = require("crypto");
 
 const createOrder = catchAsyncError(async (req, res, next) => {
   const user = await Artist.findOne({ _id: req.user._id }, { cart: 1, wallet: 1 }).lean(true);
@@ -759,165 +747,16 @@ const giveReview = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ message: "Review given successfully" });
 });
 
-const getPayToken = catchAsyncError(async (req, res, next) => {
-  const _id = req.user._id;
-  if (!_id) return res.status(404).send({ message: "User not found" });
+const generateHash = catchAsyncError(async (req, res, next) => {
+  const { time, merchantId, orderId, amount, currency } = req.query;
 
-  const token = await getSingleAccessToken();
-  return res.status(200).send({ data: token.token });
-});
+  const hashString = `${time}.${merchantId}.${orderId}.${amount}.${currency}`;
+  const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
 
-const getToken = catchAsyncError(async (req, res, next) => {
-  const token = await getAccessToken();
+  const finalString = `${hash1}.${process.env.SECRET}`;
+  const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
 
-  const { number, expiry_month, expiry_year, cvv } = req.body;
-
-  if (!number || !expiry_month || !expiry_year || !cvv) {
-    return res.status(400).json({ error: "Card details are required" });
-  }
-
-  function generateReference() {
-    const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
-    let ref = "";
-
-    for (let i = 0; i < 12; i++) {
-      if (i > 0 && i % 4 === 0) ref += "-";
-      ref += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-
-    return ref;
-  }
-
-  const randomReference = generateReference();
-
-  const data = {
-    account_name: "tokenization",
-    name: "Rachit's Method",
-    reference: `${randomReference}`,
-    card: {
-      number: number,
-      expiry_month: expiry_month,
-      expiry_year: expiry_year,
-      cvv: cvv,
-    },
-  };
-
-  const response = await axios.post("https://apis.sandbox.globalpay.com/ucp/payment-methods", data, {
-    headers: {
-      Authorization: `Bearer ${token.token}`,
-      "Content-Type": "application/json",
-      "X-GP-Version": "2021-03-22",
-    },
-  });
-
-  const authData = {
-    account_name: "transaction_processing",
-    account_id: "TRA_c9967ad7d8ec4b46b6dd44a61cde9a91",
-    reference: randomReference,
-    channel: "CNP",
-    amount: "1999",
-    currency: "EUR",
-    country: "GB",
-    payment_method: {
-      id: response.data.id,
-    },
-    notifications: {
-      challenge_return_url: "https://ensi808o85za.x.pipedream.net/",
-      three_ds_method_return_url: "https://ensi808o85za.x.pipedream.net/",
-    },
-  };
-
-  const genrateAuth = await axios.post("https://apis.sandbox.globalpay.com/ucp/authentications", authData, {
-    headers: {
-      authorization: `Bearer ${token.token}`,
-      "content-type": "application/json",
-      "x-gp-version": "2021-03-22",
-    },
-  });
-
-  const payData = {
-    account_name: genrateAuth.data.account_name,
-    type: genrateAuth.data.transaction_type,
-    channel: genrateAuth.data.channel,
-    amount: genrateAuth.data.amount,
-    currency: genrateAuth.data.currency,
-    reference: genrateAuth.data.reference,
-    country: genrateAuth.data.country,
-    payment_method: {
-      name: "James Mason",
-      id: response.data.id,
-      entry_mode: "ECOM",
-      authentication: {
-        id: genrateAuth.data.id,
-      },
-    },
-  };
-
-  const makePayment = await axios.post("https://apis.sandbox.globalpay.com/ucp/transactions", payData, {
-    headers: {
-      accept: "application/json",
-      Authorization: `Bearer ${token.token}`,
-      "Content-type": "application/json",
-      "x-gp-version": "2021-03-22",
-    },
-  });
-
-  return res.status(200).send({ token: token.token, order: makePayment.data });
-});
-
-const captureTransaction = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { cart: 1 }).lean(true);
-  if (!user) return res.status(400).send({ message: "User not found" });
-
-  if (user.cart.length == 0) return res.status(400).send({ message: "Your Cart is empty" });
-
-  const { type, pmt_ref } = req.body;
-
-  let subTotal = 0;
-  let totalDiscount = 0;
-  let total = 0;
-
-  if (type === "purchase") {
-    for (const item of user.cart) {
-      const artwork = await ArtWork.findOne({ _id: item.item, "commercialization.activeTab": "purchase" }, { pricing: 1 }).lean(true);
-      if (!artwork) return res.status(400).send({ message: "Artwork not found or not available for purchase" });
-
-      const itemTotal = Number(artwork.pricing.basePrice) * item.quantity;
-      const itemDiscount = (artwork.pricing.dpersentage / 100) * itemTotal;
-      subTotal += itemTotal;
-      totalDiscount += itemDiscount;
-    }
-
-    total = subTotal - totalDiscount + req.body.shipping;
-    const taxAmount = (total * Number(req.body.tax)) / 100;
-    total = total + taxAmount;
-  }
-
-  const token = await getAccessToken();
-
-  const data = {
-    amount: "1999",
-    gratuity_amount: "1999",
-    capture_sequence: "FIRST",
-  };
-
-  const id = "TRN_4eG2VVVmNGwB3spvJ3HSeps92D5Stb_bu-n8pj-15jj";
-  let makePayment;
-  try {
-    const makePayment = await axios.post(`https://apis.sandbox.globalpay.com/ucp/transactions/${id}/capture`, data, {
-      headers: {
-        accept: "application/json",
-        Authorization: `Bearer ${token.token}`,
-        "Content-type": "application/json",
-        "x-gp-version": "2021-03-22",
-      },
-    });
-    console.log(makePayment.data);
-  } catch (error) {
-    console.log(error);
-  }
-
-  return res.status(200).send({ token: token.token, order: makePayment.data });
+  return res.status(200).send({ data: sha1Hash });
 });
 
 module.exports = {
@@ -932,7 +771,5 @@ module.exports = {
   getAdminOrderDetails,
   getUserSingleOrder,
   giveReview,
-  getToken,
-  getPayToken,
-  captureTransaction,
+  generateHash,
 };

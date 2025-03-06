@@ -13,9 +13,7 @@ const {
   getArtistOrders,
   getAllOrders,
   giveReview,
-  getToken,
-  captureTransaction,
-  getPayToken,
+  generateHash,
 } = require("../controller/orderController");
 
 const router = express.Router();
@@ -42,10 +40,6 @@ router.get("/get-user-single-order/:id", validateToken, getUserSingleOrder);
 
 router.patch("/give-review/:id/:artworkId", validateToken, giveReview);
 
-router.get("/get-token", getToken);
-
-router.get("/get-pay-token", validateToken, getPayToken);
-
-router.post("/capture", captureTransaction);
+router.get("/hash", generateHash);
 
 module.exports = router;

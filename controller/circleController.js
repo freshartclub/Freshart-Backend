@@ -497,14 +497,30 @@ const createPostInCircle = catchAsyncError(async (req, res) => {
   const fileData = await fileUploadFunc(req, res);
 
   if (req.body?.postId) {
+    let files = [];
     let obj = {
       title: req.body.title,
       content: req.body.content,
     };
 
-    if (fileData?.data) {
-      obj["file"] = fileData?.data.circleFile[0].filename;
+    if (req.body.existingFiles) {
+      if (typeof req.body.existingFiles === "string") {
+        const filename = req.body.existingFiles.split("/").pop();
+        files.push(filename);
+      } else {
+        req.body.existingFiles.forEach((item) => {
+          files.push(item.split("/").pop());
+        });
+      }
     }
+
+    if (fileData?.data !== undefined) {
+      fileData?.data.circleFile.forEach((item) => {
+        files.push(item.filename);
+      });
+    }
+
+    obj["file"] = files;
 
     const post = await Post.updateOne({ _id: req.body.postId }, { $set: obj });
 
