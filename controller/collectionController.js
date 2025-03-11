@@ -21,6 +21,7 @@ const addCollection = catchAsyncError(async (req, res, next) => {
 
   if (id !== undefined) {
     const isExist = await Collection.countDocuments({
+      _id: { $ne: id },
       collectionName: req.body.collectionName,
     }).lean(true);
 
@@ -283,10 +284,23 @@ const restoreCollection = catchAsyncError(async (req, res, next) => {
 // --------------------------- User Side (Frontend) ----------------------
 
 const getUserSideCollections = catchAsyncError(async (req, res, next) => {
+  let { s, limit = 5, currPage = 1 } = req.query;
+
+  limit = parseInt(limit);
+  currPage = parseInt(currPage);
+  const skip = (currPage - 1) * limit;
+
+  const totalCollections = await Collection.countDocuments({ isDeleted: false });
+
   const collection = await Collection.aggregate([
     {
       $match: {
         isDeleted: false,
+        $or: [
+          { collectionName: { $regex: s, $options: "i" } },
+          { collectionTags: { $regex: s, $options: "i" } },
+          { "expertDetails.createdBy": { $regex: s, $options: "i" } },
+        ],
       },
     },
     {
@@ -298,13 +312,30 @@ const getUserSideCollections = catchAsyncError(async (req, res, next) => {
         status: 1,
         isDeleted: 1,
         collectionTags: 1,
+        expertDetails: 1,
         createdAt: 1,
       },
     },
     { $sort: { createdAt: -1 } },
+    { $skip: skip },
+    { $limit: limit },
   ]);
 
-  res.status(200).send({ data: collection });
+  let totalPage = 1;
+  if (s) {
+    if (collection.length <= limit) {
+      totalPage = 1;
+    } else {
+      totalPage = Math.ceil(collection.length / limit);
+    }
+  }
+
+  res.status(200).send({
+    data: collection,
+    totalCollections,
+    totalPages: s ? totalPage : Math.ceil(totalCollections / limit),
+    currentPage: currPage,
+  });
 });
 
 const getUserSideCollectionById = catchAsyncError(async (req, res, next) => {
@@ -326,6 +357,7 @@ const getUserSideCollectionById = catchAsyncError(async (req, res, next) => {
         from: "artworks",
         localField: "artworkList.artworkId",
         foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artworkName: 1, media: "$media.mainImage" } }],
         as: "arts",
       },
     },
@@ -339,14 +371,26 @@ const getUserSideCollectionById = catchAsyncError(async (req, res, next) => {
         isDeleted: 1,
         collectionTags: 1,
         createdAt: 1,
-        artworks: {
+        expertDetails: 1,
+        artworkList: {
           $map: {
-            input: "$arts",
-            as: "art",
+            input: "$artworkList",
+            as: "artItem",
             in: {
-              _id: "$$art._id",
-              artworkName: "$$art.artworkName",
-              media: "$$art.media.mainImage",
+              _id: "$$artItem.artworkId",
+              artworkDesc: "$$artItem.artworkDesc",
+              artworkDetails: {
+                $arrayElemAt: [
+                  {
+                    $filter: {
+                      input: "$arts",
+                      as: "art",
+                      cond: { $eq: ["$$art._id", "$$artItem.artworkId"] },
+                    },
+                  },
+                  0,
+                ],
+              },
             },
           },
         },

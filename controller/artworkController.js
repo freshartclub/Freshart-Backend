@@ -2227,6 +2227,44 @@ const getArtworkGroupBySeries = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const getOtherArtworks = catchAsyncError(async (req, res, next) => {
+  const { id, discipline, style, theme, subscription } = req.query;
+
+  console.log(req.query);
+
+  const artworks = await ArtWork.aggregate([
+    {
+      $match: {
+        owner: { $ne: objectId(id) },
+        isDeleted: false,
+        status: "published",
+        ...(discipline && { "discipline.artworkDiscipline": discipline }),
+        ...(style && { "additionalInfo.artworkStyle": style }),
+        ...(theme && { "additionalInfo.artworkTheme": theme }),
+        // ...(subscription && { "commercialization.subscription": subscription }),
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        status: 1,
+        mainImage: "$media.mainImage",
+        artworkName: 1,
+        discipline: "$discipline.artworkDiscipline",
+        additionalInfo: 1,
+        pricing: 1,
+        commercialization: 1,
+        owner: 1,
+        status: 1,
+      },
+    },
+  ]);
+
+  res.status(200).send({
+    data: artworks,
+  });
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
@@ -2247,4 +2285,5 @@ module.exports = {
   artistModifyArtwork,
   getAllArtworks,
   getArtworkGroupBySeries,
+  getOtherArtworks,
 };

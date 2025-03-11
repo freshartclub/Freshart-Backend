@@ -759,6 +759,13 @@ const generateHash = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ data: sha1Hash });
 });
 
+const getData = catchAsyncError(async (req, res, next) => {
+  console.log("rtdyfugh");
+  console.log(req.body);
+
+  return res.status(200).send({ data: req.body });
+});
+
 module.exports = {
   createOrder,
   getAllOrders,
@@ -771,5 +778,6 @@ module.exports = {
   getAdminOrderDetails,
   getUserSingleOrder,
   giveReview,
+  getData,
   generateHash,
 };

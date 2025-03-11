@@ -41,6 +41,7 @@ const {
   getUserPlans,
   checkArtistToken,
   getUnAutorisedCartItems,
+  getInsignia,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -56,6 +57,7 @@ const {
   artistModifyArtwork,
   getAllArtworks,
   getArtworkGroupBySeries,
+  getOtherArtworks,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
@@ -131,7 +133,9 @@ router.post("/add-artwork/:id?", validateToken, artistCreateArtwork);
 
 router.patch("/modify-artwork/:id", validateToken, artistModifyArtwork);
 
-router.get("/get-all-artists", validateToken, getActivedArtists);
+router.get("/get-all-artists", getActivedArtists);
+
+router.get("/get-insignias", getInsignia);
 
 router.get("/get-artwork/:id", getArtworkById);
 
@@ -144,6 +148,8 @@ router.get("/get-home-artworks", getHomeArtwork);
 router.post("/add-to-recent/:id", validateToken, addToRecentView);
 
 router.get("/get-recent-view", validateToken, getRecentlyView);
+
+router.get("/get-other-artworks", getOtherArtworks);
 
 router.patch("/add-to-cart/:id", validateToken, addToCart);
 

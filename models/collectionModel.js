@@ -40,4 +40,7 @@ const collectionSchema = new mongoose.Schema(
   }
 );
 
+collectionSchema.index({ isDeleted: 1 });
+collectionSchema.index({ collectionName: 1 });
+
 module.exports = mongoose.model("Collection", collectionSchema);

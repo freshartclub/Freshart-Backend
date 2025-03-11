@@ -12,6 +12,7 @@ const axios = require("axios");
 const EmailType = require("../models/emailTypeModel");
 const Notification = require("../models/notificationModel");
 const Plan = require("../models/plansModel");
+const Insignia = require("../models/insigniasModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -1417,26 +1418,90 @@ const ticketFeedback = async (req, res) => {
 
 const getActivedArtists = async (req, res) => {
   try {
-    const artists = await Artist.find(
+    let { s, cred, discipline, style, letter, sort, limit = 15, currPage = 1 } = req.query;
+
+    limit = parseInt(limit);
+    currPage = parseInt(currPage);
+    sort = sort === "A-Z" ? { artistName: 1 } : sort === "Z-A" ? { artistName: -1 } : { createdAt: -1 };
+    const skip = (currPage - 1) * limit;
+
+    const totalArtist = await Artist.countDocuments({ isDeleted: false, isActivated: true });
+
+    const artists = await Artist.aggregate([
       {
-        isActivated: true,
-        isDeleted: false,
+        $lookup: {
+          from: "insignias",
+          localField: "insignia",
+          foreignField: "_id",
+          pipeline: [{ $project: { credentialName: 1 } }],
+          as: "insig",
+        },
       },
       {
-        artistName: 1,
-        artistSurname1: 1,
-        artistSurname2: 1,
-        aboutArtist: 1,
-        profile: 1,
-      }
-    ).lean(true);
+        $match: {
+          isActivated: true,
+          isDeleted: false,
+          ...(s && {
+            $or: [
+              { artistName: { $regex: s, $options: "i" } },
+              { artistSurname1: { $regex: s, $options: "i" } },
+              { artistSurname2: { $regex: s, $options: "i" } },
+              { "otherTags.extTags": { $regex: s, $options: "i" } },
+            ],
+          }),
+          ...(discipline && { "aboutArtist.discipline.discipline": { $regex: discipline, $options: "i" } }),
+          ...(style && { "aboutArtist.discipline.style": { $regex: style, $options: "i" } }),
+          ...(cred && { insig: { $elemMatch: { credentialName: { $regex: cred, $options: "i" } } } }),
+          ...(letter && { artistName: { $regex: `^${letter}`, $options: "i" } }),
+        },
+      },
+      {
+        $project: {
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          aboutArtist: 1,
+          profile: 1,
+        },
+      },
+      { $sort: sort },
+      { $skip: skip },
+      { $limit: limit },
+    ]);
 
-    return res.status(200).send({
-      artists: artists,
-      url: "https://dev.freshartclub.com/images",
+    const totalPages = s || cred || discipline || style || letter ? Math.ceil(artists.length / limit) : Math.ceil(totalArtist / limit);
+
+    res.status(200).send({
+      artists,
+      totalPages,
+      currentPage: currPage,
     });
   } catch (error) {
     return res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getInsignia = async (req, res) => {
+  try {
+    const insignia = await Insignia.aggregate([
+      {
+        $match: {
+          isDeleted: false,
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          credentialName: 1,
+          insigniaImage: 1,
+        },
+      },
+      { $sort: { credentialName: -1 } },
+    ]);
+
+    return res.status(200).json({ data: insignia });
+  } catch (error) {
+    return res.status(500).json({ message: "Something went wrong" });
   }
 };
 
@@ -1950,4 +2015,5 @@ module.exports = {
   markReadNotification,
   deleteNotification,
   getUserPlans,
+  getInsignia,
 };

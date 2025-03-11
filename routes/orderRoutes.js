@@ -14,6 +14,7 @@ const {
   getAllOrders,
   giveReview,
   generateHash,
+  getData,
 } = require("../controller/orderController");
 
 const router = express.Router();
@@ -41,5 +42,7 @@ router.get("/get-user-single-order/:id", validateToken, getUserSingleOrder);
 router.patch("/give-review/:id/:artworkId", validateToken, giveReview);
 
 router.get("/hash", generateHash);
+
+router.post("/success", getData);
 
 module.exports = router;
