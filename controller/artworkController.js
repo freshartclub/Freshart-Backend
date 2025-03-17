@@ -1448,6 +1448,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           artworkId: 1,
           isHighlighted: 1,
           isArtProvider: 1,
+          exclusive: 1,
           provideArtistName: 1,
           owner: {
             _id: "$ownerInfo._id",
@@ -2118,6 +2119,8 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     discount,
     purchase,
     purchaseOption,
+    exclusive,
+    // newArt,
   } = req.query;
 
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
@@ -2172,10 +2175,12 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(discount && { "pricing.dpersentage": discount == "Yes" ? { $gt: 0 } : { $eq: 0 } }),
     ...(purchase && { "commercialization.purchaseType": purchase }),
     ...(purchaseOption && type == "subscription" && { "commercialization.purchaseOption": purchaseOption }),
+    ...(exclusive === "Yes" ? { exclusive: true } : exclusive === "No" ? { exclusive: { $exists: false } } : {}),
+    // ...(newArt && { createdAt: { $gte: new Date(new Date().setDate(new Date().getDate() - 30)) } }),
   };
 
   const totalCount = await ArtWork.countDocuments(matchStage);
-
+  a;
   if (cursor) {
     if (direction === "next") {
       matchStage._id = { $lt: objectId(cursor) };

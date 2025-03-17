@@ -904,28 +904,43 @@ const getArtistDetailById = async (req, res) => {
   }
 
   try {
-    const artist = await Artist.findOne(
+    const artist = await Artist.aggregate([
       {
-        _id: req.params.id,
-        isDeleted: false,
+        $match: {
+          _id: objectId(req.params.id),
+          isDeleted: false,
+        },
       },
       {
-        _id: 1,
-        artistName: 1,
-        artistSurname1: 1,
-        artistSurname2: 1,
-        phone: 1,
-        email: 1,
-        aboutArtist: 1,
-        links: 1,
-        profile: 1,
-        highlights: 1,
-      }
-    )
-      .populate("insignia", "credentialName insigniaImage")
-      .lean(true);
+        $lookup: {
+          from: "insignias",
+          localField: "insignia",
+          foreignField: "_id",
+          pipeline: [{ $project: { _id: 1, insigniaImage: 1, credentialName: 1 } }],
+          as: "insignia",
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          artistName: 1,
+          artistSurname1: 1,
+          artistSurname2: 1,
+          phone: 1,
+          email: 1,
+          aboutArtist: 1,
+          links: 1,
+          profile: {
+            mainImage: "$profile.mainImage",
+            mainVideo: "$profile.mainVideo",
+          },
+          highlights: 1,
+          insignia: 1,
+        },
+      },
+    ]);
 
-    if (!artist) {
+    if (artist.length === 0) {
       return res.status(400).send({ message: "Artist not found" });
     }
 
@@ -937,7 +952,6 @@ const getArtistDetailById = async (req, res) => {
           owner: objectId(req.params.id),
         },
       },
-
       {
         $project: {
           _id: 1,
@@ -960,9 +974,8 @@ const getArtistDetailById = async (req, res) => {
     ]);
 
     res.status(200).send({
-      artist: artist,
+      artist: artist[0],
       artworks: artistArtworks,
-      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     APIErrorLog.error(error);
