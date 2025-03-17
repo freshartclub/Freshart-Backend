@@ -2180,7 +2180,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
   };
 
   const totalCount = await ArtWork.countDocuments(matchStage);
-  a;
+
   if (cursor) {
     if (direction === "next") {
       matchStage._id = { $lt: objectId(cursor) };
