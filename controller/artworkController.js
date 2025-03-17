@@ -1393,7 +1393,6 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
   let artworks = [];
 
   if (req.user?.roles && req.user?.roles === "superAdmin") {
-    console.log(id);
     artwork = await ArtWork.aggregate([
       {
         $match: {
@@ -1502,6 +1501,9 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
             from: "artists",
             localField: "owner",
             foreignField: "_id",
+            pipeline: [
+              { $project: { _id: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, aboutArtist: 1, address: 1, profile: 1, insignia: 1 } },
+            ],
             as: "ownerInfo",
           },
         },
@@ -1520,28 +1522,59 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           $unwind: { path: "$catalogInfo", preserveNullAndEmptyArrays: true },
         },
         {
+          $lookup: {
+            from: "insignias",
+            localField: "ownerInfo.insignia",
+            foreignField: "_id",
+            pipeline: [{ $project: { credentialName: 1, insigniaImage: 1 } }],
+            as: "insig",
+          },
+        },
+        {
           $project: {
             _id: 1,
             status: 1,
             artworkId: 1,
+            commingSoon: "$inventoryShipping.comingSoon",
             views: 1,
             owner: {
               _id: "$ownerInfo._id",
               artistName: "$ownerInfo.artistName",
-              // artistId: "$ownerInfo.artistId",
               artistSurname1: "$ownerInfo.artistSurname1",
               artistSurname2: "$ownerInfo.artistSurname2",
               address: { city: "$ownerInfo.address.city", country: "$ownerInfo.address.country" },
               aboutArtist: "$ownerInfo.aboutArtist",
+              insignia: "$insig",
               profile: "$ownerInfo.profile.mainImage",
             },
             artworkName: 1,
             artworkCreationYear: 1,
             artworkSeries: 1,
             productDescription: 1,
+            inventoryShipping: {
+              packageHeight: "$inventoryShipping.packageHeight",
+              packageLength: "$inventoryShipping.packageLength",
+              packageMaterial: "$inventoryShipping.packageMaterial",
+              packageWeight: "$inventoryShipping.packageWeight",
+              packageWidth: "$inventoryShipping.packageWidth",
+            },
             media: 1,
             discipline: "$discipline.artworkDiscipline",
-            additionalInfo: 1,
+            additionalInfo: {
+              framed: "$additionalInfo.framed",
+              hangingAvailable: "$additionalInfo.hangingAvailable",
+              height: "$additionalInfo.height",
+              artworkTechnic: "$additionalInfo.artworkTechnic",
+              length: "$additionalInfo.length",
+              offensive: "$additionalInfo.offensive",
+              width: "$additionalInfo.width",
+              framedDescription: "$additionalInfo.framedDescription",
+              hangingDescription: "$additionalInfo.hangingDescription",
+              frameHeight: "$additionalInfo.frameHeight",
+              frameLenght: "$additionalInfo.frameLenght",
+              frameWidth: "$additionalInfo.frameWidth",
+              weight: "$additionalInfo.weight",
+            },
             commercialization: {
               $mergeObjects: [
                 "$commercialization",
@@ -1553,7 +1586,17 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
                 },
               ],
             },
-            pricing: 1,
+            pricing: {
+              currency: "$pricing.currency",
+              dpersentage: "$pricing.dpersentage",
+              basePrice: {
+                $cond: {
+                  if: { $eq: ["$commercialization.activeTab", "purchase"] },
+                  then: "$pricing.basePrice",
+                  else: "$$REMOVE",
+                },
+              },
+            },
             tags: 1,
           },
         },
@@ -1575,14 +1618,27 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           $project: {
             _id: 1,
             status: 1,
-            artworkId: 1,
             offensive: "$additionalInfo.offensive",
+            commingSoon: "$inventoryShipping.comingSoon",
             artworkName: 1,
             mainImage: "$media.mainImage",
-            additionalInfo: 1,
-            pricing: 1,
-            inventoryShipping: 1,
-            discipline: 1,
+            additionalInfo: {
+              technic: "$additionalInfo.artworkTechnic",
+              width: "$additionalInfo.width",
+              height: "$additionalInfo.height",
+              length: "$additionalInfo.length",
+            },
+            pricing: {
+              currency: "$pricing.currency",
+              basePrice: {
+                $cond: {
+                  if: { $eq: ["$commercialization.activeTab", "purchase"] },
+                  then: "$pricing.basePrice",
+                  else: "$$REMOVE",
+                },
+              },
+            },
+            discipline: "$discipline.artworkDiscipline",
           },
         },
       ]);
@@ -2230,8 +2286,6 @@ const getArtworkGroupBySeries = catchAsyncError(async (req, res, next) => {
 const getOtherArtworks = catchAsyncError(async (req, res, next) => {
   const { id, discipline, style, theme, subscription } = req.query;
 
-  console.log(req.query);
-
   const artworks = await ArtWork.aggregate([
     {
       $match: {
@@ -2248,14 +2302,27 @@ const getOtherArtworks = catchAsyncError(async (req, res, next) => {
       $project: {
         _id: 1,
         status: 1,
-        mainImage: "$media.mainImage",
+        offensive: "$additionalInfo.offensive",
+        commingSoon: "$inventoryShipping.comingSoon",
         artworkName: 1,
+        mainImage: "$media.mainImage",
+        additionalInfo: {
+          technic: "$additionalInfo.artworkTechnic",
+          width: "$additionalInfo.width",
+          height: "$additionalInfo.height",
+          length: "$additionalInfo.length",
+        },
+        pricing: {
+          currency: "$pricing.currency",
+          basePrice: {
+            $cond: {
+              if: { $eq: ["$commercialization.activeTab", "purchase"] },
+              then: "$pricing.basePrice",
+              else: "$$REMOVE",
+            },
+          },
+        },
         discipline: "$discipline.artworkDiscipline",
-        additionalInfo: 1,
-        pricing: 1,
-        commercialization: 1,
-        owner: 1,
-        status: 1,
       },
     },
   ]);

@@ -20,6 +20,10 @@ const insigniaSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    isMain: {
+      type: Boolean,
+      default: false,
+    },
     insigniaImage: {
       type: String,
     },

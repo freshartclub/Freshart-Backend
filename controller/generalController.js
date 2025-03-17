@@ -645,7 +645,7 @@ const getFAQGeneralList = async (req, res) => {
       {
         $match: {
           isDeleted: false,
-          forhomepage: false,
+          faqGrp: "General Group",
         },
       },
       {
@@ -674,7 +674,7 @@ const getFAQGeneralMainList = async (req, res) => {
       {
         $match: {
           isDeleted: false,
-          forhomepage: true,
+          faqGrp: "Main Group",
         },
       },
       {
@@ -735,6 +735,7 @@ const getGuestHomeData = async (req, res) => {
         {
           $match: {
             isDeleted: false,
+            faqGrp: "Main Group",
           },
         },
         {

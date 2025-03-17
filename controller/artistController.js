@@ -13,6 +13,10 @@ const EmailType = require("../models/emailTypeModel");
 const Notification = require("../models/notificationModel");
 const Plan = require("../models/plansModel");
 const Insignia = require("../models/insigniasModel");
+const Theme = require("../models/themeModel");
+const Style = require("../models/styleModel");
+const Discipline = require("../models/disciplineModel");
+const Collection = require("../models/collectionModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -889,7 +893,6 @@ const getArtistDetails = async (req, res) => {
       artist: artist[0],
     });
   } catch (error) {
-    APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -984,6 +987,8 @@ const completeProfile = async (req, res) => {
       artistSurname1: req.body.artistSurname1,
       artistSurname2: req.body.artistSurname2,
       gender: req.body.gender,
+      phone: req.body.phone,
+      dob: new Date(req.body.dob),
       profile: {
         mainImage: fileData?.data.mainImage[0].filename,
       },
@@ -1234,15 +1239,6 @@ const editArtistProfile = async (req, res) => {
 
 const createTicket = async (req, res) => {
   try {
-    const artist = await Artist.countDocuments({
-      _id: req.user._id,
-      isDeleted: false,
-    }).lean(true);
-
-    if (!artist) {
-      return res.status(400).send({ message: "Artist/User not found" });
-    }
-
     const fileData = await fileUploadFunc(req, res);
     const { subject, message, region, ticketType, urgency, impact } = req.body;
 
@@ -1269,7 +1265,6 @@ const createTicket = async (req, res) => {
       data: ticketData,
     });
   } catch (error) {
-    APIErrorLog.error("Error while posting the ticket");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -1487,6 +1482,7 @@ const getInsignia = async (req, res) => {
       {
         $match: {
           isDeleted: false,
+          isMain: true,
         },
       },
       {
@@ -1974,6 +1970,41 @@ const getUserPlans = async (req, res) => {
   }
 };
 
+const getDataOnHovered = async (req, res) => {
+  try {
+    const disciplines = await Discipline.find({}, { disciplineName: 1 }).lean(true);
+
+    let disData = [];
+
+    for (let i = 0; i < disciplines.length; i++) {
+      let tempData = {};
+      const theme = await Theme.find({ discipline: disciplines[i]._id }, { themeName: 1 }).lean(true);
+      const style = await Style.find({ discipline: disciplines[i]._id }, { styleName: 1 }).lean(true);
+      const artists = await Artist.find(
+        { "aboutArtist.discipline.discipline": disciplines[i].disciplineName, isActivated: true },
+        { artistName: 1, "profile.mainImage": 1 }
+      )
+        .limit(2)
+        .lean();
+
+      tempData.discipline = disciplines[i].disciplineName;
+      tempData.theme = theme;
+      tempData.style = style;
+      tempData.artists = artists;
+
+      disData.push(tempData);
+    }
+
+    const collection = await Collection.find({}, { collectionName: 1, collectionFile: 1 }).limit(1).lean();
+    const insignia = await Insignia.find({ isMain: true }, { credentialName: 1 }).lean();
+
+    return res.status(200).send({ data: { disData, collection, insignia } });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2016,4 +2047,5 @@ module.exports = {
   deleteNotification,
   getUserPlans,
   getInsignia,
+  getDataOnHovered,
 };

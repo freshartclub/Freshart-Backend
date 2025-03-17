@@ -1079,6 +1079,7 @@ const createInsignias = async (req, res) => {
       credentialGroup: req.body.credentialGroup.trim(),
       credentialPriority: req.body.credentialPriority.trim(),
       isActive: JSON.parse(req.body.isActive) ? true : false,
+      isMain: JSON.parse(req.body.isMain) ? true : false,
       isDeleted: JSON.parse(req.body.isActive) ? false : true,
     };
 
@@ -1122,7 +1123,6 @@ const getRegisterArtist = async (req, res) => {
     if (data) {
       return res.status(200).send({
         data: data,
-        url: "https://dev.freshartclub.com/images",
       });
     }
     return res.status(400).send({ message: "Artist not found" });

@@ -42,6 +42,7 @@ const {
   checkArtistToken,
   getUnAutorisedCartItems,
   getInsignia,
+  getDataOnHovered,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -168,6 +169,8 @@ router.get("/get-all-artworks", getAllArtworks);
 router.get("/get-artist-artworks-by-series/:id", validateToken, getArtworkGroupBySeries);
 
 router.patch("/like-unlike-artwork/:id", validateToken, likeOrUnlikeArtwork);
+
+router.get("/get-hover-data", getDataOnHovered);
 
 // -------------------- notifications ---------------------------------
 
