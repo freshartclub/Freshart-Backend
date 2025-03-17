@@ -9,6 +9,10 @@ const ThemeSchema = new mongoose.Schema(
     themeName: {
       type: String,
     },
+    isMain: {
+      type: Boolean,
+      default: false,
+    },
     discipline: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "Discipline",

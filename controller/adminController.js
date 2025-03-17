@@ -661,6 +661,7 @@ const addDiscipline = async (req, res) => {
 
     let obj = {
       disciplineName: req.body.name,
+      isMain: req.body.isMain,
       disciplineDescription: req.body.description,
       isDeleted: req.body.isDeleted,
     };
@@ -746,6 +747,7 @@ const addStyles = async (req, res) => {
     const obj = {
       styleName: req.body.name,
       discipline: req.body.discipline,
+      isMain: req.body.isMain,
       isDeleted: req.body.isDeleted,
     };
 
@@ -828,6 +830,7 @@ const addTechnic = async (req, res) => {
 
     const obj = {
       technicName: req.body.name,
+      isMain: req.body.isMain,
       discipline: req.body.discipline,
       isDeleted: req.body.isDeleted,
     };
@@ -912,6 +915,7 @@ const addTheme = async (req, res) => {
     const obj = {
       themeName: req.body.name,
       discipline: req.body.discipline,
+      isMain: req.body.isMain,
       isDeleted: req.body.isDeleted,
     };
 
@@ -994,6 +998,7 @@ const addMediaSupport = async (req, res) => {
 
     const obj = {
       mediaName: req.body.name,
+      isMain: req.body.isMain,
       discipline: req.body.discipline,
       isDeleted: req.body.isDeleted,
     };
@@ -1095,7 +1100,7 @@ const createInsignias = async (req, res) => {
       await Insignia.create(obj);
       res.status(200).send({ message: "Insignia created successfully" });
     } else {
-      Insignia.updateOne({ _id: id }, condition).then();
+      await Insignia.updateOne({ _id: id }, condition);
       res.status(200).send({ message: "Insignia updated successfully" });
     }
   } catch (error) {

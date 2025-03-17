@@ -6,6 +6,10 @@ const disciplineSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isMain: {
+      type: Boolean,
+      default: false,
+    },
     disciplineImage: {
       type: String,
     },

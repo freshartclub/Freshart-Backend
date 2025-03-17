@@ -42,6 +42,7 @@ const listArtworkStyle = async (req, res) => {
           styleName: 1,
           isDeleted: 1,
           createdAt: 1,
+          isMain: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
             $map: {
@@ -97,6 +98,7 @@ const listDiscipline = async (req, res) => {
           disciplineName: 1,
           createdAt: 1,
           isDeleted: 1,
+          isMain: 1,
           disciplineImage: 1,
           disciplineDescription: 1,
         },
@@ -153,6 +155,7 @@ const listTechnic = async (req, res) => {
         $project: {
           technicName: 1,
           createdAt: 1,
+          isMain: 1,
           isDeleted: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName
@@ -218,6 +221,7 @@ const listTheme = async (req, res) => {
       {
         $project: {
           themeName: 1,
+          isMain: 1,
           createdAt: 1,
           isDeleted: 1,
           discipline: {
@@ -286,6 +290,7 @@ const listMediaSupport = async (req, res) => {
         $project: {
           mediaName: 1,
           createdAt: 1,
+          isMain: 1,
           isDeleted: 1,
           discipline: {
             // Map over each discipline in the array to only include _id and disciplineName

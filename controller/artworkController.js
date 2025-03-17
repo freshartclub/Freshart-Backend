@@ -106,6 +106,10 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     owner: id,
   };
 
+  if (req.body.exclusive == "true") {
+    obj["exclusive"] = true;
+  }
+
   if (req.body?.isArtProvider === "Yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
   }
@@ -460,6 +464,10 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     owner: artist._id,
   };
 
+  if (req.body.exclusive == "true") {
+    obj["exclusive"] = true;
+  }
+
   if (req.body?.isArtProvider === "Yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
   }
@@ -797,6 +805,10 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     productDescription: req.body.productDescription,
     isArtProvider: req.body.isArtProvider == "Yes" ? "Yes" : "No",
   };
+
+  if (req.body.exclusive == "true") {
+    obj["exclusive"] = true;
+  }
 
   if (req.body?.isArtProvider === "Yes") {
     obj["provideArtistName"] = req.body.provideArtistName;
@@ -2113,6 +2125,11 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
   type = type.toLowerCase();
   s = s ? s : "";
 
+  theme = req.query.theme ? req.query.theme.split(",") : [];
+  discipline = req.query.discipline ? req.query.discipline.split(",") : [];
+  technic = req.query.technic ? req.query.technic.split(",") : [];
+  style = req.query.style ? req.query.style.split(",") : [];
+
   // weight = weight.split(",");
   height = height.split(",");
   width = width.split(",");
@@ -2138,10 +2155,10 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
       { "ownerInfo.artistSurname2": { $regex: s, $options: "i" } },
       { artworkName: { $regex: s, $options: "i" } },
     ],
-    ...(discipline && { "discipline.artworkDiscipline": discipline }),
-    ...(theme && { "additionalInfo.artworkTheme": theme }),
-    ...(technic && { "additionalInfo.artworkTechnic": technic }),
-    ...(style && { "additionalInfo.artworkStyle": { $in: [style] } }),
+    ...(discipline.length && { "discipline.artworkDiscipline": { $in: discipline } }),
+    ...(theme.length && { "additionalInfo.artworkTheme": { $in: theme } }),
+    ...(technic.length && { "additionalInfo.artworkTechnic": { $in: technic } }),
+    ...(style.length && { "additionalInfo.artworkStyle": { $elemMatch: { $in: style } } }),
     ...(color && { "additionalInfo.colors": { $in: [color] } }),
     ...(orientation && { "additionalInfo.artworkOrientation": orientation }),
     ...(comingsoon && { "inventoryShipping.comingSoon": comingsoon == "Yes" ? true : false }),

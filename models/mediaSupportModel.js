@@ -9,6 +9,10 @@ const mediaSupportSchema = new mongoose.Schema(
     mediaName: {
       type: String,
     },
+    isMain: {
+      type: Boolean,
+      default: false,
+    },
     discipline: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "Discipline",

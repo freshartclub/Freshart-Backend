@@ -9,6 +9,10 @@ const artworkTechnicSchema = new mongoose.Schema(
     technicName: {
       type: String,
     },
+    isMain: {
+      type: Boolean,
+      default: false,
+    },
     discipline: {
       type: [mongoose.Schema.Types.ObjectId],
       ref: "Discipline",

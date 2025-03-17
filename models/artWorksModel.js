@@ -14,6 +14,7 @@ const artWorkSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Artist",
     },
+    exclusive: { type: Boolean },
     numLikes: { type: Number, default: 0 },
     lastModified: [{ type: Date }],
     artworkId: { type: String },
