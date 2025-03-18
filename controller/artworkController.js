@@ -2120,7 +2120,8 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     purchase,
     purchaseOption,
     exclusive,
-    // newArt,
+    newIn,
+    bigDiscount,
   } = req.query;
 
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
@@ -2176,7 +2177,8 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(purchase && { "commercialization.purchaseType": purchase }),
     ...(purchaseOption && type == "subscription" && { "commercialization.purchaseOption": purchaseOption }),
     ...(exclusive === "Yes" ? { exclusive: true } : exclusive === "No" ? { exclusive: { $exists: false } } : {}),
-    // ...(newArt && { createdAt: { $gte: new Date(new Date().setDate(new Date().getDate() - 30)) } }),
+    ...(newIn && newIn === "Yes" && { createdAt: { $gte: new Date(new Date().setDate(new Date().getDate() - 30)) } }),
+    ...(bigDiscount && bigDiscount == "Yes" && { "pricing.dpersentage": { $gte: 20 } }),
   };
 
   const totalCount = await ArtWork.countDocuments(matchStage);
