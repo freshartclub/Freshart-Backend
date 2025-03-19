@@ -957,8 +957,10 @@ const getArtistDetailById = async (req, res) => {
           _id: 1,
           artworkName: 1,
           discipline: 1,
-          media: 1,
+          media: "$media.mainImage",
           additionalInfo: {
+            offensive: "$additionalInfo.offensive",
+            artworkTechnic: "$additionalInfo.artworkTechnic",
             length: "$additionalInfo.length",
             height: "$additionalInfo.height",
             width: "$additionalInfo.width",

@@ -1623,6 +1623,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
         {
           $match: {
             owner: objectId(artwork[0].owner._id),
+            _id: { $ne: objectId(artwork[0]._id) },
             isDeleted: false,
             status: "published",
           },
@@ -1640,6 +1641,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
               width: "$additionalInfo.width",
               height: "$additionalInfo.height",
               length: "$additionalInfo.length",
+              offensive: "$additionalInfo.offensive",
             },
             pricing: {
               currency: "$pricing.currency",
@@ -1654,6 +1656,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
             discipline: "$discipline.artworkDiscipline",
           },
         },
+        { $limit: 10 },
       ]);
 
       const viewTypes = ["new", "trending", "soon", "highlight", "search"];
@@ -1790,9 +1793,7 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
       .lean(true),
     HomeArtwork.aggregate([
       {
-        $match: {
-          type: "Home-Page",
-        },
+        $match: { type: "Home-Page" },
       },
       {
         $lookup: {
@@ -1803,24 +1804,34 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         },
       },
       {
+        $unwind: { path: "$artwork", preserveNullAndEmptyArrays: true },
+      },
+      {
         $lookup: {
           from: "artists",
-          localField: "owner",
+          localField: "artwork.owner",
           foreignField: "_id",
-          as: "user",
+          as: "ownerData",
+        },
+      },
+      {
+        $addFields: {
+          "artwork.owner": { $arrayElemAt: ["$ownerData", 0] },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id",
+          artworksTitle: { $first: "$artworksTitle" },
+          artworks: { $push: "$artwork" },
         },
       },
       {
         $project: {
           artworksTitle: 1,
-          owner: {
-            artistName: "$user.artistName",
-            artistSurname1: "$user.artistAurname1",
-            artistSurname2: "$user.artistAurname",
-          },
           artworks: {
             $map: {
-              input: "$artwork",
+              input: "$artworks",
               as: "item",
               in: {
                 _id: "$$item._id",
@@ -1831,15 +1842,18 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
                 provideArtistName: "$$item.provideArtistName",
                 price: {
                   $cond: {
-                    if: {
-                      $eq: ["$$item.commercialization.activeTab", "purchase"],
-                    },
+                    if: { $eq: ["$$item.commercialization.activeTab", "purchase"] },
                     then: "$$item.commercialization.basePrice",
                     else: "",
                   },
                 },
                 discipline: "$$item.discipline",
                 comingSoon: "$$item.inventoryShipping.comingSoon",
+                owner: {
+                  artistName: "$$item.owner.artistName",
+                  artistSurname1: "$$item.owner.artistSurname1",
+                  artistSurname2: "$$item.owner.artistSurname2",
+                },
               },
             },
           },
@@ -1910,13 +1924,13 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
     ]),
   ]);
 
-  const trending = homeArt.find((item) => item.artworksTitle === "Trending Artworks").artworks;
-  const highlighted = homeArt.find((item) => item.artworksTitle === "Highlighted Artworks").artworks;
+  let trending = homeArt.find((item) => item.artworksTitle === "Trending Artworks").artworks;
+  let highlighted = homeArt.find((item) => item.artworksTitle === "Highlighted Artworks").artworks;
 
   res.status(200).send({
     newAdded,
-    trending,
-    highlighted,
+    trending: trending[0].artworkName ? trending : [],
+    highlighted: highlighted[0].artworkName ? highlighted : [],
     artists,
     commingSoon,
     freshartCircle,
@@ -2124,6 +2138,8 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     bigDiscount,
   } = req.query;
 
+  console.log(req.query);
+
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
 
   type = type.toLowerCase();
@@ -2220,7 +2236,23 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         artworkCreationYear: 1,
         artworkSeries: 1,
         discipline: "$discipline.artworkDiscipline",
-        pricing: 1,
+        pricing: {
+          basePrice: {
+            $cond: {
+              if: { $eq: ["$commercialization.activeTab", "purchase"] },
+              then: "$pricing.basePrice",
+              else: "$$REMOVE",
+            },
+          },
+          currency: {
+            $cond: {
+              if: { $eq: ["$commercialization.activeTab", "purchase"] },
+              then: "$pricing.currency",
+              else: "$$REMOVE",
+            },
+          },
+          dpersentage: "$pricing.dpersentage",
+        },
         artworkTechnic: 1,
         additionalInfo: 1,
         commercialization: 1,
