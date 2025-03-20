@@ -3033,6 +3033,7 @@ const getReviewDetailArtwork = async (req, res) => {
           artworkId: 1,
           isArtProvider: 1,
           provideArtistName: 1,
+          exclusive: 1,
           owner: {
             _id: "$ownerInfo._id",
             artistName: "$ownerInfo.artistName",
@@ -3083,6 +3084,7 @@ const getReviewDetailArtwork = async (req, res) => {
       artworkId: artwork.artworkId,
       artworkName: artwork.artworkName,
       reviewDetails: artwork.reviewDetails,
+      exclusive: artwork.exclusive,
       catalogReviewInfo: artwork.catalogReviewInfo.catalogName,
       commercialization: artwork.commercialization,
       isArtProvider: artwork.isArtProvider,

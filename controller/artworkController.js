@@ -680,12 +680,6 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  if (artworkData.status == "modified") {
-    return res.status(400).send({
-      message: `Artwork is already modified`,
-    });
-  }
-
   const fileData = await fileUploadFunc(req, res);
   await processImages(req, res);
 
@@ -806,7 +800,7 @@ const artistModifyArtwork = catchAsyncError(async (req, res, next) => {
     isArtProvider: req.body.isArtProvider == "Yes" ? "Yes" : "No",
   };
 
-  if (req.body.exclusive == "true") {
+  if (req.body?.exclusive == "Yes") {
     obj["exclusive"] = true;
   }
 
@@ -1719,6 +1713,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           isArtProvider: 1,
           provideArtistName: 1,
           views: 1,
+          exclusive: 1,
           owner: {
             _id: "$ownerInfo._id",
             artistName: "$ownerInfo.artistName",
@@ -1733,6 +1728,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           artworkCreationYear: 1,
           artworkSeries: 1,
           productDescription: 1,
+          reviewDetails: 1,
           media: 1,
           additionalInfo: 1,
           commercialization: {
@@ -2137,8 +2133,6 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     newIn,
     bigDiscount,
   } = req.query;
-
-  console.log(req.query);
 
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
 

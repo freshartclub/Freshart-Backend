@@ -229,6 +229,7 @@ const artistSchema = new mongoose.Schema(
       seconds_to_expire: { type: String },
     },
     referralCode: { type: String },
+    lastLogin: { type: Date },
   },
   {
     timestamps: true,

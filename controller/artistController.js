@@ -17,6 +17,7 @@ const Theme = require("../models/themeModel");
 const Style = require("../models/styleModel");
 const Discipline = require("../models/disciplineModel");
 const Collection = require("../models/collectionModel");
+const Favorite = require("../models/favoriteModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -823,7 +824,6 @@ const getArtistDetails = async (req, res) => {
           _id: 1,
           artistName: 1,
           artistSurname1: 1,
-          isEmailVerified: 1,
           artistSurname2: 1,
           phone: 1,
           email: 1,
@@ -831,20 +831,16 @@ const getArtistDetails = async (req, res) => {
           links: 1,
           profile: 1,
           highlights: 1,
-          publishingCatalog: 1,
-          likedArtworks: 1,
           address: 1,
           insignia: {
             credentialName: 1,
             insigniaImage: 1,
           },
-          links: 1,
           language: 1,
           logistics: 1,
           managerDetails: 1,
           nickName: 1,
           aboutArtist: 1,
-          cart: 1,
           createdAt: 1,
           currency: 1,
           documents: 1,
@@ -852,7 +848,6 @@ const getArtistDetails = async (req, res) => {
           profileStatus: 1,
           lastRevalidationDate: 1,
           nextRevalidationDate: 1,
-          billingInfo: 1,
           emergencyInfo: 1,
           commercilization: {
             $mergeObjects: [
@@ -880,10 +875,10 @@ const getArtistDetails = async (req, res) => {
           isActivated: 1,
           isDeleted: 1,
           isManagerDetails: 1,
+          reviewDetails: 1,
           role: 1,
           userId: 1,
           artistId: 1,
-          likes: 1,
           otherTags: 1,
         },
       },
@@ -2017,6 +2012,37 @@ const getDataOnHovered = async (req, res) => {
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addItemToFavoriteList = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, type } = req.body;
+    const userId = req.user._id;
+
+    const updatedFavorite = await Favorite.findOneAndUpdate(
+      { owner: userId, "list.title": name },
+      {
+        $addToSet: { "list.$.artworks": id },
+      },
+      { new: true }
+    );
+
+    if (!updatedFavorite) {
+      await Favorite.updateOne(
+        { owner: userId },
+        {
+          $push: { list: { title: name, artworks: [id] } },
+        },
+        { upsert: true }
+      );
+    }
+
+    return res.status(200).json({ message: "Artwork added to favorites" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Something went wrong" });
   }
 };
 
