@@ -354,6 +354,7 @@ const artistRegister = async (req, res) => {
           notes: req.body?.notes,
           language: req.body?.language,
           currency: req.body?.currency,
+          dob: req.body?.dob,
         };
 
         if (req?.body?.artistSurname2) {

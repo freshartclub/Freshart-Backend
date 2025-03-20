@@ -1187,6 +1187,7 @@ const editArtistProfile = async (req, res) => {
       email: req.body.email,
       gender: req.body.gender,
       language: req.body.language,
+      dob: new Date(req.body.dob),
       phone: req.body.phoneNumber,
       aboutArtist: {
         about: req.body.about,
@@ -1318,7 +1319,6 @@ const ticketDetail = async (req, res) => {
     return res.status(200).send({
       data: ticketData,
       reply: replyData,
-      url: "https://dev.freshartclub.com/images",
     });
   } catch (error) {
     console.error(error);
