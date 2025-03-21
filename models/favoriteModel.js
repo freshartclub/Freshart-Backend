@@ -20,4 +20,6 @@ const favoriteModel = new mongoose.Schema(
   }
 );
 
+favoriteModel.index({ owner: 1 });
+
 module.exports = mongoose.model("Favorite", favoriteModel);

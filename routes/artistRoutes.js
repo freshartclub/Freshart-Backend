@@ -43,6 +43,8 @@ const {
   getUnAutorisedCartItems,
   getInsignia,
   getDataOnHovered,
+  addItemToFavoriteList,
+  getFavoriteList,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -171,6 +173,10 @@ router.get("/get-artist-artworks-by-series/:id", validateToken, getArtworkGroupB
 router.patch("/like-unlike-artwork/:id", validateToken, likeOrUnlikeArtwork);
 
 router.get("/get-hover-data", getDataOnHovered);
+
+router.post("/add-to-favorite/:id", validateToken, addItemToFavoriteList);
+
+router.get("/get-favorite-list", validateToken, getFavoriteList);
 
 // -------------------- notifications ---------------------------------
 

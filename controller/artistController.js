@@ -2021,28 +2021,65 @@ const addItemToFavoriteList = async (req, res) => {
     const { name, type } = req.body;
     const userId = req.user._id;
 
+    const isAlreadyInSameList = await Favorite.findOne({
+      owner: userId,
+      "list.title": name,
+      "list.items": { $elemMatch: { type, item: id } },
+    }).lean();
+
+    if (isAlreadyInSameList) {
+      await Favorite.updateOne({ owner: userId, "list.title": name }, { $pull: { "list.$.items": { type, item: id } } });
+      return res.status(200).json({ message: "Item removed from favorites" });
+    }
+
+    await Favorite.updateOne({ owner: userId, "list.items": { $elemMatch: { type, item: id } } }, { $pull: { "list.$.items": { type, item: id } } });
+
     const updatedFavorite = await Favorite.findOneAndUpdate(
       { owner: userId, "list.title": name },
-      {
-        $addToSet: { "list.$.artworks": id },
-      },
+      { $addToSet: { "list.$.items": { type, item: id } } },
       { new: true }
     );
 
     if (!updatedFavorite) {
-      await Favorite.updateOne(
-        { owner: userId },
-        {
-          $push: { list: { title: name, artworks: [id] } },
-        },
-        { upsert: true }
-      );
+      await Favorite.updateOne({ owner: userId }, { $push: { list: { title: name, items: [{ type, item: id }] } } }, { upsert: true });
     }
 
-    return res.status(200).json({ message: "Artwork added to favorites" });
+    return res.status(200).json({ message: "Item added to favorites" });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: "Something went wrong" });
+  }
+};
+
+const getFavoriteList = async (req, res) => {
+  try {
+    const { type } = req.query;
+
+    const list = await Favorite.aggregate([
+      {
+        $match: { owner: objectId(req.user._id), "list.items.type": type },
+      },
+      {
+        $project: {
+          owner: 1,
+          list: {
+            $map: {
+              input: "$list",
+              as: "item",
+              in: {
+                title: "$$item.title",
+                items: "$$item.items.item",
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    return res.status(200).send({ data: list[0].list });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
@@ -2089,4 +2126,6 @@ module.exports = {
   getUserPlans,
   getInsignia,
   getDataOnHovered,
+  addItemToFavoriteList,
+  getFavoriteList,
 };
