@@ -45,6 +45,7 @@ const {
   getDataOnHovered,
   addItemToFavoriteList,
   getFavoriteList,
+  getFullFavoriteList,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -177,6 +178,8 @@ router.get("/get-hover-data", getDataOnHovered);
 router.post("/add-to-favorite/:id", validateToken, addItemToFavoriteList);
 
 router.get("/get-favorite-list", validateToken, getFavoriteList);
+
+router.get("/get-full-list", validateToken, getFullFavoriteList);
 
 // -------------------- notifications ---------------------------------
 

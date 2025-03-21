@@ -2083,6 +2083,133 @@ const getFavoriteList = async (req, res) => {
   }
 };
 
+const getFullFavoriteList = async (req, res) => {
+  try {
+    const list = await Favorite.aggregate([
+      { $match: { owner: objectId(req.user._id) } },
+      { $unwind: { path: "$list", preserveNullAndEmptyArrays: true } },
+      { $unwind: { path: "$list.items", preserveNullAndEmptyArrays: true } },
+      {
+        $addFields: {
+          isArtwork: { $eq: ["$list.items.type", "artwork"] },
+          isArtist: { $eq: ["$list.items.type", "artist"] },
+          isCollection: { $eq: ["$list.items.type", "collection"] },
+        },
+      },
+      {
+        $lookup: {
+          from: "artworks",
+          localField: "list.items.item",
+          foreignField: "_id",
+          as: "artworkDetails",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                artworkName: 1,
+                media: "$media.mainImage",
+              },
+            },
+          ],
+        },
+      },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "list.items.item",
+          foreignField: "_id",
+          as: "artistDetails",
+        },
+      },
+      {
+        $lookup: {
+          from: "collections",
+          localField: "list.items.item",
+          foreignField: "_id",
+          as: "collectionDetails",
+        },
+      },
+      {
+        $addFields: {
+          "list.items.item": {
+            $cond: {
+              if: "$isArtwork",
+              then: { $arrayElemAt: ["$artworkDetails", 0] },
+              else: {
+                $cond: {
+                  if: "$isArtist",
+                  then: { $arrayElemAt: ["$artistDetails", 0] },
+                  else: {
+                    $cond: {
+                      if: "$isCollection",
+                      then: { $arrayElemAt: ["$collectionDetails", 0] },
+                      else: null,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      {
+        $project: {
+          artworkDetails: 0,
+          artistDetails: 0,
+          collectionDetails: 0,
+        },
+      },
+      {
+        $group: {
+          _id: {
+            favoriteId: "$_id",
+            listId: "$list._id",
+          },
+          owner: { $first: "$owner" },
+          title: { $first: "$list.title" },
+          items: {
+            $push: {
+              $cond: {
+                if: { $ne: ["$list.items", null] },
+                then: "$list.items",
+                else: null,
+              },
+            },
+          },
+        },
+      },
+      {
+        $addFields: {
+          items: {
+            $filter: {
+              input: "$items",
+              as: "item",
+              cond: { $ne: ["$$item", null] },
+            },
+          },
+        },
+      },
+      {
+        $group: {
+          _id: "$_id.favoriteId",
+          owner: { $first: "$owner" },
+          list: {
+            $push: {
+              title: "$title",
+              items: "$items",
+            },
+          },
+        },
+      },
+    ]);
+
+    return res.status(200).send({ data: list[0].list });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2128,4 +2255,5 @@ module.exports = {
   getDataOnHovered,
   addItemToFavoriteList,
   getFavoriteList,
+  getFullFavoriteList,
 };
