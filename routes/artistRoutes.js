@@ -46,6 +46,7 @@ const {
   addItemToFavoriteList,
   getFavoriteList,
   getFullFavoriteList,
+  createCustomOrder,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -66,6 +67,7 @@ const {
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
 const { getUserSideCollections, getUserSideCollectionById } = require("../controller/collectionController");
+const { getResponData } = require("../controller/orderController");
 
 router.post("/login", login);
 
@@ -181,6 +183,8 @@ router.get("/get-favorite-list", validateToken, getFavoriteList);
 
 router.get("/get-full-list", validateToken, getFullFavoriteList);
 
+router.post("/create-custom-order/:id", validateToken, createCustomOrder);
+
 // -------------------- notifications ---------------------------------
 
 router.get("/get-notifications", validateToken, getNotificationsOfUser);
@@ -198,5 +202,7 @@ router.get("/get-collection/:id", getUserSideCollectionById);
 // -------------------------- plans ---------------------------------------------
 
 router.get("/get-all-plans", validateToken, getUserPlans);
+
+router.post("/get-response-data", getResponData);
 
 module.exports = router;

@@ -4,7 +4,6 @@ const orderSchema = new mongoose.Schema(
   {
     user: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Artist",
     },
     type: {
       type: String,
@@ -12,10 +11,10 @@ const orderSchema = new mongoose.Schema(
     status: {
       type: String,
     },
-    orderID: {
+    orderId: {
       type: String,
     },
-    price: {
+    amount: {
       type: Number,
     },
     discount: {
@@ -39,13 +38,16 @@ const orderSchema = new mongoose.Schema(
     discount: {
       type: Number,
     },
+    currency: {
+      type: String,
+    },
     subTotal: {
       type: Number,
     },
     total: {
       type: Number,
     },
-    items: [{ type: Object }],
+    items: [{ type: mongoose.Schema.Types.ObjectId }],
     evidence: {
       type: Object,
     },

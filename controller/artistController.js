@@ -1251,13 +1251,13 @@ const editArtistProfile = async (req, res) => {
 const createTicket = async (req, res) => {
   try {
     const fileData = await fileUploadFunc(req, res);
-    const { subject, message, region, ticketType, urgency, impact } = req.body;
+    const { subject, message, region, ticketType, urgency, impact, isArtDetail } = req.body;
 
     const randomNumber = Math.floor(100000 + Math.random() * 900000);
     const year = new Date().getFullYear();
     const ticketId = `TI# ${year}-CS${randomNumber}`;
 
-    const payload = {
+    let payload = {
       user: req.user._id,
       subject,
       message,
@@ -1274,6 +1274,7 @@ const createTicket = async (req, res) => {
     return res.status(201).json({
       message: "Ticket posted successfully!",
       data: ticketData,
+      isArtDetail: isArtDetail,
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -1517,9 +1518,9 @@ const addToCart = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const artist = await Artist.exists({ _id: req.user._id });
-    if (!artist) {
-      return res.status(400).send({ message: "Artist not found" });
+    const artwork = await Artwork.findById(id);
+    if (artwork.status !== "published") {
+      return res.status(400).send({ message: "Item canaot be added to cart" });
     }
 
     const result = await Artist.updateOne(
@@ -2024,7 +2025,12 @@ const addItemToFavoriteList = async (req, res) => {
     const isAlreadyInSameList = await Favorite.findOne({
       owner: userId,
       "list.title": name,
-      "list.items": { $elemMatch: { type, item: id } },
+      list: {
+        $elemMatch: {
+          title: name,
+          items: { $elemMatch: { type, item: id } },
+        },
+      },
     }).lean();
 
     if (isAlreadyInSameList) {
@@ -2210,6 +2216,16 @@ const getFullFavoriteList = async (req, res) => {
   }
 };
 
+const createCustomOrder = async (req, res) => {
+  try {
+    console.log(req.body);
+    return res.status(400).send({ message: "Something went wrong" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2256,4 +2272,5 @@ module.exports = {
   addItemToFavoriteList,
   getFavoriteList,
   getFullFavoriteList,
+  createCustomOrder,
 };

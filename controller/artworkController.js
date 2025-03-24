@@ -1803,6 +1803,9 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         $unwind: { path: "$artwork", preserveNullAndEmptyArrays: true },
       },
       {
+        $match: { "artwork.status": "published" },
+      },
+      {
         $lookup: {
           from: "artists",
           localField: "artwork.owner",
@@ -1920,13 +1923,13 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
     ]),
   ]);
 
-  let trending = homeArt.find((item) => item.artworksTitle === "Trending Artworks").artworks;
-  let highlighted = homeArt.find((item) => item.artworksTitle === "Highlighted Artworks").artworks;
+  let trending = homeArt.find((item) => item.artworksTitle === "Trending Artworks")?.artworks;
+  let highlighted = homeArt.find((item) => item.artworksTitle === "Highlighted Artworks")?.artworks;
 
   res.status(200).send({
     newAdded,
-    trending: trending[0].artworkName ? trending : [],
-    highlighted: highlighted[0].artworkName ? highlighted : [],
+    trending: trending && trending[0].artworkName ? trending : [],
+    highlighted: highlighted && highlighted[0].artworkName ? highlighted : [],
     artists,
     commingSoon,
     freshartCircle,

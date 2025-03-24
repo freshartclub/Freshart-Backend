@@ -6,78 +6,101 @@ const objectId = require("mongoose").Types.ObjectId;
 const { fileUploadFunc } = require("../functions/common");
 const Order = require("../models/orderModel");
 const crypto = require("crypto");
+const countries = require("i18n-iso-countries");
+const Transaction = require("../models/transactionModel");
+const { v4: uuidv4 } = require("uuid");
 
 const createOrder = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { cart: 1, wallet: 1 }).lean(true);
+  const user = await Artist.findOne({ _id: req.user._id }, { cart: 1, billingInfo: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
+  const { time, currency } = req.body;
+  const orderId = uuidv4();
   let items = [];
 
-  const orderID = Math.random().toString(36).substring(2, 8).toUpperCase();
+  if (req.body?.items?.length == 0) {
+    return res.status(400).send({ message: "Please select artwork" });
+  }
 
-  const { type } = req.query;
+  req.body.items.map((i) => items.push(i));
+  const defaultBilling = user.billingInfo.find((i) => i.isDefault == true);
 
-  if (req.body.items) {
-    items = req.body.items.map((item) => {
-      return {
-        artWork: objectId(item.id),
-        quantity: 1,
-      };
-    });
+  let address;
+
+  if (req.body?.shippingAddress) {
+    address = req.body.shippingAddress;
+  } else {
+    address = {
+      email: defaultBilling?.billingDetails?.billingEmail,
+      address: defaultBilling?.billingDetails?.billingAddress,
+      city: defaultBilling?.billingDetails?.billingCity,
+      state: defaultBilling?.billingDetails?.billingState,
+      zipCode: defaultBilling?.billingDetails?.billingZipCode,
+      country: defaultBilling?.billingDetails?.billingCountry,
+      phone: defaultBilling?.billingDetails?.billingPhone,
+    };
   }
 
   let subTotal = 0;
   let totalDiscount = 0;
   let total = 0;
 
-  let order;
-  if (type === "purchase") {
+  function getNumericCountryCode(countryName) {
+    const alpha2 = countries.getAlpha3Code(countryName, "en");
+    return alpha2 ? countries.alpha3ToNumeric(alpha2) : "Unknown";
+  }
+
+  const isoCountry = getNumericCountryCode(defaultBilling.billingDetails.billingCountry);
+
+  if (req.body.type === "purchase") {
     for (const item of items) {
-      const artwork = await ArtWork.findOne({ _id: item.artWork, "commercialization.activeTab": "purchase" }, { pricing: 1 }).lean(true);
+      const artwork = await ArtWork.findOne({ _id: item, status: "published", "commercialization.activeTab": "purchase" }, { pricing: 1 }).lean(true);
       if (!artwork) return res.status(400).send({ message: "Artwork not found or not available for purchase" });
 
-      const itemTotal = Number(artwork.pricing.basePrice) * item.quantity;
-      const itemDiscount = (artwork.pricing.dpersentage / 100) * itemTotal;
-      subTotal += itemTotal;
-      totalDiscount += itemDiscount;
+      subTotal += Number(artwork.pricing.basePrice);
+      totalDiscount += (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice);
     }
 
-    total = subTotal - totalDiscount + req.body.shipping;
-    const taxAmount = (total * Number(req.body.tax)) / 100;
-    total = total + taxAmount;
+    total = Math.round((subTotal - totalDiscount + req.body.shipping) * 100);
+    const taxAmount = Math.round((total * Number(req.body.tax)) / 100);
+    total = Math.round(total + taxAmount);
 
-    // if (isWalletExpired(wallet)) {
-    // } else {
-    //   console.log("Wallet is still valid. No action needed.");
-    // }
-
-    retun;
-
-    order = await Order.create({
-      orderID: orderID,
+    await Order.create({
+      orderId: orderId,
       type: "purchase",
       user: user._id,
-      status: "pending",
+      status: "created",
       tax: req.body.tax,
       taxAmount: taxAmount,
-      billingAddress: req.body.billingAddress,
-      shippingAddress: req.body.shippingAddress,
+      billingAddress: defaultBilling.billingDetails,
+      shippingAddress: address,
       shipping: req.body.shipping,
       discount: totalDiscount,
       subTotal: subTotal,
       total: total,
       items: items,
+      currency: currency,
       note: req.body.note,
     });
+
+    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${total}.${currency}`;
+    const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
+
+    const finalString = `${hash1}.${process.env.SECRET}`;
+    const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
+
+    return res
+      .status(200)
+      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: total, currency: currency, iso: isoCountry });
   } else {
-    order = await Order.create({
-      orderID: orderID,
+    await Order.create({
+      orderId: orderId,
       type: "subscription",
       user: user._id,
-      status: "pending",
+      status: "created",
       tax: 0,
       taxAmount: 0,
-      billingAddress: req.body.billingAddress,
-      shippingAddress: req.body.shippingAddress,
+      billingAddress: defaultBilling.billingDetails,
+      shippingAddress: req.body.shipping,
       shipping: 0,
       discount: 0,
       subTotal: 0,
@@ -85,12 +108,17 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       items: items,
       note: req.body.note,
     });
+
+    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${total}.${currency}`;
+    const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
+
+    const finalString = `${hash1}.${process.env.SECRET}`;
+    const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
+
+    return res
+      .status(200)
+      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: total, currency: currency, iso: isoCountry });
   }
-
-  const itemIds = items.map((item) => objectId(item.artWork));
-  await Artist.updateOne({ _id: user._id }, { $pull: { cart: { item: { $in: itemIds } } } });
-
-  return res.status(200).send({ message: "Order Created Successfully", data: order });
 });
 
 const getAllOrders = catchAsyncError(async (req, res, next) => {
@@ -748,15 +776,17 @@ const giveReview = catchAsyncError(async (req, res, next) => {
 });
 
 const generateHash = catchAsyncError(async (req, res, next) => {
-  const { time, merchantId, orderId, amount, currency } = req.query;
+  const { time, amount, currency } = req.query;
 
-  const hashString = `${time}.${merchantId}.${orderId}.${amount}.${currency}`;
+  const orderId = uuidv4();
+
+  const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amount}.${currency}`;
   const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
 
   const finalString = `${hash1}.${process.env.SECRET}`;
   const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
 
-  return res.status(200).send({ data: sha1Hash });
+  return res.status(200).send({ data: sha1Hash, orderID: orderId, amount: amount, currency: currency });
 });
 
 const getData = catchAsyncError(async (req, res, next) => {
@@ -764,6 +794,40 @@ const getData = catchAsyncError(async (req, res, next) => {
   console.log(req.body);
 
   return res.status(200).send({ data: req.body });
+});
+
+const getResponData = catchAsyncError(async (req, res, next) => {
+  if (req.body.RESULT !== "00") {
+    await Order.updateOne(
+      { orderId: req.body?.ORDER_ID },
+      {
+        $set: {
+          status: "failed",
+        },
+      }
+    );
+    return res.redirect(`/payment-fail?orderId=${order?.orderId}`);
+  }
+
+  const order = await Order.findOneAndUpdate(
+    { orderId: req.body?.ORDER_ID },
+    {
+      $set: { status: "successfull" },
+    }
+  ).lean();
+
+  await Transaction.create({
+    transcationId: req.body?.PASREF,
+    user: order.user,
+    status: "successfull",
+    orderId: order._id,
+    timestamp: req.body?.TIMESTAMP,
+    amount: req.body?.AMOUNT,
+    sha1hash: req.body?.SHA1HASH,
+  });
+
+  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: order.items } } } });
+  res.redirect("/payment-success");
 });
 
 module.exports = {
@@ -780,4 +844,5 @@ module.exports = {
   giveReview,
   getData,
   generateHash,
+  getResponData,
 };
