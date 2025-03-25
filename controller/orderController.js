@@ -7,6 +7,8 @@ const Order = require("../models/orderModel");
 const crypto = require("crypto");
 const countries = require("i18n-iso-countries");
 const Transaction = require("../models/transactionModel");
+const Plan = require("../models/plansModel");
+const Subscription = require("../models/subscriptionModel");
 const { v4: uuidv4 } = require("uuid");
 
 const createOrder = catchAsyncError(async (req, res, next) => {
@@ -63,9 +65,9 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
     if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
 
-    total = Math.round((subTotal - totalDiscount + req.body.shipping) * 100);
-    const taxAmount = Math.round((total * Number(req.body.tax)) / 100);
-    total = Math.round(total + taxAmount);
+    total = subTotal - totalDiscount + Number(req.body.shipping);
+    const taxAmount = (total * Number(req.body.tax)) / 100;
+    total = total + Number(taxAmount.toFixed(2));
 
     await Order.create({
       orderId: orderId,
@@ -85,7 +87,9 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       note: req.body.note,
     });
 
-    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${total}.${currency}`;
+    const amountRound = total * 100;
+
+    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}`;
     const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
 
     const finalString = `${hash1}.${process.env.SECRET}`;
@@ -93,7 +97,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
     return res
       .status(200)
-      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: total, currency: currency, iso: isoCountry });
+      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: amountRound, currency: currency, iso: isoCountry });
   } else {
     for (const item of req.body.items) {
       const artwork = await ArtWork.findOne(
@@ -108,9 +112,9 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
     if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
 
-    total = Math.round((subTotal - totalDiscount + req.body.shipping) * 100);
-    const taxAmount = Math.round((total * Number(req.body.tax)) / 100);
-    total = Math.round(total + taxAmount);
+    total = subTotal - totalDiscount + Number(req.body.shipping);
+    const taxAmount = (total * Number(req.body.tax)) / 100;
+    total = total + Number(taxAmount.toFixed(2));
 
     await Order.create({
       orderId: orderId,
@@ -129,7 +133,9 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       note: req.body.note,
     });
 
-    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${total}.${currency}`;
+    const amountRound = total * 100;
+
+    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}`;
     const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
 
     const finalString = `${hash1}.${process.env.SECRET}`;
@@ -137,8 +143,46 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
     return res
       .status(200)
-      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: total, currency: currency, iso: isoCountry });
+      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: amountRound, currency: currency, iso: isoCountry });
   }
+});
+
+const createSubcribeOrder = catchAsyncError(async (req, res, next) => {
+  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1 }).lean();
+  if (!user) return res.status(400).send({ message: "User not found" });
+
+  const { time, currency, country, planId, type } = req.body;
+  const orderId = uuidv4();
+
+  const plan = await Plan.findById(planId, { currentPrice: 1, currentYearlyPrice: 1, standardYearlyPrice: 1 });
+
+  function getNumericCountryCode(countryName) {
+    const alpha2 = countries.getAlpha3Code(countryName, "en");
+    return alpha2 ? countries.alpha3ToNumeric(alpha2) : null;
+  }
+
+  const isoCountry = getNumericCountryCode(country);
+  if (!isoCountry) return res.status(400).send({ message: "Please select country" });
+
+  await Subscription.create({
+    orderId: orderId,
+    user: user._id,
+    plan: plan._id,
+    status: "created",
+  });
+
+  const amount = type == "monthly" ? plan.currentPrice : plan.currentYearlyPrice;
+  const amountRound = amount * 100;
+
+  const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}`;
+  const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
+
+  const finalString = `${hash1}.${process.env.SECRET}`;
+  const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
+
+  return res
+    .status(200)
+    .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: amountRound, currency: currency, iso: isoCountry });
 });
 
 const getAllOrders = catchAsyncError(async (req, res, next) => {
@@ -243,7 +287,7 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
     {
       $lookup: {
         from: "artworks",
-        localField: "items.artWork",
+        localField: "items",
         foreignField: "_id",
         as: "artWorkData",
       },
@@ -258,14 +302,13 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
                 input: "$items",
                 as: "item",
                 in: {
-                  quantity: "$$item.quantity",
                   artWork: {
                     $arrayElemAt: [
                       {
                         $filter: {
                           input: "$artWorkData",
                           as: "artWork",
-                          cond: { $eq: ["$$artWork._id", "$$item.artWork"] },
+                          cond: { $eq: ["$$artWork._id", "$$item"] },
                         },
                       },
                       0,
@@ -841,19 +884,69 @@ const getResponData = catchAsyncError(async (req, res, next) => {
     transcationId: req.body?.PASREF,
     user: order.user,
     status: "successfull",
-    orderId: order._id,
+    orderId: order.orderId,
     timestamp: req.body?.TIMESTAMP,
     amount: req.body?.AMOUNT,
     sha1hash: req.body?.SHA1HASH,
   });
 
   await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: order.items } } } });
+  res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });
+});
 
-  res.status(200).send({ message: "Payment Successfull" });
+const getSubscribeResponData = catchAsyncError(async (req, res, next) => {
+  if (req.body.RESULT !== "00") {
+    await Subscription.updateOne(
+      { orderId: req.body?.ORDER_ID },
+      {
+        $set: {
+          status: "failed",
+        },
+      }
+    );
+
+    return res.status(200).send({ message: "Payment Failed" });
+  }
+
+  const order = await Subscription.findOneAndUpdate(
+    { orderId: req.body?.ORDER_ID },
+    {
+      $set: { status: "successfull" },
+    }
+  ).lean();
+
+  await Transaction.create({
+    transcationId: req.body?.PASREF,
+    user: order.user,
+    status: "successfull",
+    orderId: order.orderId,
+    timestamp: req.body?.TIMESTAMP,
+    amount: req.body?.AMOUNT,
+    sha1hash: req.body?.SHA1HASH,
+  });
+
+  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: order.items } } } });
+  res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });
+});
+
+const getStaus = catchAsyncError(async (req, res, next) => {
+  if (!req.query.orderId) return res.status(400).send({ message: "OrderId not found" });
+  const order = await Transaction.findOne({ orderId: req.query.orderId });
+
+  if (!order) {
+    return res.status(400).json({ status: "pending" });
+  }
+
+  if (order.status == "successfull") {
+    return res.status(200).send({ status: "success" });
+  } else {
+    return res.status(200).send({ status: "fail" });
+  }
 });
 
 module.exports = {
   createOrder,
+  createSubcribeOrder,
   getAllOrders,
   getAllUserOrders,
   getArtistSingleOrder,
@@ -867,4 +960,5 @@ module.exports = {
   getData,
   generateHash,
   getResponData,
+  getStaus,
 };

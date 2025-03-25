@@ -2218,10 +2218,61 @@ const getFullFavoriteList = async (req, res) => {
 
 const createCustomOrder = async (req, res) => {
   try {
-    console.log(req.body);
-    return res.status(400).send({ message: "Something went wrong" });
+    const randomNumber = Math.floor(100000 + Math.random() * 900000);
+    const year = new Date().getFullYear();
+    const ticketId = `TI# ${year}-CS${randomNumber}`;
+
+    if (!req.user.artistId) {
+      return res.status(400).send({ message: "Artist not found" });
+    }
+
+    const formatName = (val) => {
+      if (!val) return "Unknown"; // Handle missing user/artist data
+      let fullName = val?.artistName || "";
+      if (val?.nickName) fullName += ` "${val?.nickName}"`;
+      if (val?.artistSurname1) fullName += ` ${val?.artistSurname1}`;
+      if (val?.artistSurname2) fullName += ` ${val?.artistSurname2}`;
+      return fullName.trim();
+    };
+
+    const [user, artist] = await Promise.all([
+      Artist.findById(req.user._id, { artistName: 1, artistSurname1: 1, artistSurname2: 1, nickName: 1, email: 1 }).lean(),
+      Artist.findById(req.body.artistId, { artistName: 1, artistSurname1: 1, artistSurname2: 1, nickName: 1, email: 1 }).lean(),
+    ]);
+
+    if (!user || !artist) {
+      return res.status(404).json({ message: "User or Artist not found" });
+    }
+
+    const message = {
+      "Requested By User Name": formatName(user),
+      "Requested By User Email": user?.email || "No Email Provided",
+      "Requested To Artist Name": formatName(artist),
+      "Requested To Artist Email": artist?.email || "No Email Provided",
+      "Request Details": req.body?.projectDetails || "No Details Provided",
+      "Number Of Artwork": req.body?.numberOfArtworks || 0,
+      Budget: req.body?.budget || "No Budget Provided",
+      Discipline: req.body?.discipline || "No Discipline Provided",
+      Style: req.body?.style || "No Style Provided",
+      "Expected Delivery Date": req.body?.expectedDeliveryDate || "No Date Provided",
+    };
+
+    let payload = {
+      user: req.user._id,
+      subject: "New Custom Order Request",
+      message: JSON.stringify(message, null, 2),
+      ticketType: "Custom Order",
+      ticketId: ticketId,
+      ticketImg: null,
+    };
+
+    await Ticket.create(payload);
+
+    return res.status(201).json({
+      message: "Request Successfully Created",
+    });
   } catch (error) {
-    APIErrorLog.error(error);
+    console.error("Error creating custom order:", error);
     return res.status(500).send({ message: "Something went wrong" });
   }
 };

@@ -15,11 +15,15 @@ const {
   giveReview,
   generateHash,
   getData,
+  getStaus,
+  createSubcribeOrder,
 } = require("../controller/orderController");
 
 const router = express.Router();
 
 router.post("/create-order", validateToken, createOrder);
+
+router.post("/subscribe-plan", validateToken, createSubcribeOrder);
 
 router.get("/get-all-orders", validateAdminToken, getAllOrders);
 
@@ -40,6 +44,8 @@ router.get("/get-admin-order-detail/:id", validateAdminToken, getAdminOrderDetai
 router.get("/get-user-single-order/:id", validateToken, getUserSingleOrder);
 
 router.patch("/give-review/:id/:artworkId", validateToken, giveReview);
+
+router.get("/status", validateToken, getStaus);
 
 router.get("/hash", generateHash);
 

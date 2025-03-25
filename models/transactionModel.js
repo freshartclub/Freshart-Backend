@@ -4,7 +4,7 @@ const transcationSchema = new mongoose.Schema(
   {
     transcationId: { type: String },
     user: { type: mongoose.Schema.Types.ObjectId },
-    orderId: { type: mongoose.Schema.Types.ObjectId },
+    orderId: { type: String },
     status: { type: String },
     timestamp: { type: String },
     amount: { type: String },
