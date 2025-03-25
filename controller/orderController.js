@@ -1,4 +1,3 @@
-const Admin = require("../models/adminModel");
 const catchAsyncError = require("../functions/catchAsyncError");
 const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
@@ -15,15 +14,14 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   if (!user) return res.status(400).send({ message: "User not found" });
   const { time, currency } = req.body;
   const orderId = uuidv4();
+
   let items = [];
 
   if (req.body?.items?.length == 0) {
     return res.status(400).send({ message: "Please select artwork" });
   }
 
-  req.body.items.map((i) => items.push(i));
   const defaultBilling = user.billingInfo.find((i) => i.isDefault == true);
-
   let address;
 
   if (req.body?.shippingAddress) {
@@ -52,13 +50,18 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   const isoCountry = getNumericCountryCode(defaultBilling.billingDetails.billingCountry);
 
   if (req.body.type === "purchase") {
-    for (const item of items) {
-      const artwork = await ArtWork.findOne({ _id: item, status: "published", "commercialization.activeTab": "purchase" }, { pricing: 1 }).lean(true);
-      if (!artwork) return res.status(400).send({ message: "Artwork not found or not available for purchase" });
+    for (const item of req.body.items) {
+      const artwork = await ArtWork.findOne(
+        { _id: item, status: "published", "commercialization.activeTab": "purchase" },
+        { status: 1, pricing: 1 }
+      ).lean();
+      if (artwork && artwork.status == "published") items.push(item);
 
       subTotal += Number(artwork.pricing.basePrice);
       totalDiscount += (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice);
     }
+
+    if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
 
     total = Math.round((subTotal - totalDiscount + req.body.shipping) * 100);
     const taxAmount = Math.round((total * Number(req.body.tax)) / 100);
@@ -92,6 +95,23 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       .status(200)
       .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: total, currency: currency, iso: isoCountry });
   } else {
+    for (const item of req.body.items) {
+      const artwork = await ArtWork.findOne(
+        { _id: item, status: "published", "commercialization.activeTab": "subscription" },
+        { status: 1, pricing: 1 }
+      ).lean();
+      if (artwork && artwork.status == "published") items.push(item);
+
+      subTotal += Number(artwork.pricing.basePrice);
+      totalDiscount += (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice);
+    }
+
+    if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
+
+    total = Math.round((subTotal - totalDiscount + req.body.shipping) * 100);
+    const taxAmount = Math.round((total * Number(req.body.tax)) / 100);
+    total = Math.round(total + taxAmount);
+
     await Order.create({
       orderId: orderId,
       type: "subscription",
@@ -100,8 +120,8 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       tax: 0,
       taxAmount: 0,
       billingAddress: defaultBilling.billingDetails,
-      shippingAddress: req.body.shipping,
-      shipping: 0,
+      shippingAddress: address,
+      shipping: req.body.shipping,
       discount: 0,
       subTotal: 0,
       total: 0,
@@ -806,7 +826,8 @@ const getResponData = catchAsyncError(async (req, res, next) => {
         },
       }
     );
-    return res.redirect(`/payment-fail?orderId=${order?.orderId}`);
+
+    return res.status(200).send({ message: "Payment Failed" });
   }
 
   const order = await Order.findOneAndUpdate(
@@ -827,7 +848,8 @@ const getResponData = catchAsyncError(async (req, res, next) => {
   });
 
   await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: order.items } } } });
-  res.redirect("/payment-success");
+
+  res.status(200).send({ message: "Payment Successfull" });
 });
 
 module.exports = {

@@ -65,6 +65,8 @@ app.use("/api/order", require("./routes/orderRoutes"));
 app.use("/api/email", require("./routes/emailTypeRoutes"));
 app.use("/api/circle", require("./routes/circleRoutes"));
 
+require("./functions/cornJob");
+
 app.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });
