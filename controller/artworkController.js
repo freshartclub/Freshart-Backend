@@ -296,11 +296,10 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   obj["status"] = "draft";
-  await ArtWork.create(obj);
+  const newArt = await ArtWork.create(obj);
 
   const catalogId = req.body.subscriptionCatalog ? req.body.subscriptionCatalog : req.body.purchaseCatalog;
-
-  await Catalog.updateOne({ _id: catalogId }, { $push: { artworkList: artwork._id } });
+  await Catalog.updateOne({ _id: catalogId }, { $push: { artworkList: newArt._id } });
 
   await Notification.updateOne(
     { user: artist._id },
@@ -308,13 +307,13 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       $push: {
         notifications: {
           subject: "New Artwork Added by Admin",
-          message: `A New Artwork "${artwork.artworkName}" has been added by Admin for you`,
+          message: `A New Artwork "${newArt.artworkName}" has been added by Admin for you`,
         },
       },
     }
   );
 
-  return res.status(200).send({ message: "Artwork Added Sucessfully" });
+  return res.status(200).send({ message: "Artwork Added Sucessfully", data: { _id: newArt._id } });
 });
 
 const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
