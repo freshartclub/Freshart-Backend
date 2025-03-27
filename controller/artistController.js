@@ -2277,6 +2277,8 @@ const createCustomOrder = async (req, res) => {
   }
 };
 
+// const generateRandom
+
 module.exports = {
   login,
   sendVerifyEmailOTP,

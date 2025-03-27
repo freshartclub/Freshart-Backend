@@ -1,7 +1,7 @@
 const { CronJob } = require("cron");
 const Order = require("../models/orderModel");
 
-const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
+const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
 const scheduleJob = new CronJob(
   "0 0 * * *",
@@ -11,7 +11,7 @@ const scheduleJob = new CronJob(
         {
           $match: {
             status: "created",
-            createdAt: { $lt: twoHoursAgo },
+            createdAt: { $lt: oneDayAgo },
           },
         },
         {

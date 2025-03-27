@@ -47,7 +47,7 @@ const orderSchema = new mongoose.Schema(
     total: {
       type: Number,
     },
-    items: [{ type: mongoose.Schema.Types.ObjectId }],
+    items: [{ artwork: { type: mongoose.Schema.Types.ObjectId }, other: { type: Object } }],
     evidence: {
       type: Object,
     },

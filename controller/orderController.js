@@ -18,6 +18,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   const orderId = uuidv4();
 
   let items = [];
+  let fullItemsDetails = [];
 
   if (req.body?.items?.length == 0) {
     return res.status(400).send({ message: "Please select artwork" });
@@ -61,6 +62,13 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
       subTotal += Number(artwork.pricing.basePrice);
       totalDiscount += (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice);
+
+      fullItemsDetails.push({
+        _id: item,
+        subTotal: Number(artwork.pricing.basePrice),
+        totalDiscount: (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice),
+        discount: artwork.pricing.dpersentage,
+      });
     }
 
     if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
@@ -82,7 +90,16 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       discount: totalDiscount,
       subTotal: subTotal,
       total: total,
-      items: items,
+      items: fullItemsDetails.map((i) => {
+        return {
+          artwork: i._id,
+          other: {
+            subTotal: i.subTotal,
+            totalDiscount: i.totalDiscount,
+            discount: i.discount,
+          },
+        };
+      }),
       currency: currency,
       note: req.body.note,
     });
@@ -108,6 +125,13 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
       subTotal += Number(artwork.pricing.basePrice);
       totalDiscount += (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice);
+
+      fullItemsDetails.push({
+        _id: item,
+        subTotal: Number(artwork.pricing.basePrice),
+        totalDiscount: (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice),
+        discount: artwork.pricing.dpersentage,
+      });
     }
 
     if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
@@ -129,7 +153,16 @@ const createOrder = catchAsyncError(async (req, res, next) => {
       discount: 0,
       subTotal: 0,
       total: 0,
-      items: items,
+      items: fullItemsDetails.map((i) => {
+        return {
+          artwork: i._id,
+          other: {
+            subTotal: i.subTotal,
+            totalDiscount: i.totalDiscount,
+            discount: i.discount,
+          },
+        };
+      }),
       note: req.body.note,
     });
 
@@ -164,25 +197,37 @@ const createSubcribeOrder = catchAsyncError(async (req, res, next) => {
   const isoCountry = getNumericCountryCode(country);
   if (!isoCountry) return res.status(400).send({ message: "Please select country" });
 
+  const pay_ref = uuidv4();
+  const pmt_ref = uuidv4();
+
   await Subscription.create({
     orderId: orderId,
     user: user._id,
     plan: plan._id,
+    pay_ref: pay_ref,
+    pmt_ref: pmt_ref,
     status: "created",
   });
 
   const amount = type == "monthly" ? plan.currentPrice : plan.currentYearlyPrice;
   const amountRound = amount * 100;
 
-  const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}`;
+  const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}.${pay_ref}.${pmt_ref}`;
   const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
 
   const finalString = `${hash1}.${process.env.SECRET}`;
   const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
 
-  return res
-    .status(200)
-    .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: amountRound, currency: currency, iso: isoCountry });
+  return res.status(200).send({
+    message: "Order Created Successfully",
+    data: sha1Hash,
+    orderId: orderId,
+    amount: amountRound,
+    currency: currency,
+    iso: isoCountry,
+    pay_ref: pay_ref,
+    pmt_ref: pmt_ref,
+  });
 });
 
 const getAllOrders = catchAsyncError(async (req, res, next) => {
@@ -287,7 +332,7 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
     {
       $lookup: {
         from: "artworks",
-        localField: "items",
+        localField: "items.artwork",
         foreignField: "_id",
         as: "artWorkData",
       },
@@ -302,13 +347,13 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
                 input: "$items",
                 as: "item",
                 in: {
-                  artWork: {
+                  artwork: {
                     $arrayElemAt: [
                       {
                         $filter: {
                           input: "$artWorkData",
-                          as: "artWork",
-                          cond: { $eq: ["$$artWork._id", "$$item"] },
+                          as: "artwork",
+                          cond: { $eq: ["$$artwork._id", "$$item.artwork"] },
                         },
                       },
                       0,
@@ -328,20 +373,19 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
         user: 1,
         type: 1,
         status: 1,
-        orderID: 1,
+        orderId: 1,
         discount: 1,
         tax: 1,
         shipping: 1,
         subTotal: 1,
+        total: 1,
         createdAt: 1,
         updatedAt: 1,
-        "items.quantity": 1,
-        "item.artWorkId": 1,
-        "items.artWork._id": 1,
-        "items.artWork.artworkName": 1,
-        "items.artWork.media.mainImage": 1,
-        "items.artWork.inventoryShipping": 1,
-        "items.artWork.pricing": 1,
+        "items.artwork._id": 1,
+        "items.artwork.artworkName": 1,
+        "items.artwork.media.mainImage": 1,
+        "items.artwork.inventoryShipping": 1,
+        "items.artwork.pricing": 1,
       },
     },
     {
@@ -356,22 +400,21 @@ const getAllUserOrders = catchAsyncError(async (req, res, next) => {
         user: order.user,
         type: order.type,
         status: order.status,
-        orderID: order.orderID,
+        orderId: order.orderId,
         discount: order.discount,
         tax: order.tax,
         shipping: order.shipping,
         subTotal: order.subTotal,
+        total: order.total,
         createdAt: order.createdAt,
         updatedAt: order.updatedAt,
         artwork: {
-          _id: item.artWork._id,
-          artWorkId: item.artWork.artworkId,
-          quantity: item.quantity,
+          _id: item.artwork._id,
           type: item.type,
-          artworkName: item.artWork.artworkName,
-          media: item.artWork.media.mainImage,
-          inventoryShipping: item.artWork.inventoryShipping,
-          pricing: item.artWork.pricing,
+          artworkName: item.artwork.artworkName,
+          media: item.artwork.media.mainImage,
+          inventoryShipping: item.artwork.inventoryShipping,
+          pricing: item.artwork.pricing,
         },
       }))
     );
@@ -395,24 +438,67 @@ const getArtistOrders = catchAsyncError(async (req, res, next) => {
     {
       $lookup: {
         from: "artworks",
-        localField: "items.artWork",
+        localField: "items.artwork",
         foreignField: "_id",
         as: "artWorkDetails",
+        pipeline: [{ $project: { _id: 1, owner: 1, artworkName: 1, media: "$media.mainImage", additionalInfo: 1, pricing: 1 } }],
       },
     },
-    { $unwind: "$artWorkDetails" },
     {
       $lookup: {
         from: "artists",
         localField: "user",
         foreignField: "_id",
         as: "user",
+        pipeline: [{ $project: { _id: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, email: 1 } }],
       },
     },
     { $unwind: "$user" },
     {
+      $set: {
+        // Attach correct artwork details to each item in `items` array
+        items: {
+          $map: {
+            input: "$items",
+            as: "item",
+            in: {
+              $mergeObjects: [
+                "$$item",
+                {
+                  artworkDetails: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$artWorkDetails",
+                          as: "art",
+                          cond: { $eq: ["$$art._id", "$$item.artwork"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
+    },
+    {
+      $set: {
+        // Keep only items where the artwork owner is the logged-in artist
+        items: {
+          $filter: {
+            input: "$items",
+            as: "item",
+            cond: { $eq: ["$$item.artworkDetails.owner", user._id] },
+          },
+        },
+      },
+    },
+    {
       $match: {
-        "artWorkDetails.owner": user._id,
+        "items.0": { $exists: true }, // Ensure orders with at least one matching item
       },
     },
     {
@@ -420,23 +506,15 @@ const getArtistOrders = catchAsyncError(async (req, res, next) => {
         _id: 1,
         status: 1,
         type: 1,
-        tax: 1,
-        taxAmount: 1,
-        shipping: 1,
-        discount: 1,
-        subTotal: 1,
-        items: 1,
-        image: "$artWorkDetails.media.mainImage",
-        artWorkName: "$artWorkDetails.artworkName",
-        currency: "$artWorkDetails.pricing.currency",
-        artistName: "$user.artistName",
-        artistSurname1: "$user.artistSurname1",
-        artistSurname2: "$user.artistSurname2",
-        email: "$user.email",
-        length: "$artWorkDetails.additionalInfo.length",
-        height: "$artWorkDetails.additionalInfo.height",
-        width: "$artWorkDetails.additionalInfo.width",
-        orderID: 1,
+        // tax: 1,
+        // taxAmount: 1,
+        // shipping: 1,
+        // discount: 1,
+        // total: 1,
+        // subTotal: 1,
+        user: 1,
+        items: 1, // Only items owned by the logged-in artist
+        orderId: 1,
         createdAt: 1,
       },
     },
@@ -467,9 +545,10 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
     {
       $lookup: {
         from: "artworks",
-        localField: "items.artWork",
+        localField: "items.artwork",
         foreignField: "_id",
         as: "artWorkData",
+        pipeline: [{ $project: { _id: 1, owner: 1, artworkName: 1, media: "$media.mainImage", additionalInfo: 1, pricing: 1 } }],
       },
     },
     {
@@ -477,6 +556,7 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
         from: "artists",
         localField: "user",
         foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artistName: 1, profile: 1, artistSurname1: 1, artistSurname2: 1, email: 1 } }],
         as: "userData",
       },
     },
@@ -485,15 +565,11 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
     },
     {
       $addFields: {
-        "items.artWork": {
+        "items.artwork": {
           _id: { $arrayElemAt: ["$artWorkData._id", 0] },
-          artWorkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
           owner: { $arrayElemAt: ["$artWorkData.owner", 0] },
           artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
-          media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
-          inventoryShipping: {
-            $arrayElemAt: ["$artWorkData.inventoryShipping", 0],
-          },
+          media: { $arrayElemAt: ["$artWorkData.media", 0] },
           pricing: { $arrayElemAt: ["$artWorkData.pricing", 0] },
         },
       },
@@ -501,31 +577,28 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         $expr: {
-          $eq: ["$items.artWork.owner", objectId(artistId)],
+          $eq: ["$items.artwork.owner", objectId(artistId)],
         },
       },
     },
     {
       $group: {
         _id: "$_id",
-        orderID: { $first: "$orderID" },
+        orderId: { $first: "$orderId" },
         type: { $first: "$type" },
         status: { $first: "$status" },
-        tax: { $first: "$tax" },
-        shipping: { $first: "$shipping" },
-        discount: { $first: "$discount" },
-        total: { $first: "$total" },
-        taxAmount: { $first: "$taxAmount" },
-        subTotal: { $first: "$subTotal" },
+        // tax: { $first: "$tax" },
+        // shipping: { $first: "$shipping" },
+        // discount: { $first: "$discount" },
+        // total: { $first: "$total" },
+        // taxAmount: { $first: "$taxAmount" },
+        // subTotal: { $first: "$subTotal" },
         createdAt: { $first: "$createdAt" },
         user: { $first: "$userData" },
         items: {
           $push: {
-            quantity: "$items.quantity",
-            evidenceImg: "$items.evidenceImg",
-            isCancelled: "$items.isCancelled",
-            cancelReason: "$items.cancelReason",
-            artWork: "$items.artWork",
+            other: "$items.other",
+            artwork: "$items.artwork",
           },
         },
       },
@@ -533,16 +606,16 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         _id: 1,
-        orderID: 1,
+        orderId: 1,
         status: 1,
-        total: 1,
-        taxAmount: 1,
-        tax: 1,
-        shipping: 1,
-        discount: 1,
-        subTotal: 1,
+        type: 1,
+        // total: 1,
+        // taxAmount: 1,
+        // tax: 1,
+        // shipping: 1,
+        // discount: 1,
+        // subTotal: 1,
         createdAt: 1,
-        updatedAt: 1,
         items: 1,
         user: {
           artistName: "$user.artistName",
@@ -579,7 +652,7 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
     {
       $lookup: {
         from: "artworks",
-        localField: "items.artWork",
+        localField: "items.artwork",
         foreignField: "_id",
         as: "artWorkData",
       },
@@ -587,12 +660,13 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         _id: 1,
-        orderID: 1,
+        orderId: 1,
         status: 1,
         tax: 1,
         type: 1,
         shipping: 1,
         discount: 1,
+        total: 1,
         subTotal: 1,
         createdAt: 1,
         updatedAt: 1,
@@ -600,15 +674,9 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
         billingAddress: 1,
         note: 1,
         items: {
-          quantity: "$items.quantity",
-          rating: "$items.rating",
-          review: "$items.review",
-          evidenceImg: "$items.evidenceImg",
-          isCancelled: "$items.isCancelled",
-          cancelReason: "$items.cancelReason",
-          artWork: {
+          other: "$items.other",
+          artwork: {
             _id: { $arrayElemAt: ["$artWorkData._id", 0] },
-            artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
             owner: { $arrayElemAt: ["$artWorkData.owner", 0] },
             artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
             media: { $arrayElemAt: ["$artWorkData.media.mainImage", 0] },
@@ -622,9 +690,8 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  const getArtwork = order.find((item) => item.items.artWork._id == artworkId);
-
-  const getOtherArtwork = order.filter((item) => item.items.artWork._id != artworkId);
+  const getArtwork = order.find((item) => item.items.artwork._id == artworkId);
+  const getOtherArtwork = order.filter((item) => item.items.artwork._id != artworkId);
 
   return res.status(200).send({
     foundArt: getArtwork,
@@ -762,25 +829,24 @@ const uploadEvedience = catchAsyncError(async (req, res, next) => {
   const { artworkId } = req.body;
 
   if (!artworkId) return res.status(400).send({ message: "Please provide artworkId" });
-
   const existingImg = await Order.findOne(
     {
       _id: id,
-      "items.artWork": objectId(artworkId),
+      "items.artwork": objectId(artworkId),
     },
-    { items: 1 }
+    { "items.$": 1 }
   ).lean(true);
 
-  const selectedItem = existingImg.items.find((item) => item.artWork.toString() === artworkId);
-
-  if (selectedItem.evidenceImg && selectedItem.evidenceImg.length > 0) {
-    for (let i = 0; i < selectedItem.evidenceImg.length; i++) {
-      imgArr.push(selectedItem.evidenceImg[i]);
-    }
+  if (!existingImg || !existingImg.items || existingImg.items.length === 0) {
+    return res.status(404).send({ message: "Artwork not found in order" });
   }
 
-  await Order.updateOne({ _id: id, "items.artWork": objectId(artworkId) }, { $set: { "items.$.evidenceImg": imgArr } });
+  const selectedItem = existingImg.items[0];
+  if (selectedItem.other?.evidenceImg?.length > 0) {
+    imgArr = [...selectedItem.other.evidenceImg, ...imgArr];
+  }
 
+  await Order.updateOne({ _id: id, "items.artwork": objectId(artworkId) }, { $set: { "items.$.other.evidenceImg": imgArr } });
   return res.status(200).send({ message: "Evidence Uploaded" });
 });
 
@@ -796,19 +862,27 @@ const cancelParticularItemFromOrder = catchAsyncError(async (req, res, next) => 
     description: description,
   };
 
-  const alreadyCancelled = await Order.findOne({
-    _id: id,
-    "items.artWork": objectId(artworkId),
-    "items.isCancelled": true,
-  });
+  const existingOrder = await Order.findOne(
+    {
+      _id: id,
+      "items.artwork": objectId(artworkId),
+    },
+    { "items.$": 1 }
+  ).lean(true);
 
-  if (alreadyCancelled) {
+  if (!existingOrder || !existingOrder.items || existingOrder.items.length === 0) {
+    return res.status(404).send({ message: "Artwork not found in order" });
+  }
+
+  const selectedItem = existingOrder.items[0];
+
+  if (selectedItem.other?.isCancelled) {
     return res.status(400).send({ message: "Item already cancelled" });
   }
 
-  await OrderModel.updateOne(
-    { _id: id, "items.artWork": objectId(artworkId) },
-    { $set: { "items.$.isCancelled": true, "items.$.cancelReason": obj } }
+  await Order.updateOne(
+    { _id: id, "items.artwork": objectId(artworkId) },
+    { $set: { "items.$.other.isCancelled": true, "items.$.other.cancelReason": obj } }
   );
 
   return res.status(200).send({ message: `Artwork - "${title}" cancelled successfully` });
@@ -890,7 +964,9 @@ const getResponData = catchAsyncError(async (req, res, next) => {
     sha1hash: req.body?.SHA1HASH,
   });
 
-  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: order.items } } } });
+  const artworks = order.items.map((item) => item.artwork);
+
+  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: artworks } } } });
   res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });
 });
 
