@@ -236,6 +236,11 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
 
   const orders = await Order.aggregate([
     {
+      $match: {
+        status: { $ne: "created" },
+      },
+    },
+    {
       $unwind: "$items",
     },
     {
@@ -328,7 +333,7 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
 
 const getAllUserOrders = catchAsyncError(async (req, res, next) => {
   const orders = await Order.aggregate([
-    { $match: { user: req.user._id } },
+    { $match: { user: req.user._id, status: { $ne: "created" } } },
     {
       $lookup: {
         from: "artworks",
@@ -436,6 +441,9 @@ const getArtistOrders = catchAsyncError(async (req, res, next) => {
 
   const orders = await Order.aggregate([
     {
+      $match: { status: { $ne: "created" } },
+    },
+    {
       $lookup: {
         from: "artworks",
         localField: "items.artwork",
@@ -537,6 +545,7 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         _id: objectId(id),
+        status: { $ne: "created" },
       },
     },
     {
@@ -644,6 +653,7 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
       $match: {
         user: objectId(req.user._id),
         _id: objectId(id),
+        status: { $ne: "created" },
       },
     },
     {
@@ -725,6 +735,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
     {
       $match: {
         _id: objectId(id),
+        status: { $ne: "created" },
       },
     },
     {
@@ -733,7 +744,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
     {
       $lookup: {
         from: "artworks",
-        localField: "items.artWork",
+        localField: "items.artwork",
         foreignField: "_id",
         as: "artWorkData",
       },
@@ -752,7 +763,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
     {
       $group: {
         _id: "$_id",
-        orderID: { $first: "$orderID" },
+        orderId: { $first: "$orderId" },
         status: { $first: "$status" },
         type: { $first: "$type" },
         tax: { $first: "$tax" },
