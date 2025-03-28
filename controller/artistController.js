@@ -86,8 +86,20 @@ const sendVerifyEmailOTP = async (req, res) => {
   try {
     const { password, cpassword, isArtistRequest } = req.body;
 
-    let { email, langCode } = req.body;
+    let { email, langCode, invite } = req.body;
     if (!email) return res.status(400).send({ message: "Email is required" });
+
+    let inviteCode = "";
+    let inviteId = "";
+    if (invite) {
+      const inviteData = await Invite.findOne({ inviteCode: invite }, { email: 1, inviteCode: 1, isUsed: 1 }).lean(true);
+      if (!inviteData) return res.status(400).send({ message: "Invite not found" });
+      if (inviteData.isUsed) return res.status(400).send({ message: "Invalid/Expired Invite" });
+
+      email = inviteData.email;
+      inviteCode = inviteData.inviteCode;
+      inviteId = inviteData._id;
+    }
 
     email = email.toLowerCase();
     if (langCode == "GB") langCode = "EN";
@@ -156,18 +168,23 @@ const sendVerifyEmailOTP = async (req, res) => {
       if (isExist.length === 1 && isExist[0].userId) {
         return res.status(400).send({ message: "Email already exist" });
       } else if (isExist.length === 1 && !isExist[0].userId) {
-        await Artist.updateOne(
-          { email: email },
-          {
-            $set: {
-              OTP: otp,
-              userId: "UID-" + generateRandomId(true),
-              role: "user",
-              password: md5(password),
-              pageCount: 0,
-            },
-          }
-        );
+        let obj = {
+          OTP: otp,
+          userId: "UID-" + generateRandomId(true),
+          role: "user",
+          password: md5(password),
+          pageCount: 0,
+        };
+
+        if (inviteId) {
+          obj["invite"] = {
+            inviteId: inviteId,
+            code: inviteCode,
+          };
+        }
+
+        await Artist.updateOne({ email: email }, { $set: obj });
+        if (inviteId) await Invite.updateOne({ _id: inviteId }, { $set: { isUsed: true } });
 
         await sendMail("sample-email", mailVaribles, email);
         return res.status(200).send({
@@ -176,14 +193,24 @@ const sendVerifyEmailOTP = async (req, res) => {
         });
       }
 
-      const user = await Artist.create({
+      let obj = {
         email: email,
         password: md5(password),
         userId: "UID-" + generateRandomId(true),
         role: "user",
         pageCount: 0,
         OTP: otp,
-      });
+      };
+
+      if (inviteId) {
+        obj["invite"] = {
+          inviteId: inviteId,
+          code: inviteCode,
+        };
+      }
+
+      const user = await Artist.create(obj);
+      if (inviteId) await Invite.updateOne({ _id: inviteId }, { $set: { isUsed: true } });
 
       await sendMail("sample-email", mailVaribles, email);
       return res.status(200).send({
@@ -192,7 +219,6 @@ const sendVerifyEmailOTP = async (req, res) => {
       });
     }
   } catch (error) {
-    APIErrorLog.error("Error while login the artist");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -2335,6 +2361,23 @@ const randomInviteCode = async (req, res) => {
   }
 };
 
+const getInvite = async (req, res) => {
+  try {
+    const { invite } = req.query;
+    if (!invite) return res.status(400).send({ message: "Invite not found" });
+
+    const inviteData = await Invite.findOne({ inviteCode: invite }, { email: 1, inviteCode: 1 }).lean(true);
+    if (!inviteData) return res.status(400).send({ message: "Invite not found" });
+
+    if (inviteData.isUsed) return res.status(400).send({ message: "Invalid/Expired Invite" });
+
+    return res.status(200).send({ data: inviteData });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2384,4 +2427,5 @@ module.exports = {
   createCustomOrder,
   createInvite,
   randomInviteCode,
+  getInvite,
 };

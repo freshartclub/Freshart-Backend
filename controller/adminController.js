@@ -30,6 +30,7 @@ const EmailType = require("../models/emailTypeModel");
 const Coupon = require("../models/couponModel");
 const fs = require("fs");
 const path = require("path");
+const deleteRemovedMedia = require("../functions/deleteMedia");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -231,6 +232,10 @@ const artistRegister = async (req, res) => {
 
     let obj = {};
     let artist = {};
+
+    let oldArtistImages = [];
+    let oldArtistVideos = [];
+
     if (req?.params?.id) {
       artist = await Artist.findOne(
         { _id: req.params.id },
@@ -241,6 +246,16 @@ const artistRegister = async (req, res) => {
           commercilization: 1,
         }
       ).lean(true);
+    }
+
+    if (artist) {
+      if (artist.profile.backImage) oldArtistImages.push(artist.profile.backImage);
+      if (artist.profile.mainImage) oldArtistImages.push(artist.profile.mainImage);
+      if (artist.profile.inProcessImage) oldArtistImages.push(artist.profile.inProcessImage);
+      if (artist.profile.additionalImage.length > 0) oldArtistImages.push(...artist.profile.additionalImage);
+
+      if (artist.profile.mainVideo) oldArtistVideos.push(artist.profile.mainVideo);
+      if (artist.profile.additionalVideo.length > 0) oldArtistVideos.push(...artist.profile.additionalVideo);
     }
 
     let additionalImages = [];
@@ -602,6 +617,24 @@ const artistRegister = async (req, res) => {
             await Catalog.updateOne({ _id: item.PublishingCatalog }, { $addToSet: { artProvider: artistId } });
           })
         );
+      }
+
+      let newArtistImages = [];
+      let newArtistVideos = [];
+
+      if (obj.profile.backImage) newArtistImages.push(obj.profile.backImage);
+      if (obj.profile.mainImage) newArtistImages.push(obj.profile.mainImage);
+      if (obj.profile.inProcessImage) newArtistImages.push(obj.profile.inProcessImage);
+      if (obj.profile.additionalImage.length > 0) newArtistImages.push(...obj.profile.additionalImage);
+
+      if (obj.profile.mainVideo) newArtistVideos.push(obj.profile.mainVideo);
+      if (obj.profile.additionalVideo.length > 0) newArtistVideos.push(...obj.profile.additionalVideo);
+
+      let removedImages = oldArtworkImages.filter((img) => !newArworkImages.includes(img));
+      let removedVideos = oldArtworkVideos.filter((vid) => !newArtworkVideos.includes(vid));
+
+      if (removedImages.length > 0 || removedVideos.length > 0) {
+        await deleteRemovedMedia(removedImages, removedVideos);
       }
     } else {
       const isExistingAritst = await Artist.countDocuments({
@@ -2885,15 +2918,34 @@ const approveArtistChanges = async (req, res) => {
         profileStatus: "under-review",
         isDeleted: false,
       },
-      { email: 1, artistName: 1 }
+      { email: 1, artistName: 1, profile: 1, reviewDetails: 1 }
     ).lean(true);
 
-    if (!artist) {
-      return res.status(400).send({ message: "Artist not found" });
-    }
+    if (!artist) return res.status(400).send({ message: "Artist not found" });
 
     const data = req.body;
     if (!data.note) return res.status(400).send({ message: "Note is required" });
+
+    let oldArtistImages = [];
+    let oldArtistVideos = [];
+    let newArtistImages = [];
+    let newArtistVideos = [];
+
+    if (artist.profile.backImage) oldArtistImages.push(artist.profile.backImage);
+    if (artist.profile.mainImage) oldArtistImages.push(artist.profile.mainImage);
+    if (artist.profile.inProcessImage) oldArtistImages.push(artist.profile.inProcessImage);
+    if (artist.profile.additionalImage.length > 0) oldArtistImages.push(...artist.profile.additionalImage);
+
+    if (artist.profile.mainVideo) oldArtistVideos.push(artist.profile.mainVideo);
+    if (artist.profile.additionalVideo.length > 0) oldArtistVideos.push(...artist.profile.additionalVideo);
+
+    if (artist.reviewDetails.profile.backImage) newArtistImages.push(artist.reviewDetails.profile.backImage);
+    if (artist.reviewDetails.profile.mainImage) newArtistImages.push(artist.reviewDetails.profile.mainImage);
+    if (artist.reviewDetails.profile.inProcessImage) newArtistImages.push(artist.reviewDetails.profile.inProcessImage);
+    if (artist.reviewDetails.profile.additionalImage.length > 0) newArtistImages.push(...artist.reviewDetails.profile.additionalImage);
+
+    if (artist.reviewDetails.profile.mainVideo) newArtistVideos.push(artist.reviewDetails.profile.mainVideo);
+    if (artist.reviewDetails.profile.additionalVideo.length > 0) newArtistVideos.push(...artist.reviewDetails.profile.additionalVideo);
 
     let obj = {};
 
@@ -2948,6 +3000,13 @@ const approveArtistChanges = async (req, res) => {
         }
       ),
     ]);
+
+    let removedImages = oldArtistImages.filter((img) => !newArtistImages.includes(img));
+    let removedVideos = oldArtistVideos.filter((vid) => !newArtistVideos.includes(vid));
+
+    if (removedImages.length > 0 || removedVideos.length > 0) {
+      await deleteRemovedMedia(removedImages, removedVideos);
+    }
 
     return res.status(200).send({
       message: `Artist Profile Changes ${req.body.isApproved ? "Approved" : "Rejected"}`,
@@ -3131,14 +3190,33 @@ const approveArtworkChanges = async (req, res) => {
         owner: 1,
         artworkId: 1,
         artworkName: 1,
+        media: 1,
         reviewDetails: 1,
         commercialization: 1,
       }
     ).lean(true);
+    if (!artwork) return res.status(400).send({ message: "Artwork not found" });
 
-    if (!artwork) {
-      return res.status(400).send({ message: "Artwork not found" });
-    }
+    let oldArtworkImages = [];
+    let oldArtworkVideos = [];
+    let newArworkImages = [];
+    let newArtworkVideos = [];
+
+    if (artwork.media.backImage) oldArtworkImages.push(artwork.media.backImage);
+    if (artwork.media.mainImage) oldArtworkImages.push(artwork.media.mainImage);
+    if (artwork.media.inProcessImage) oldArtworkImages.push(artwork.media.inProcessImage);
+    if (artwork.media.images.length > 0) oldArtworkImages.push(...artwork.media.images);
+
+    if (artwork.media.mainVideo) oldArtworkVideos.push(artwork.media.mainVideo);
+    if (artwork.media.otherVideo.length > 0) oldArtworkVideos.push(...artwork.media.otherVideo);
+
+    if (artwork.reviewDetails.media.backImage) newArworkImages.push(artwork.reviewDetails.media.backImage);
+    if (artwork.reviewDetails.media.mainImage) newArworkImages.push(artwork.reviewDetails.media.mainImage);
+    if (artwork.reviewDetails.media.inProcessImage) newArworkImages.push(artwork.reviewDetails.media.inProcessImage);
+    if (artwork.reviewDetails.media.images.length > 0) newArworkImages.push(...artwork.reviewDetails.media.images);
+
+    if (artwork.reviewDetails.media.mainVideo) newArtworkVideos.push(artwork.reviewDetails.media.mainVideo);
+    if (artwork.reviewDetails.media.otherVideo.length > 0) newArtworkVideos.push(...artwork.reviewDetails.media.otherVideo);
 
     const artist = await Artist.findOne(
       {
@@ -3210,8 +3288,14 @@ const approveArtworkChanges = async (req, res) => {
       };
     }
 
-    const artName = artwork.artworkName + " (" + artwork.artworkId + ")";
+    let removedImages = oldArtworkImages.filter((img) => !newArworkImages.includes(img));
+    let removedVideos = oldArtworkVideos.filter((vid) => !newArtworkVideos.includes(vid));
 
+    if (removedImages.length > 0 || removedVideos.length > 0) {
+      await deleteRemovedMedia(removedImages, removedVideos);
+    }
+
+    const artName = artwork.artworkName + " (" + artwork.artworkId + ")";
     const findEmail = await EmailType.findOne({
       emailType: "admin-artwork-status-change",
       emailLang: lang,

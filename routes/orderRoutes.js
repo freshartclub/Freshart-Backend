@@ -17,6 +17,7 @@ const {
   getData,
   getStaus,
   createSubcribeOrder,
+  getSubscribeResponData,
 } = require("../controller/orderController");
 
 const router = express.Router();
@@ -50,5 +51,7 @@ router.get("/status", validateToken, getStaus);
 router.get("/hash", generateHash);
 
 router.post("/success", getData);
+
+router.post("/get-subscribe-response", getSubscribeResponData);
 
 module.exports = router;

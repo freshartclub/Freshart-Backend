@@ -1010,37 +1010,7 @@ const getResponData = catchAsyncError(async (req, res, next) => {
 });
 
 const getSubscribeResponData = catchAsyncError(async (req, res, next) => {
-  if (req.body.RESULT !== "00") {
-    await Subscription.updateOne(
-      { orderId: req.body?.ORDER_ID },
-      {
-        $set: {
-          status: "failed",
-        },
-      }
-    );
-
-    return res.status(200).send({ message: "Payment Failed" });
-  }
-
-  const order = await Subscription.findOneAndUpdate(
-    { orderId: req.body?.ORDER_ID },
-    {
-      $set: { status: "successfull" },
-    }
-  ).lean();
-
-  await Transaction.create({
-    transcationId: req.body?.PASREF,
-    user: order.user,
-    status: "successfull",
-    orderId: order.orderId,
-    timestamp: req.body?.TIMESTAMP,
-    amount: req.body?.AMOUNT,
-    sha1hash: req.body?.SHA1HASH,
-  });
-
-  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: order.items } } } });
+  console.log(req.body);
   res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });
 });
 
@@ -1075,5 +1045,6 @@ module.exports = {
   getData,
   generateHash,
   getResponData,
+  getSubscribeResponData,
   getStaus,
 };

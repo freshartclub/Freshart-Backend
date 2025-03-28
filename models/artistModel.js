@@ -221,6 +221,10 @@ const artistSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    invite: {
+      inviteId: { type: mongoose.Schema.Types.ObjectId },
+      code: { type: String },
+    },
     passwordLinkToken: { type: String },
     wallet: {
       id: { type: String },

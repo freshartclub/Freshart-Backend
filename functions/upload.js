@@ -131,7 +131,7 @@ const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: 50 * 1024 * 1024, // 50MB max file size
+    fileSize: 50 * 1024 * 1024,
   },
 }).fields([
   { name: "disciplineImage", maxCount: 1 },
@@ -157,7 +157,6 @@ const upload = multer({
   { name: "circleFile", maxCount: 5 },
 ]);
 
-// Image Processing Functions
 const ensureDirectoryExists = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });

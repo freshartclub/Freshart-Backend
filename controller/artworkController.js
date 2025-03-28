@@ -27,9 +27,12 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: `Artist not activated` });
   }
 
+  let oldArtworkImages = [];
+  let oldArtworkVideos = [];
+
   const artwork = await ArtWork.findOne(
     { _id: artworkId, isDeleted: false },
-    { media: 1, status: 1, artworkId: 1, commercialization: 1, lastModified: 1 }
+    { media: 1, status: 1, artworkId: 1, commercialization: 1, lastModified: 1, media: 1 }
   ).lean(true);
 
   const isArtwork = artwork ? true : false;
@@ -40,6 +43,14 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
         message: "You can't modify this artwork. This Artwork is rejected.",
       });
     }
+
+    if (artwork.media.backImage) oldArtworkImages.push(artwork.media.backImage);
+    if (artwork.media.mainImage) oldArtworkImages.push(artwork.media.mainImage);
+    if (artwork.media.inProcessImage) oldArtworkImages.push(artwork.media.inProcessImage);
+    if (artwork.media.images.length > 0) oldArtworkImages.push(...artwork.media.images);
+
+    if (artwork.media.mainVideo) oldArtworkVideos.push(artwork.media.mainVideo);
+    if (artwork.media.otherVideo.length > 0) oldArtworkVideos.push(...artwork.media.otherVideo);
   }
 
   const fileData = await fileUploadFunc(req, res);
@@ -260,6 +271,24 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
           },
         }
       );
+
+      let newArworkImages = [];
+      let newArtworkVideos = [];
+
+      if (obj.media.backImage) newArworkImages.push(obj.media.backImage);
+      if (obj.media.mainImage) newArworkImages.push(obj.media.mainImage);
+      if (obj.media.inProcessImage) newArworkImages.push(obj.media.inProcessImage);
+      if (obj.media.images.length > 0) newArworkImages.push(...obj.media.images);
+
+      if (obj.media.mainVideo) newArtworkVideos.push(obj.media.mainVideo);
+      if (obj.media.otherVideo.length > 0) newArtworkVideos.push(...obj.media.otherVideo);
+
+      let removedImages = oldArtworkImages.filter((img) => !newArworkImages.includes(img));
+      let removedVideos = oldArtworkVideos.filter((vid) => !newArtworkVideos.includes(vid));
+
+      if (removedImages.length > 0 || removedVideos.length > 0) {
+        await deleteRemovedMedia(removedImages, removedVideos);
+      }
 
       return res.status(200).send({ message: "Artwork Modified", data: artwork });
     }
@@ -1652,7 +1681,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
         { $limit: 10 },
       ]);
 
-      const viewTypes = ["new", "trending", "soon", "highlight", "search"];
+      const viewTypes = ["new", "trending", "comingSoon", "highlight", "search"];
       const type = viewTypes.includes(viewType) ? viewType : null;
 
       if (type !== null) {

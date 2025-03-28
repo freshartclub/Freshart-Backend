@@ -6,6 +6,10 @@ const inviteSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    isUsed: {
+      type: Boolean,
+      default: false,
+    },
     user: {
       type: mongoose.Schema.Types.ObjectId,
     },

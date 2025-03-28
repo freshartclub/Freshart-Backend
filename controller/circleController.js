@@ -14,6 +14,7 @@ const mongoose = require("mongoose");
 const FollowRequest = require("../models/followRequestModel");
 const Notification = require("../models/notificationModel");
 const Follower = require("../models/followerModel");
+const deleteRemovedMedia = require("../functions/deleteMedia");
 
 const addCircle = catchAsyncError(async (req, res) => {
   const admin = await Admin.countDocuments({
@@ -522,10 +523,20 @@ const createPostInCircle = catchAsyncError(async (req, res) => {
 
     obj["file"] = files;
 
-    const post = await Post.updateOne({ _id: req.body.postId }, { $set: obj });
+    const previousPost = await Post.findOneAndUpdate({ _id: req.body.postId }, { $set: obj }, { returnDocument: "before" });
+    if (!previousPost) return res.status(400).send({ message: "Post Not Found" });
 
-    if (post.modifiedCount === 0) {
-      return res.status(400).send({ message: "Post Not Found" });
+    let previousFiles = previousPost.file || [];
+    const filesToDelete = previousFiles.filter((file) => !files.includes(file));
+
+    const imageExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+    const videoExtensions = [".mp4", ".mov", ".avi", ".mkv", ".webm"];
+
+    const imgFiles = filesToDelete.filter((file) => imageExtensions.some((ext) => file.toLowerCase().endsWith(ext)));
+    const videoFiles = filesToDelete.filter((file) => videoExtensions.some((ext) => file.toLowerCase().endsWith(ext)));
+
+    if (videoFiles.length > 0 || imgFiles.length > 0) {
+      await deleteRemovedMedia(imgFiles, videoFiles);
     }
 
     return res.status(200).send({ message: "Post Editted" });
