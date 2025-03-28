@@ -47,6 +47,8 @@ const {
   getFavoriteList,
   getFullFavoriteList,
   createCustomOrder,
+  createInvite,
+  randomInviteCode,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -204,5 +206,11 @@ router.get("/get-collection/:id", getUserSideCollectionById);
 router.get("/get-all-plans", validateToken, getUserPlans);
 
 router.post("/get-response-data", getResponData);
+
+// ------------------------- invite ----------------------------------------------
+
+router.post("/create-invite", validateToken, createInvite);
+
+router.get("/invite-code", validateToken, randomInviteCode);
 
 module.exports = router;

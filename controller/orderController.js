@@ -231,22 +231,40 @@ const createSubcribeOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const getAllOrders = catchAsyncError(async (req, res, next) => {
-  let { s } = req.query;
+  let { s, limit, cursor, direction, currPage } = req.query;
   s = s === "undefined" || typeof s === "undefined" ? "" : s;
 
-  const orders = await Order.aggregate([
-    {
-      $match: {
-        status: { $ne: "created" },
-      },
-    },
+  limit = parseInt(limit) || 10;
+  cursor = cursor || null;
+
+  const matchStage = {
+    status: { $ne: "created" },
+    $or: [
+      { "userData.userId": { $regex: s, $options: "i" } },
+      { "userData.artistId": { $regex: s, $options: "i" } },
+      { "userData.artistName": { $regex: s, $options: "i" } },
+      { orderId: { $regex: s, $options: "i" } },
+    ],
+  };
+
+  const totalCount = await Order.countDocuments(matchStage);
+
+  if (cursor) {
+    if (direction === "next") {
+      matchStage._id = { $lt: objectId(cursor) };
+    } else if (direction === "prev") {
+      matchStage._id = { $gt: objectId(cursor) };
+    }
+  }
+
+  let orders = await Order.aggregate([
     {
       $unwind: "$items",
     },
     {
       $lookup: {
         from: "artworks",
-        localField: "items.artWork",
+        localField: "items.artwork",
         foreignField: "_id",
         as: "artWorkData",
       },
@@ -257,25 +275,17 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
         localField: "user",
         foreignField: "_id",
         as: "userData",
+        pipeline: [{ $project: { _id: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, email: 1 } }],
       },
     },
     {
       $unwind: { path: "$userData", preserveNullAndEmptyArrays: true },
     },
-    {
-      $match: {
-        $or: [
-          { "userData.userId": { $regex: s, $options: "i" } },
-          { "userData.artistId": { $regex: s, $options: "i" } },
-          { "userData.artistName": { $regex: s, $options: "i" } },
-          { orderID: { $regex: s, $options: "i" } },
-        ],
-      },
-    },
+    { $match: matchStage },
     {
       $group: {
         _id: "$_id",
-        orderID: { $first: "$orderID" },
+        orderId: { $first: "$orderId" },
         type: { $first: "$type" },
         status: { $first: "$status" },
         tax: { $first: "$tax" },
@@ -284,12 +294,11 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
         total: { $first: "$total" },
         subTotal: { $first: "$subTotal" },
         createdAt: { $first: "$createdAt" },
-        updatedAt: { $first: "$updatedAt" },
         user: { $first: "$userData" },
         items: {
           $push: {
-            quantity: "$items.quantity",
-            artWork: {
+            other: "$items.other",
+            artwork: {
               _id: { $arrayElemAt: ["$artWorkData._id", 0] },
               artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
               artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
@@ -306,7 +315,7 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         _id: 1,
-        orderID: 1,
+        orderId: 1,
         type: 1,
         status: 1,
         tax: 1,
@@ -315,7 +324,6 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
         discount: 1,
         subTotal: 1,
         createdAt: 1,
-        updatedAt: 1,
         items: 1,
         "user.artistName": 1,
         "user.artistSurname1": 1,
@@ -323,12 +331,36 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
         "user.email": 1,
       },
     },
-    {
-      $sort: { createdAt: -1 },
-    },
+    { $sort: { _id: direction === "prev" ? 1 : -1 } },
+    { $limit: limit + 1 },
   ]);
 
-  return res.status(200).send({ data: orders });
+  const hasNextPage = (currPage == 1 && orders.length > limit) || orders.length > limit || (direction === "prev" && orders.length === limit);
+
+  if (hasNextPage && direction) {
+    if (direction === "next") orders.pop();
+  } else if (hasNextPage) {
+    orders.pop();
+  }
+  const hasPrevPage = currPage == 1 ? false : true;
+
+  if (direction === "prev" && currPage != 1) {
+    orders.reverse().shift();
+  } else if (direction === "prev") {
+    orders.reverse();
+  }
+
+  const nextCursor = hasNextPage ? orders[orders.length - 1]._id : null;
+  const prevCursor = hasPrevPage ? orders[0]._id : null;
+
+  return res.status(200).send({
+    data: orders,
+    nextCursor,
+    prevCursor,
+    hasNextPage,
+    hasPrevPage,
+    totalCount,
+  });
 });
 
 const getAllUserOrders = catchAsyncError(async (req, res, next) => {
@@ -755,6 +787,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         localField: "user",
         foreignField: "_id",
         as: "userData",
+        pipeline: [{ $project: { _id: 1, artistName: 1, artistSurname1: 1, mainImage: "$profile.mainImage", artistSurname2: 1, email: 1 } }],
       },
     },
     {
@@ -774,16 +807,12 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         billingAddress: { $first: "$billingAddress" },
         total: { $first: "$total" },
         createdAt: { $first: "$createdAt" },
-        updatedAt: { $first: "$updatedAt" },
         user: { $first: "$userData" },
         items: {
           $push: {
-            quantity: "$items.quantity",
-            evidenceImg: "$items.evidenceImg",
-            isCancelled: "$items.isCancelled",
-            cancelReason: "$items.cancelReason",
+            other: "$items.other",
 
-            artWork: {
+            artwork: {
               _id: { $arrayElemAt: ["$artWorkData._id", 0] },
               artworkId: { $arrayElemAt: ["$artWorkData.artworkId", 0] },
               artworkName: { $arrayElemAt: ["$artWorkData.artworkName", 0] },
@@ -800,7 +829,7 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         _id: 1,
-        orderID: 1,
+        orderId: 1,
         status: 1,
         type: 1,
         tax: 1,
@@ -811,13 +840,12 @@ const getAdminOrderDetails = catchAsyncError(async (req, res, next) => {
         shippingAddress: 1,
         billingAddress: 1,
         createdAt: 1,
-        updatedAt: 1,
         items: 1,
         "user.artistName": 1,
         "user.artistSurname1": 1,
         "user.artistSurname2": 1,
         "user.email": 1,
-        "user.profile.mainImage": 1,
+        "user.mainImage": 1,
       },
     },
   ]);

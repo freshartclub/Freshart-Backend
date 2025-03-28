@@ -18,6 +18,8 @@ const Style = require("../models/styleModel");
 const Discipline = require("../models/disciplineModel");
 const Collection = require("../models/collectionModel");
 const Favorite = require("../models/favoriteModel");
+const Invite = require("../models/inviteModel");
+const generateInviteCode = require("../functions/generateInviteCode");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -2277,7 +2279,61 @@ const createCustomOrder = async (req, res) => {
   }
 };
 
-// const generateRandom
+const createInvite = async (req, res) => {
+  try {
+    let payload = {
+      user: req.user._id,
+      email: req.body.email.toLowerCase(),
+      ...req.body,
+    };
+
+    let { langCode, id } = req.body;
+    if (langCode == "GB") langCode = "EN";
+
+    const invite = await Invite.create(payload);
+
+    const findEmail = await EmailType.findOne({
+      emailType: "send-invite-link",
+      emailLang: langCode,
+    }).lean(true);
+
+    const mailVaribles = {
+      "%head%": findEmail.emailHead,
+      "%email%": payload.email.toLowerCase(),
+      "%msg%": findEmail.emailDesc,
+      "%name%": payload.firstName,
+      "%link%": `https://www.dev.freshartclub.com/signup?invite=${payload.inviteCode}`,
+    };
+
+    await sendMail("sample-email", mailVaribles, payload.email.toLowerCase());
+    return res.status(200).send({ message: "Invite created successfully", data: invite._id });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const randomInviteCode = async (req, res) => {
+  try {
+    const artist = await Artist.findOne({ _id: req.user._id }, { userId: 1 }).lean(true);
+    if (!artist.userId) return res.status(400).send({ message: "Artist not found" });
+
+    const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const inviterId = artist.userId.slice(-8);
+
+    let inviteCode = "";
+    for (let i = 0; i < 4; i++) {
+      inviteCode += charset.charAt(Math.floor(Math.random() * charset.length));
+    }
+
+    const code = generateInviteCode(inviterId, inviteCode);
+
+    return res.status(200).send({ data: code });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
 
 module.exports = {
   login,
@@ -2326,4 +2382,6 @@ module.exports = {
   getFavoriteList,
   getFullFavoriteList,
   createCustomOrder,
+  createInvite,
+  randomInviteCode,
 };

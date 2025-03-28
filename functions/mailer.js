@@ -2,12 +2,7 @@ const nodemailer = require("nodemailer");
 const smtpTransport = require("nodemailer-smtp-transport");
 const MailTemplate = require("../models/mailTemplates");
 
-module.exports.sendMail = (
-  templateName,
-  mailVariable,
-  email,
-  fromEmail = "hello@freshartclub.com"
-) => {
+module.exports.sendMail = (templateName, mailVariable, email, fromEmail = "hello@freshartclub.com") => {
   return new Promise(async function (resolve, reject) {
     try {
       const template = await MailTemplate.findOne({
@@ -51,7 +46,7 @@ module.exports.sendMail = (
         html: html,
       };
 
-      transporter.sendMail(options, function (error) {
+      transporter.sendMail(options, function (error, info) {
         if (error) {
           return reject(error);
         }
