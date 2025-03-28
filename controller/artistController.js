@@ -2366,7 +2366,7 @@ const getInvite = async (req, res) => {
     const { invite } = req.query;
     if (!invite) return res.status(400).send({ message: "Invite not found" });
 
-    const inviteData = await Invite.findOne({ inviteCode: invite }, { email: 1, inviteCode: 1 }).lean(true);
+    const inviteData = await Invite.findOne({ inviteCode: invite }, { email: 1, inviteCode: 1, isUsed: 1 }).lean(true);
     if (!inviteData) return res.status(400).send({ message: "Invite not found" });
 
     if (inviteData.isUsed) return res.status(400).send({ message: "Invalid/Expired Invite" });
