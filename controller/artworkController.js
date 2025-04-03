@@ -1800,13 +1800,16 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         artworkName: 1,
         additionalInfo: 1,
         provideArtistName: 1,
+        activeTab: "$commercialization.activeTab",
         price: {
           $cond: {
             if: { $eq: ["$commercialization.activeTab", "purchase"] },
-            then: "$commercialization.basePrice",
+            then: "$pricing.basePrice",
             else: "",
           },
         },
+        discount: "$pricing.dpersentage",
+        currency: "$pricing.currency",
         discipline: 1,
         "inventoryShipping.comingSoon": 1,
       }
@@ -1867,13 +1870,16 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
                 media: "$$item.media.mainImage",
                 additionalInfo: "$$item.additionalInfo",
                 provideArtistName: "$$item.provideArtistName",
+                activeTab: "$$item.commercialization.activeTab",
                 price: {
                   $cond: {
                     if: { $eq: ["$$item.commercialization.activeTab", "purchase"] },
-                    then: "$$item.commercialization.basePrice",
+                    then: "$$item.pricing.basePrice",
                     else: "",
                   },
                 },
+                discount: "$$item.pricing.dpersentage",
+                currency: "$$item.pricing.currency",
                 discipline: "$$item.discipline",
                 comingSoon: "$$item.inventoryShipping.comingSoon",
                 owner: {
@@ -1915,14 +1921,17 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         artworkName: 1,
         additionalInfo: 1,
         provideArtistName: 1,
+        activeTab: "$commercialization.activeTab",
         price: {
           $cond: {
             if: { $eq: ["$commercialization.activeTab", "purchase"] },
-            then: "$commercialization.basePrice",
+            then: "$pricing.basePrice",
             else: "",
           },
         },
         discipline: 1,
+        currency: "$pricing.currency",
+        discount: "$pricing.dpersentage",
         "inventoryShipping.comingSoon": 1,
       }
     )
@@ -1982,7 +1991,7 @@ const addToRecentView = catchAsyncError(async (req, res, next) => {
 
   if (result) {
     result.artworks.unshift(id);
-    result.artworks = result.artworks.slice(0, 15);
+    result.artworks = result.artworks.slice(0, 25);
     await result.save();
   }
 
@@ -2157,12 +2166,14 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     width,
     price,
     tag,
+    name,
     discount,
     purchase,
     purchaseOption,
     exclusive,
     newIn,
     bigDiscount,
+    insig,
   } = req.query;
 
   if (!type) return res.status(400).send({ message: "Artwork Type is required" });
@@ -2189,17 +2200,50 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
 
   limit = parseInt(limit) || 10;
   cursor = cursor || null;
+  const nameParts = name?.trim().split(/\s+/) || [];
 
   const matchStage = {
     isDeleted: false,
     status: "published",
     "commercialization.activeTab": type,
-    $or: [
-      { "ownerInfo.artistName": { $regex: s, $options: "i" } },
-      { "ownerInfo.artistSurname1": { $regex: s, $options: "i" } },
-      { "ownerInfo.artistSurname2": { $regex: s, $options: "i" } },
-      { artworkName: { $regex: s, $options: "i" } },
-    ],
+    artworkName: { $regex: s, $options: "i" },
+    ...(name &&
+      nameParts.length === 1 && {
+        $or: [
+          { "ownerInfo.artistName": { $regex: nameParts[0], $options: "i" } },
+          { "ownerInfo.artistSurname1": { $regex: nameParts[0], $options: "i" } },
+          { "ownerInfo.artistSurname2": { $regex: nameParts[0], $options: "i" } },
+        ],
+      }),
+
+    ...(name &&
+      nameParts.length >= 2 && {
+        $or: [
+          {
+            $and: [
+              { "ownerInfo.artistName": { $regex: `^${nameParts[0]}`, $options: "i" } },
+              { "ownerInfo.artistSurname1": { $regex: `^${nameParts[1]}`, $options: "i" } },
+            ],
+          },
+          {
+            $and: [
+              { "ownerInfo.artistName": { $regex: `^${nameParts[0]}`, $options: "i" } },
+              { "ownerInfo.artistSurname2": { $regex: `^${nameParts[1]}`, $options: "i" } },
+            ],
+          },
+          ...(nameParts.length === 3
+            ? [
+                {
+                  $and: [
+                    { "ownerInfo.artistName": { $regex: `^${nameParts[0]}`, $options: "i" } },
+                    { "ownerInfo.artistSurname1": { $regex: `^${nameParts[1]}`, $options: "i" } },
+                    { "ownerInfo.artistSurname2": { $regex: `^${nameParts[2]}`, $options: "i" } },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      }),
     ...(discipline.length && { "discipline.artworkDiscipline": { $in: discipline } }),
     ...(theme.length && { "additionalInfo.artworkTheme": { $in: theme } }),
     ...(technic.length && { "additionalInfo.artworkTechnic": { $in: technic } }),
@@ -2218,11 +2262,10 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(purchase && { "commercialization.purchaseType": purchase }),
     ...(purchaseOption && type == "subscription" && { "commercialization.purchaseOption": purchaseOption }),
     ...(exclusive === "Yes" ? { exclusive: true } : exclusive === "No" ? { exclusive: { $exists: false } } : {}),
-    ...(newIn && newIn === "Yes" && { createdAt: { $gte: new Date(new Date().setDate(new Date().getDate() - 30)) } }),
+    // ...(newIn && newIn === "Yes" && { createdAt: { $gte: new Date(new Date().setDate(new Date().getDate() - 30)) } }),
     ...(bigDiscount && bigDiscount == "Yes" && { "pricing.dpersentage": { $gte: 20 } }),
+    ...(insig && { "ownerInfo.insignia": objectId(insig) }),
   };
-
-  const totalCount = await ArtWork.countDocuments(matchStage);
 
   if (cursor) {
     if (direction === "next") {
@@ -2239,6 +2282,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         localField: "owner",
         foreignField: "_id",
         as: "ownerInfo",
+        pipeline: [{ $project: { _id: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, insignia: 1 } }],
       },
     },
     {
@@ -2255,16 +2299,18 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         artistName: "$ownerInfo.artistName",
         artistSurname1: "$ownerInfo.artistSurname1",
         artistSurname2: "$ownerInfo.artistSurname2",
-        provideArtistName: "$provideArtistName",
+        provideArtistName: 1,
         media: "$media.mainImage",
         artworkId: 1,
         artworkCreationYear: 1,
         artworkSeries: 1,
         discipline: "$discipline.artworkDiscipline",
+        comingSoon: "$inventoryShipping.comingSoon",
         pricing: {
           basePrice: {
             $cond: {
               if: { $eq: ["$commercialization.activeTab", "purchase"] },
+              // $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $ne: ["$inventoryShipping.comingSoon", true] }],
               then: "$pricing.basePrice",
               else: "$$REMOVE",
             },
@@ -2285,9 +2331,30 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         status: 1,
       },
     },
-    { $sort: { _id: direction === "prev" ? 1 : -1 } },
+    { $sort: { _id: direction === "prev" ? 1 : -1, ...(newIn && { createdAt: -1 }) } },
     { $limit: limit + 1 },
   ]);
+
+  const totalCountPipeline = [
+    {
+      $lookup: {
+        from: "artists",
+        localField: "owner",
+        foreignField: "_id",
+        as: "ownerInfo",
+      },
+    },
+    {
+      $unwind: {
+        path: "$ownerInfo",
+        preserveNullAndEmptyArrays: true,
+      },
+    },
+    { $match: matchStage },
+    { $count: "totalCount" },
+  ];
+
+  const totalCount = await ArtWork.aggregate(totalCountPipeline);
 
   const hasNextPage =
     (currPage === 1 && artworkList.length > limit) || artworkList.length > limit || (direction === "prev" && artworkList.length === limit);
@@ -2316,7 +2383,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     prevCursor,
     hasNextPage,
     hasPrevPage,
-    totalCount,
+    totalCount: totalCount.length > 0 ? totalCount[0].totalCount : 0,
   });
 });
 

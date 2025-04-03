@@ -12,7 +12,7 @@ module.exports = (fn) => {
         const errorMessage = err.errors[firstErrorField].message;
         return res.status(400).send({ message: errorMessage });
       } else {
-        return res.status(500).send({ message: "Something went wrong" });
+        return res.status(500).send({ message: "Something went wrong", error: err });
       }
     }
   };

@@ -154,7 +154,7 @@ const sendVerifyEmailOTP = async (req, res) => {
           email: email,
           isDeleted: false,
         },
-        { userId: 1 }
+        { userId: 1, artistName: 1 }
       ).lean(true);
 
       const otp = generateRandomOTP();
@@ -187,6 +187,7 @@ const sendVerifyEmailOTP = async (req, res) => {
         if (inviteId) await Invite.updateOne({ _id: inviteId }, { $set: { isUsed: true } });
 
         await sendMail("sample-email", mailVaribles, email);
+
         return res.status(200).send({
           id: isExist[0]._id,
           message: "OTP sent Successfully",
@@ -213,6 +214,7 @@ const sendVerifyEmailOTP = async (req, res) => {
       if (inviteId) await Invite.updateOne({ _id: inviteId }, { $set: { isUsed: true } });
 
       await sendMail("sample-email", mailVaribles, email);
+
       return res.status(200).send({
         id: user._id,
         message: "OTP sent Successfully",
@@ -370,9 +372,7 @@ const sendForgotPasswordOTP = async (req, res) => {
       isDeleted: false,
     });
 
-    if (!user) {
-      return res.status(400).send({ message: "User not found" });
-    }
+    if (!user) return res.status(400).send({ message: "User not found" });
 
     const otp = await generateRandomOTP();
     const findEmail = await EmailType.findOne({
@@ -397,7 +397,6 @@ const sendForgotPasswordOTP = async (req, res) => {
       message: "OTP sent Successfully",
     });
   } catch (error) {
-    APIErrorLog.error("Error while register the artist information");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -407,26 +406,31 @@ const validateOTP = async (req, res) => {
   try {
     const { id, otp } = req.body;
 
-    const user = await Artist.findOne({
-      _id: id,
-      isDeleted: false,
-    }).lean(true);
-
-    if (!user) {
-      return res.status(400).send({ message: "User not found" });
+    if (!id || !otp) {
+      return res.status(400).send({ message: "ID and OTP are required" });
     }
 
-    if (!user.OTP) {
+    const result = await Artist.findOneAndUpdate(
+      {
+        _id: id,
+        isDeleted: false,
+        OTP: otp,
+      },
+      { $unset: { OTP: "" } },
+      {
+        projection: { _id: 1 },
+        returnOriginal: false,
+      }
+    );
+
+    if (!result) {
       return res.status(400).send({ message: "Invalid OTP" });
     }
 
-    if (user.OTP !== otp) {
-      return res.status(400).send({ message: "Invalid OTP" });
-    }
-
-    await Artist.updateOne({ _id: user._id, isDeleted: false }, { $unset: { OTP: "" } });
-
-    return res.status(200).send({ message: "OTP validated successfully", id: user._id });
+    return res.status(200).send({
+      message: "OTP validated successfully",
+      id: result._id,
+    });
   } catch (error) {
     APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
@@ -500,15 +504,47 @@ const resetPassword = async (req, res) => {
       return res.status(200).send({ message: "Password reset successfully" });
     }
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
 const resendOTP = async (req, res) => {
   try {
+    const { id } = req.body;
+
+    const user = await Artist.findOne(
+      {
+        _id: id,
+        isDeleted: false,
+      },
+      { email: 1, artistName: 1 }
+    ).lean();
+    if (!user) return res.status(400).send({ message: "User not found" });
+
+    let langCode = "EN";
+
+    const otp = await generateRandomOTP();
+    const findEmail = await EmailType.findOne({
+      emailType: "send-forgot-password-otp",
+      emailLang: langCode.toUpperCase(),
+    }).lean(true);
+
+    const mailVaribles = {
+      "%head%": findEmail.emailHead,
+      "%email%": user.email,
+      "%msg%": findEmail.emailDesc,
+      "%name%": user.artistName,
+      "%otp%": otp,
+    };
+
+    await sendMail("sample-email", mailVaribles, user.email);
+    await Artist.updateOne({ _id: user._id, isDeleted: false }, { $set: { OTP: otp } });
+
+    return res.status(200).send({
+      id: user._id,
+      message: "OTP sent Successfully",
+    });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1010,14 +1046,11 @@ const getArtistDetailById = async (req, res) => {
 
 const completeProfile = async (req, res) => {
   try {
-    const id = req.user._id;
-    if (!id) return res.status(404).send({ message: "User Not found" });
     const fileData = await fileUploadFunc(req, res);
 
-    if (fileData.type !== "success") {
-      return res.status(400).send({
-        message: fileData?.type === "fileNotFound" ? "Please upload the Image" : fileData.type,
-      });
+    const getUser = await Artist.findOne({ _id: req.user._id }, { artistName: 1 }).lean(true);
+    if (getUser && getUser.artistName) {
+      return res.status(400).send({ message: "Profile already completed" });
     }
 
     let obj = {
@@ -1027,9 +1060,6 @@ const completeProfile = async (req, res) => {
       gender: req.body.gender,
       phone: req.body.phone,
       dob: new Date(req.body.dob),
-      profile: {
-        mainImage: fileData?.data.mainImage[0].filename,
-      },
       address: {
         country: req.body.country,
         zipCode: String(req.body.zipCode),
@@ -1038,7 +1068,11 @@ const completeProfile = async (req, res) => {
       },
     };
 
-    const artist = await Artist.findOneAndUpdate({ _id: id, isDeleted: false }, { $set: obj }).lean(true);
+    if (fileData?.data?.mainImage) {
+      obj["profile"]["mainImage"] = fileData?.data?.mainImage[0].filename;
+    }
+
+    const artist = await Artist.findOneAndUpdate({ _id: req.user._id, isDeleted: false }, { $set: obj }).lean(true);
 
     return res.status(200).send({ message: "Profile completed successfully", data: artist });
   } catch (error) {
@@ -2017,8 +2051,8 @@ const getDataOnHovered = async (req, res) => {
 
     for (let i = 0; i < disciplines.length; i++) {
       let tempData = {};
-      const theme = await Theme.find({ discipline: disciplines[i]._id }, { themeName: 1 }).lean(true);
-      const style = await Style.find({ discipline: disciplines[i]._id }, { styleName: 1 }).lean(true);
+      const theme = await Theme.find({ discipline: disciplines[i]._id, isMain: true }, { themeName: 1 }).lean(true);
+      const style = await Style.find({ discipline: disciplines[i]._id, isMain: true }, { styleName: 1 }).lean(true);
       const artists = await Artist.find(
         { "aboutArtist.discipline.discipline": disciplines[i].disciplineName, isActivated: true },
         { artistName: 1, "profile.mainImage": 1 }
@@ -2307,15 +2341,18 @@ const createCustomOrder = async (req, res) => {
 
 const createInvite = async (req, res) => {
   try {
+    const user = await Artist.findOne({ _id: req.user._id }, { isActivated: true }).lean();
+    if (!user) return res.status(400).send({ message: "Artist not found" });
+    if (!user?.isActivated) return res.status(400).send({ message: "You cannot create invite" });
+
+    let { langCode } = req.body;
     let payload = {
       user: req.user._id,
       email: req.body.email.toLowerCase(),
       ...req.body,
     };
 
-    let { langCode, id } = req.body;
     if (langCode == "GB") langCode = "EN";
-
     const invite = await Invite.create(payload);
 
     const findEmail = await EmailType.findOne({
@@ -2378,6 +2415,25 @@ const getInvite = async (req, res) => {
   }
 };
 
+const getFullInviteData = async (req, res) => {
+  try {
+    const user = await Artist.findOne({ _id: req.user._id }, { userId: 1, invite: 1 }).lean(true);
+    if (!user) return res.status(400).send({ message: "User not found" });
+
+    if (user && !user?.invite) {
+      return res.status(400).send({ message: "Invite not found" });
+    }
+
+    const inviteData = await Invite.findOne({ _id: user.invite.inviteId }).lean(true);
+    if (!inviteData) return res.status(400).send({ message: "Invite not found" });
+
+    return res.status(200).send({ data: inviteData });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2428,4 +2484,5 @@ module.exports = {
   createInvite,
   randomInviteCode,
   getInvite,
+  getFullInviteData,
 };

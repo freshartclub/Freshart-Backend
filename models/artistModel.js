@@ -224,14 +224,11 @@ const artistSchema = new mongoose.Schema(
     invite: {
       inviteId: { type: mongoose.Schema.Types.ObjectId },
       code: { type: String },
+      isUsed: { type: Boolean, default: false },
     },
     passwordLinkToken: { type: String },
-    wallet: {
-      id: { type: String },
-      access_token: { type: String },
-      time_created: { type: String },
-      seconds_to_expire: { type: String },
-    },
+    card: { pay_ref: { type: String }, pmt_ref: { type: String }, card_stored: { type: Boolean }, exp_date: { type: String } },
+    isSubscribed: { type: Boolean },
     referralCode: { type: String },
     lastLogin: { type: Date },
   },

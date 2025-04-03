@@ -14,17 +14,26 @@ const {
   getAllOrders,
   giveReview,
   generateHash,
-  getData,
   getStaus,
   createSubcribeOrder,
-  getSubscribeResponData,
+  createPayerSubscribeUser,
+  getKey,
+  checkPayerExist,
+  createPayer,
 } = require("../controller/orderController");
+const { createPayerBody } = require("../validations/validator");
 
 const router = express.Router();
 
 router.post("/create-order", validateToken, createOrder);
 
-router.post("/subscribe-plan", validateToken, createSubcribeOrder);
+router.get("/get-key", validateToken, getKey);
+
+router.get("/check-user-ref", validateToken, checkPayerExist);
+
+router.post("/create-payer", validateToken, createPayerBody, createPayer);
+
+router.post("/subscribe-plan", validateToken, createPayerSubscribeUser);
 
 router.get("/get-all-orders", validateAdminToken, getAllOrders);
 
@@ -49,9 +58,5 @@ router.patch("/give-review/:id/:artworkId", validateToken, giveReview);
 router.get("/status", validateToken, getStaus);
 
 router.get("/hash", generateHash);
-
-router.post("/success", getData);
-
-router.post("/get-subscribe-response", getSubscribeResponData);
 
 module.exports = router;

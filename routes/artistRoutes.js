@@ -50,6 +50,7 @@ const {
   createInvite,
   randomInviteCode,
   getInvite,
+  getFullInviteData,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -215,5 +216,7 @@ router.post("/create-invite", validateToken, createInvite);
 router.get("/invite-code", validateToken, randomInviteCode);
 
 router.get("/get-invite", getInvite);
+
+router.get("/get-invite-data", validateToken, getFullInviteData);
 
 module.exports = router;

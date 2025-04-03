@@ -1,6 +1,3 @@
-const Theme = require("../models/themeModel");
-const Technic = require("../models/technicModel");
-// const MediaSupport = require("../models/mediaSupportModel");
 const multer = require("multer");
 const { upload } = require("./upload");
 
@@ -48,261 +45,41 @@ module.exports.generateRandomOTP = () => {
   }
 };
 
-// module.exports.getListArtworks = async (response) => {
-//   try {
-//     let data = [];
+module.exports.generateRandomOrderId = () => {
+  try {
+    const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
 
-//     let obj = {
-//       $lookup: {
-//         from: "categories",
-//         let: { category: "$category" },
-//         pipeline: [
-//           {
-//             $match: {
-//               $expr: {
-//                 $in: ["$_id", "$$category"],
-//               },
-//             },
-//           },
-//           {
-//             $project: {
-//               categoryName: 1,
-//               categorySpanishName: 1,
-//             },
-//           },
-//         ],
-//         as: "categories",
-//       },
-//     };
+    const length = 25;
+    let result = "";
 
-//     switch (response) {
-//       case "style":
-//         data = await ArtworkMediaStyle.aggregate([
-//           {
-//             $match: {
-//               isDeleted: false,
-//             },
-//           },
-//           obj,
-//           {
-//             $project: {
-//               styleName: 1,
-//               spanishStyleName: 1,
-//               createdAt: 1,
-//               categoryName: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value", // The accumulated string
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categoryName", // The current element
-//                     ],
-//                   },
-//                 },
-//               },
-//               categorySpanish: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value", // The accumulated string
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categorySpanishName", // The current element
-//                     ],
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         ]);
-//         break;
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters[randomIndex];
+    }
 
-//       case "theme":
-//         data = await Theme.aggregate([
-//           {
-//             $match: {
-//               isDeleted: false,
-//             },
-//           },
-//           obj,
-//           {
-//             $project: {
-//               styleName: 1,
-//               spanishStyleName: 1,
-//               categoryName: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value", // The accumulated string
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categoryName", // The current element
-//                     ],
-//                   },
-//                 },
-//               },
-//               categorySpanish: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value",
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categorySpanishName",
-//                     ],
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         ]);
-//         break;
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
 
-//       case "technic":
-//         data = await Technic.aggregate([
-//           {
-//             $match: {
-//               isDeleted: false,
-//             },
-//           },
-//           obj,
-//           {
-//             $project: {
-//               styleName: 1,
-//               spanishStyleName: 1,
-//               categoryName: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value",
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categoryName",
-//                     ],
-//                   },
-//                 },
-//               },
-//               categorySpanish: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value",
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categorySpanishName",
-//                     ],
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         ]);
-//         break;
+module.exports.generateSchedulerRef = () => {
+  try {
+    const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-//       case "support":
-//         data = await MediaSupport.aggregate([
-//           {
-//             $match: {
-//               isDeleted: false,
-//             },
-//           },
-//           obj,
-//           {
-//             $project: {
-//               styleName: 1,
-//               spanishStyleName: 1,
-//               categoryName: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value",
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categoryName",
-//                     ],
-//                   },
-//                 },
-//               },
-//               categorySpanish: {
-//                 $reduce: {
-//                   input: "$categories",
-//                   initialValue: "",
-//                   in: {
-//                     $concat: [
-//                       "$$value",
-//                       {
-//                         $cond: {
-//                           if: { $eq: ["$$value", ""] },
-//                           then: "",
-//                           else: ", ",
-//                         },
-//                       },
-//                       "$$this.categorySpanishName",
-//                     ],
-//                   },
-//                 },
-//               },
-//             },
-//           },
-//         ]);
-//         break;
-//     }
+    const length = 15;
+    let result = "";
 
-//     return data;
-//   } catch (error) {
-//     throw error;
-//   }
-// };
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters[randomIndex];
+    }
+
+    return result;
+  } catch (error) {
+    throw error;
+  }
+};
 
 module.exports.fileUploadFunc = (request, response) => {
   return new Promise(async function (resolve, reject) {
