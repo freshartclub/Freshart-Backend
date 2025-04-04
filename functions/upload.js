@@ -219,27 +219,27 @@ const processImages = async (req, res, next) => {
           const originalPath = `./public/uploads/users/${file.filename}`;
 
           if (!fs.existsSync(originalPath)) {
-            console.warn(`File not found: ${originalPath}`);
+            // console.warn(`File not found: ${originalPath}`);
             continue;
           }
 
           const stats = fs.statSync(originalPath);
-          console.log(`Processing ${originalPath}, size: ${stats.size} bytes`);
+          // console.log(`Processing ${originalPath}, size: ${stats.size} bytes`);
 
           // Skip if file is too large for safe processing
           if (stats.size > MAX_MEMORY_FILE_SIZE) {
-            console.warn(`File too large for processing: ${originalPath} (${stats.size} bytes)`);
+            // console.warn(`File too large for processing: ${originalPath} (${stats.size} bytes)`);
             continue;
           }
 
           if (stats.size > MAX_IMAGE_SIZE) {
-            console.log(`Compressing ${originalPath} (${stats.size} > ${MAX_IMAGE_SIZE})`);
+            // console.log(`Compressing ${originalPath} (${stats.size} > ${MAX_IMAGE_SIZE})`);
 
             const success = await compressAndSaveImage(originalPath, originalPath, MAX_IMAGE_SIZE);
 
             if (success) {
               const newStats = fs.statSync(originalPath);
-              console.log(`Compressed to: ${newStats.size} bytes`);
+              // console.log(`Compressed to: ${newStats.size} bytes`);
             } else {
               console.error(`Failed to compress ${originalPath}`);
             }
@@ -256,13 +256,13 @@ const processImages = async (req, res, next) => {
           const thumbnailPath = `./public/low/${file.filename}`;
 
           if (!fs.existsSync(originalPath)) {
-            console.warn(`Original not found for thumbnail: ${originalPath}`);
+            // console.warn(`Original not found for thumbnail: ${originalPath}`);
             continue;
           }
 
           try {
             await compressAndSaveImage(originalPath, thumbnailPath, THUMBNAIL_MAX_SIZE, true);
-            console.log(`Created thumbnail: ${thumbnailPath}`);
+            // console.log(`Created thumbnail: ${thumbnailPath}`);
           } catch (err) {
             console.error(`Failed to create thumbnail ${thumbnailPath}:`, err);
           }
