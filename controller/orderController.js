@@ -10,9 +10,10 @@ const Transaction = require("../models/transactionModel");
 const Plan = require("../models/plansModel");
 const Subscription = require("../models/subscriptionModel");
 const { v4: uuidv4 } = require("uuid");
-const { Builder } = require("xml2js");
+const { Builder, parseStringPromise } = require("xml2js");
 const axios = require("axios");
 const Invite = require("../models/inviteModel");
+const SubscriptionTransaction = require("../models/subscriptionTransaction");
 
 function getTimestamp() {
   const now = new Date();
@@ -194,10 +195,10 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const checkPayerExist = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, billingInfo: 1 }).lean();
+  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, billingInfo: 1, isSubscribed: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
-  if (user && !user?.card?.pay_ref) {
+  if (!user?.card?.pay_ref) {
     if (user.billingInfo.length > 0) {
       const findDefaultBilling = user.billingInfo.find((i) => i.isDefault == true);
       return res.status(200).send({ data: false, billing: findDefaultBilling.billingDetails });
@@ -205,8 +206,11 @@ const checkPayerExist = catchAsyncError(async (req, res, next) => {
     return res.status(200).send({ data: false, billing: {} });
   }
 
-  const subscription = await Subscription.findOne({ user: user._id }, { status: 1 }).lean();
-  if (subscription && subscription.status == "active") {
+  if (user?.card?.pay_ref && user?.card?.card_stored == false) {
+    return res.status(200).send({ data: true, status: "inactive", store: false });
+  }
+
+  if (user?.isSubscribed && user?.isSubscribed == true) {
     return res.status(200).send({ data: true, status: "active", store: true });
   }
 
@@ -217,14 +221,9 @@ const createPayer = catchAsyncError(async (req, res, next) => {
   const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, billingInfo: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
-  // let findDefaultBilling;
   if (user && user?.card?.pay_ref) {
     return res.status(400).send({ message: "Payer already exist" });
   }
-
-  // if (user.billingInfo.length > 0) {
-  //   findDefaultBilling = user.billingInfo.find((i) => i.isDefault == true);
-  // }
 
   const MERCHANT_ID = process.env.MERCHANT_ID;
   const SECRET = process.env.SECRET;
@@ -290,11 +289,17 @@ const createPayer = catchAsyncError(async (req, res, next) => {
 
   const xmlRequest = generateXmlRequest();
 
-  await axios.post(`https://remote.sandbox.addonpayments.com/remote`, xmlRequest, {
+  const response = await axios.post(`https://remote.sandbox.addonpayments.com/remote`, xmlRequest, {
     headers: {
       "Content-Type": "text/xml",
     },
   });
+
+  const parseResponse = await parseStringPromise(response.data);
+
+  if (parseResponse.response.result[0] !== "00") {
+    return res.status(400).send({ message: parseResponse.response.message[1] });
+  }
 
   await Artist.updateOne(
     { _id: req.user._id },
@@ -307,12 +312,16 @@ const createPayer = catchAsyncError(async (req, res, next) => {
       },
     }
   );
+
   return res.status(200).send({ message: "Payer created successfully" });
 });
 
+// when card is not stored...
 const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
-  const subscription = await Subscription.findOne({ user: req.user._id }, { status: 1 }).lean();
-  if (subscription && subscription.status == "active") {
+  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, invite: 1, userId: 1, isSubscribed: 1 }).lean();
+  if (!user) return res.status(400).send({ message: "User not found" });
+
+  if (user?.isSubscribed && user?.isSubscribed == true) {
     return res.status(400).send({ message: "You already have an active subscription" });
   }
 
@@ -348,10 +357,9 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   }
 
   if (decryptedData.cardType == "") {
-    return res.status(400).send({ message: "Card Type not detceted. Only Visa, Mastercard, Amex and Discover card are supported" });
+    return res.status(400).send({ message: "Card Type not detected. Only Visa, Mastercard, Amex and Discover card are supported" });
   }
 
-  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, invite: 1, userId: 1 }).lean();
   if (user && !user?.card?.pay_ref) {
     return res.status(400).send({ message: "Your Basic information not found" });
   }
@@ -360,9 +368,103 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Card Info already exist" });
   }
 
-  // --------------------------- store card ---------------------------
+  const plan = await Plan.findOne({ _id: decryptedData.planId }, { planName: 1, standardPrice: 1, standardYearlyPrice: 1 }).lean();
+  if (!plan) return res.status(400).send({ message: "Plan not found" });
+
   const MERCHANT_ID = process.env.MERCHANT_ID;
   const SECRET = process.env.SECRET;
+
+  // -------------------------- one time payment ----------------------
+  const payTime = getTimestamp();
+  const payOrderId = generateRandomOrderId();
+  const payAmount = String(plan.standardPrice * 100);
+  const payCurr = "EUR";
+
+  const payHashString = `${payTime}.${MERCHANT_ID}.${payOrderId}.${payAmount}.${payCurr}.${decryptedData.cardNumber}`;
+  const payHash1 = crypto.createHash("sha1").update(payHashString).digest("hex");
+
+  const payFinalString = `${payHash1}.${SECRET}`;
+  const paySha1Hash = crypto.createHash("sha1").update(payFinalString).digest("hex");
+
+  function generatePaymentXmlRequest(paymentData) {
+    const builder = new Builder({ headless: true });
+    const xmlObj = {
+      request: {
+        $: { type: "auth", timestamp: payTime },
+        merchantid: MERCHANT_ID,
+        account: "internet",
+        channel: "ECOM",
+        orderid: payOrderId,
+        amount: { _: payAmount, $: { currency: payCurr } },
+        card: {
+          number: paymentData.cardNumber,
+          expdate: paymentData.expiry,
+          chname: paymentData.cardHolder,
+          type: paymentData.cardType,
+          cvn: {
+            number: paymentData.cardCVV,
+            presind: "1",
+          },
+        },
+        autosettle: { $: { flag: "1" } },
+        comments: {
+          comment: [{ $: { id: "1" }, _: "Payment Done" }],
+        },
+        sha1hash: paySha1Hash,
+      },
+    };
+
+    const xmlBody = builder.buildObject(xmlObj);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+  }
+
+  const payData = {
+    cardNumber: decryptedData.cardNumber,
+    expiry: decryptedData.expiry.split("/").join(""),
+    cardHolder: decryptedData.cardHolder,
+    cardType: decryptedData.cardType.toUpperCase(),
+    cardCVV: decryptedData.cvv,
+  };
+
+  const payXmlRequest = generatePaymentXmlRequest(payData);
+  const payResponse = await axios.post(`https://remote.sandbox.addonpayments.com/remote`, payXmlRequest, {
+    headers: {
+      "Content-Type": "text/xml",
+    },
+  });
+
+  const parsePayResponse = await parseStringPromise(payResponse.data);
+
+  if (parsePayResponse.response.result[0] !== "00") {
+    return res.status(400).send({ message: "Card stored failed" });
+  }
+
+  const subOrder = await Subscription.create({
+    user: user._id,
+    plan: plan._id,
+    status: "active",
+    schedule_type: "monthly",
+    orderId: parsePayResponse.response.orderid[0],
+    type: "one_time",
+  });
+
+  await Promise.all([
+    SubscriptionTransaction.create({
+      order: subOrder._id,
+      user: user._id,
+      plan: plan._id,
+      status: "success",
+      amount: plan.standardPrice,
+      discount: 0,
+      transcationId: parsePayResponse.response.pasref[0],
+      timestamp: payTime,
+      currency: "EUR",
+      sha1hash: paySha1Hash,
+    }),
+    Artist.updateOne({ _id: user._id }, { $set: { isSubscribed: true } }),
+  ]);
+
+  // --------------------------- store card ---------------------------
   const amount = "";
   const currency = "";
 
@@ -414,30 +516,19 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
 
   const xmlRequest = generateXmlRequest(paymentData);
 
-  await axios.post(`https://remote.sandbox.addonpayments.com/remote`, xmlRequest, {
+  const storeResponse = await axios.post(`https://remote.sandbox.addonpayments.com/remote`, xmlRequest, {
     headers: {
       "Content-Type": "text/xml",
     },
   });
 
-  await Artist.updateOne(
-    { _id: req.user._id },
-    {
-      $set: {
-        card: {
-          pay_ref: user.card.pay_ref,
-          pmt_ref: pmt_ref,
-          card_stored: true,
-          exp_date: paymentData.expiry,
-        },
-      },
-    }
-  );
+  const parseStoreResponse = await parseStringPromise(storeResponse.data);
+  if (parseStoreResponse.response.result[0] !== "00") {
+    return res.status(400).send({ message: parseStoreResponse.response.message[1] });
+  }
   // --------------------------- store card ---------------------------
 
   // --------------------------- create subscription ------------------
-  const plan = await Plan.findOne({ _id: decryptedData.planId }, { planName: 1, standardPrice: 1, standardYearlyPrice: 1 }).lean();
-  if (!plan) return res.status(400).send({ message: "Plan not found" });
 
   const newTimestamp = getTimestamp();
   const sheduleRef = generateSchedulerRef();
@@ -481,25 +572,315 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   }
 
   const newXmlRequest = generateScheduleXmlRequest();
-  const occ = await axios.post(`https://remote.sandbox.addonpayments.com/remote`, newXmlRequest, {
+  const newScheduleResponse = await axios.post(`https://remote.sandbox.addonpayments.com/remote`, newXmlRequest, {
     headers: {
       "Content-Type": "text/xml",
     },
   });
 
+  const parseNewScheduleResponse = await parseStringPromise(newScheduleResponse.data);
+  if (parseNewScheduleResponse.response.result[0] !== "00") {
+    return res.status(400).send({ message: parseNewScheduleResponse.response.message[1] });
+  }
+
+  function getNextMonthDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+
+    const nextMonth = (month + 1) % 12;
+    const nextMonthYear = month === 11 ? year + 1 : year;
+
+    const lastDayOfNextMonth = new Date(nextMonthYear, nextMonth + 1, 0).getDate();
+    const validDay = Math.min(day, lastDayOfNextMonth);
+    return new Date(nextMonthYear, nextMonth, validDay);
+  }
+
+  function getEndDate(schedule_start, cycles) {
+    const startDay = schedule_start.getDate();
+    const startMonth = schedule_start.getMonth();
+    const startYear = schedule_start.getFullYear();
+
+    const totalMonths = startMonth + cycles - 1;
+    const endYear = startYear + Math.floor(totalMonths / 12);
+    const endMonth = totalMonths % 12;
+
+    const endDateObj = new Date(endYear, endMonth + 1, 0);
+    const lastDay = endDateObj.getDate();
+
+    const validDay = Math.min(startDay, lastDay);
+    return new Date(endYear, endMonth, validDay);
+  }
+
+  const schedule_start = getNextMonthDate();
+  const schedule_end = getEndDate(schedule_start, 1);
+
+  const newSubOrder = await Subscription.create({
+    status: "not_started",
+    plan: plan._id,
+    user: req.user._id,
+    schedule_type: schedule,
+    schedule_defined: 1,
+    schedule_completed: 0,
+    schedule_start: schedule_start,
+    schedule_end: schedule_end,
+    otherSchedule: subOrder._id,
+  });
+
   await Promise.all([
-    Artist.updateOne({ _id: req.user._id }, { $set: { isSubscribed: true } }),
-    Subscription.create({
-      status: "active",
-      plan: plan._id,
+    Artist.updateOne(
+      { _id: req.user._id },
+      {
+        $set: {
+          card: {
+            pay_ref: user.card.pay_ref,
+            pmt_ref: pmt_ref,
+            card_stored: true,
+            exp_date: paymentData.expiry,
+          },
+        },
+      }
+    ),
+    SubscriptionTransaction.create({
+      order: newSubOrder._id,
       user: req.user._id,
-      schedule_type: schedule,
-      schedule_defined: 1,
-      schedule_completed: 0,
+      plan: plan._id,
+      status: "success",
+      sha1hash: parseNewScheduleResponse.response.sha1hash[0],
     }),
   ]);
 
   return res.status(200).send({ message: "Payment and subscription created successfully" });
+});
+
+// when card is stored...
+const createSubscribeUser = catchAsyncError(async (req, res, next) => {
+  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, invite: 1, userId: 1, isSubscribed: 1 }).lean();
+  if (!user) return res.status(400).send({ message: "User not found" });
+
+  const { planId, user_num } = req.body;
+
+  if (user?.isSubscribed && user?.isSubscribed == true) {
+    return res.status(400).send({ message: "You already have an active subscription" });
+  }
+
+  if (user && !user?.card?.pay_ref) {
+    return res.status(400).send({ message: "Your Basic information not found" });
+  }
+
+  if (user && user?.card?.card_stored == true) {
+    return res.status(400).send({ message: "Card Info already exist" });
+  }
+
+  const plan = await Plan.findOne({ _id: planId }, { planName: 1, standardPrice: 1, standardYearlyPrice: 1 }).lean();
+  if (!plan) return res.status(400).send({ message: "Plan not found" });
+
+  const MERCHANT_ID = process.env.MERCHANT_ID;
+  const SECRET = process.env.SECRET;
+
+  // -------------------------- one time payment ----------------------
+  const payTime = getTimestamp();
+  const payOrderId = generateRandomOrderId();
+  const payAmount = String(plan.standardPrice * 100);
+  const payCurr = "EUR";
+
+  const payHashString = `${payTime}.${MERCHANT_ID}.${payOrderId}.${payAmount}.${payCurr}.${user.card.pay_ref}`;
+  const payHash1 = crypto.createHash("sha1").update(payHashString).digest("hex");
+
+  const payFinalString = `${payHash1}.${SECRET}`;
+  const paySha1Hash = crypto.createHash("sha1").update(payFinalString).digest("hex");
+
+  function generatePaymentXmlRequest() {
+    const builder = new Builder({ headless: true });
+    const xmlObj = {
+      request: {
+        $: { type: "receipt-in", timestamp: payTime },
+        merchantid: MERCHANT_ID,
+        account: "internet",
+        channel: "ECOM",
+        orderid: payOrderId,
+        amount: { _: payAmount, $: { currency: payCurr } },
+        payerref: user.card.pay_ref,
+        paymentmethod: user.card.pmt_ref,
+        paymentdata: {
+          cvn: {
+            number: user_num,
+          },
+        },
+        autosettle: { $: { flag: "1" } },
+        comments: {
+          comment: [{ $: { id: "1" }, _: "Payment Done" }],
+        },
+        sha1hash: paySha1Hash,
+      },
+    };
+
+    const xmlBody = builder.buildObject(xmlObj);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+  }
+
+  const payXmlRequest = generatePaymentXmlRequest();
+  const payResponse = await axios.post(`https://remote.sandbox.addonpayments.com/remote`, payXmlRequest, {
+    headers: {
+      "Content-Type": "text/xml",
+    },
+  });
+
+  const parsePayResponse = await parseStringPromise(payResponse.data);
+
+  if (parsePayResponse.response.result[0] !== "00") {
+    return res.status(400).send({ message: "Payment Failed" });
+  }
+
+  const subOrder = await Subscription.create({
+    user: user._id,
+    plan: plan._id,
+    status: "active",
+    schedule_type: "monthly",
+    orderId: parsePayResponse.response.orderid[0],
+    type: "one_time",
+  });
+
+  await Promise.all([
+    SubscriptionTransaction.create({
+      order: subOrder._id,
+      user: user._id,
+      plan: plan._id,
+      status: "success",
+      amount: plan.standardPrice,
+      discount: 0,
+      transcationId: parsePayResponse.response.pasref[0],
+      timestamp: payTime,
+      currency: "EUR",
+      sha1hash: paySha1Hash,
+    }),
+    Artist.updateOne({ _id: user._id }, { $set: { isSubscribed: true } }),
+  ]);
+
+  // --------------------------- create subscription ------------------
+  const newTimestamp = getTimestamp();
+  const sheduleRef = generateSchedulerRef();
+  const newCurr = "EUR";
+  const newAmount = String(plan.standardPrice * 100);
+  const schedule = "monthly";
+
+  const newHashString = `${newTimestamp}.${MERCHANT_ID}.${sheduleRef}.${newAmount}.${newCurr}.${user.card.pay_ref}.${schedule}`;
+  const newHash1 = crypto.createHash("sha1").update(newHashString).digest("hex");
+
+  const newFinalString = `${newHash1}.${SECRET}`;
+  const newSha1Hash = crypto.createHash("sha1").update(newFinalString).digest("hex");
+
+  function generateScheduleXmlRequest() {
+    const builder = new Builder({ headless: true });
+    const xmlObj = {
+      request: {
+        $: { type: "schedule-new", timestamp: newTimestamp },
+        merchantid: MERCHANT_ID,
+        channel: "ECOM",
+        account: "internet",
+        scheduleref: sheduleRef,
+        alias: "Fresh Art Club Subscription",
+        orderidstub: "freshart",
+        transtype: "auth",
+        schedule: schedule,
+        numtimes: "1",
+        payerref: user.card.pay_ref,
+        paymentmethod: pmt_ref,
+        amount: { _: newAmount, $: { currency: newCurr } },
+        prodid: user.artistName,
+        varref: user._id,
+        customer: user.userId,
+        comment: "Subscription of Fresh Art Club",
+        sha1hash: newSha1Hash,
+      },
+    };
+
+    const xmlBody = builder.buildObject(xmlObj);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+  }
+
+  const newXmlRequest = generateScheduleXmlRequest();
+  const newScheduleResponse = await axios.post(`https://remote.sandbox.addonpayments.com/remote`, newXmlRequest, {
+    headers: {
+      "Content-Type": "text/xml",
+    },
+  });
+
+  const parseNewScheduleResponse = await parseStringPromise(newScheduleResponse.data);
+  if (parseNewScheduleResponse.response.result[0] !== "00") {
+    return res.status(400).send({ message: parseNewScheduleResponse.response.message[1] });
+  }
+
+  function getNextMonthDate() {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = today.getMonth();
+    const day = today.getDate();
+
+    const nextMonth = (month + 1) % 12;
+    const nextMonthYear = month === 11 ? year + 1 : year;
+
+    const lastDayOfNextMonth = new Date(nextMonthYear, nextMonth + 1, 0).getDate();
+    const validDay = Math.min(day, lastDayOfNextMonth);
+    return new Date(nextMonthYear, nextMonth, validDay);
+  }
+
+  function getEndDate(schedule_start, cycles) {
+    const startDay = schedule_start.getDate();
+    const startMonth = schedule_start.getMonth();
+    const startYear = schedule_start.getFullYear();
+
+    const totalMonths = startMonth + cycles - 1;
+    const endYear = startYear + Math.floor(totalMonths / 12);
+    const endMonth = totalMonths % 12;
+
+    const endDateObj = new Date(endYear, endMonth + 1, 0);
+    const lastDay = endDateObj.getDate();
+
+    const validDay = Math.min(startDay, lastDay);
+    return new Date(endYear, endMonth, validDay);
+  }
+
+  const schedule_start = getNextMonthDate();
+  const schedule_end = getEndDate(schedule_start, 1);
+
+  const newSubOrder = await Subscription.create({
+    status: "not_started",
+    plan: plan._id,
+    user: req.user._id,
+    schedule_type: schedule,
+    schedule_defined: 1,
+    schedule_completed: 0,
+    schedule_start: schedule_start,
+    schedule_end: schedule_end,
+    otherSchedule: subOrder._id,
+  });
+
+  await Promise.all([
+    Artist.updateOne(
+      { _id: req.user._id },
+      {
+        $set: {
+          card: {
+            pay_ref: user.card.pay_ref,
+            pmt_ref: pmt_ref,
+            card_stored: true,
+            exp_date: paymentData.expiry,
+          },
+        },
+      }
+    ),
+    SubscriptionTransaction.create({
+      order: newSubOrder._id,
+      user: req.user._id,
+      plan: plan._id,
+      status: "success",
+      sha1hash: parseNewScheduleResponse.response.sha1hash[0],
+    }),
+  ]);
+
+  return res.status(200).send({ message: "Subscription created successfully" });
 });
 
 const createSubcribeOrder = catchAsyncError(async (req, res, next) => {
@@ -682,107 +1063,6 @@ const getAllOrders = catchAsyncError(async (req, res, next) => {
     hasNextPage,
     hasPrevPage,
     totalCount,
-  });
-});
-
-const getAllUserOrders = catchAsyncError(async (req, res, next) => {
-  const orders = await Order.aggregate([
-    { $match: { user: req.user._id, status: { $ne: "created" } } },
-    {
-      $lookup: {
-        from: "artworks",
-        localField: "items.artwork",
-        foreignField: "_id",
-        as: "artWorkData",
-      },
-    },
-    {
-      $addFields: {
-        items: {
-          $cond: {
-            if: { $isArray: "$items" },
-            then: {
-              $map: {
-                input: "$items",
-                as: "item",
-                in: {
-                  artwork: {
-                    $arrayElemAt: [
-                      {
-                        $filter: {
-                          input: "$artWorkData",
-                          as: "artwork",
-                          cond: { $eq: ["$$artwork._id", "$$item.artwork"] },
-                        },
-                      },
-                      0,
-                    ],
-                  },
-                },
-              },
-            },
-            else: [],
-          },
-        },
-      },
-    },
-    {
-      $project: {
-        _id: 1,
-        user: 1,
-        type: 1,
-        status: 1,
-        orderId: 1,
-        discount: 1,
-        tax: 1,
-        shipping: 1,
-        subTotal: 1,
-        total: 1,
-        createdAt: 1,
-        updatedAt: 1,
-        "items.artwork._id": 1,
-        "items.artwork.artworkName": 1,
-        "items.artwork.media.mainImage": 1,
-        "items.artwork.inventoryShipping": 1,
-        "items.artwork.pricing": 1,
-      },
-    },
-    {
-      $sort: { createdAt: -1 },
-    },
-  ]);
-
-  const transformOrders = (orders) => {
-    return orders.flatMap((order) =>
-      order.items.map((item) => ({
-        _id: order._id,
-        user: order.user,
-        type: order.type,
-        status: order.status,
-        orderId: order.orderId,
-        discount: order.discount,
-        tax: order.tax,
-        shipping: order.shipping,
-        subTotal: order.subTotal,
-        total: order.total,
-        createdAt: order.createdAt,
-        updatedAt: order.updatedAt,
-        artwork: {
-          _id: item.artwork._id,
-          type: item.type,
-          artworkName: item.artwork.artworkName,
-          media: item.artwork.media.mainImage,
-          inventoryShipping: item.artwork.inventoryShipping,
-          pricing: item.artwork.pricing,
-        },
-      }))
-    );
-  };
-
-  const transformOrderList = transformOrders(orders);
-
-  return res.status(200).send({
-    data: transformOrderList,
   });
 });
 
@@ -993,6 +1273,107 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
 
   return res.status(200).send({
     data: order[0],
+  });
+});
+
+const getAllUserOrders = catchAsyncError(async (req, res, next) => {
+  const orders = await Order.aggregate([
+    { $match: { user: req.user._id, status: { $ne: "created" } } },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "items.artwork",
+        foreignField: "_id",
+        as: "artWorkData",
+      },
+    },
+    {
+      $addFields: {
+        items: {
+          $cond: {
+            if: { $isArray: "$items" },
+            then: {
+              $map: {
+                input: "$items",
+                as: "item",
+                in: {
+                  artwork: {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: "$artWorkData",
+                          as: "artwork",
+                          cond: { $eq: ["$$artwork._id", "$$item.artwork"] },
+                        },
+                      },
+                      0,
+                    ],
+                  },
+                },
+              },
+            },
+            else: [],
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: 1,
+        type: 1,
+        status: 1,
+        orderId: 1,
+        discount: 1,
+        tax: 1,
+        shipping: 1,
+        subTotal: 1,
+        total: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        "items.artwork._id": 1,
+        "items.artwork.artworkName": 1,
+        "items.artwork.media.mainImage": 1,
+        "items.artwork.inventoryShipping": 1,
+        "items.artwork.pricing": 1,
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
+    },
+  ]);
+
+  const transformOrders = (orders) => {
+    return orders.flatMap((order) =>
+      order.items.map((item) => ({
+        _id: order._id,
+        user: order.user,
+        type: order.type,
+        status: order.status,
+        orderId: order.orderId,
+        discount: order.discount,
+        tax: order.tax,
+        shipping: order.shipping,
+        subTotal: order.subTotal,
+        total: order.total,
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        artwork: {
+          _id: item.artwork._id,
+          type: item.type,
+          artworkName: item.artwork.artworkName,
+          media: item.artwork.media.mainImage,
+          inventoryShipping: item.artwork.inventoryShipping,
+          pricing: item.artwork.pricing,
+        },
+      }))
+    );
+  };
+
+  const transformOrderList = transformOrders(orders);
+
+  return res.status(200).send({
+    data: transformOrderList,
   });
 });
 
@@ -1365,6 +1746,7 @@ module.exports = {
   generateHash,
   getResponData,
   createPayerSubscribeUser,
+  createSubscribeUser,
   getStaus,
   getKey,
 };

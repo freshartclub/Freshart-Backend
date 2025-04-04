@@ -24,7 +24,7 @@ module.exports.sendMail = (templateName, mailVariable, email, fromEmail = "hello
           secure: false,
           auth: {
             user: "frac-service@freshartclub.com",
-            pass: "FRAC.2025!",
+            pass: "X/5083.57559509az$",
           },
           tls: {
             ciphers: "SSLv3",

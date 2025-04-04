@@ -20,6 +20,7 @@ const {
   getKey,
   checkPayerExist,
   createPayer,
+  createSubscribeUser,
 } = require("../controller/orderController");
 const { createPayerBody } = require("../validations/validator");
 
@@ -33,7 +34,11 @@ router.get("/check-user-ref", validateToken, checkPayerExist);
 
 router.post("/create-payer", validateToken, createPayerBody, createPayer);
 
+// when card is not stored
 router.post("/subscribe-plan", validateToken, createPayerSubscribeUser);
+
+// when card is stored
+router.post("/create-subscribe-plan", validateToken, createSubscribeUser);
 
 router.get("/get-all-orders", validateAdminToken, getAllOrders);
 
