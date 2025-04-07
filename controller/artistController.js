@@ -42,12 +42,27 @@ const login = async (req, res) => {
       return res.status(400).send({ message: "Email and password is required" });
     }
 
-    const user = await Artist.findOne({
-      email: email.toLowerCase(),
-      isDeleted: false,
-    })
+    const user = await Artist.findOne(
+      {
+        email: email.toLowerCase(),
+        isDeleted: false,
+      },
+      {
+        password: 1,
+        role: 1,
+        artistName: 1,
+        isActivated: 1,
+        artistSurname1: 1,
+        artistSurname2: 1,
+        email: 1,
+        userId: 1,
+        phone: 1,
+        gender: 1,
+        "commercilization.artProvider": 1,
+      }
+    )
       .select("+password")
-      .lean(true);
+      .lean();
 
     if (!user) {
       return res.status(400).send({ message: "User suspended/not found" });
@@ -60,7 +75,7 @@ const login = async (req, res) => {
     const userField = {
       _id: user._id,
       role: user.role,
-      password: user.password,
+      artistName: user.artistName,
     };
 
     const token = jwt.sign({ user: userField }, process.env.ACCESS_TOKEN_SECERT, {
@@ -77,7 +92,6 @@ const login = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while login the artist");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -258,7 +272,7 @@ const verifyEmailOTP = async (req, res) => {
           _id: id,
           isDeleted: false,
         },
-        { OTP: 1, role: 1, password: 1 }
+        { OTP: 1, role: 1, password: 1, artistName: 1 }
       ).lean(true);
 
       if (!user) return res.status(400).send({ message: "User not found" });
@@ -267,7 +281,7 @@ const verifyEmailOTP = async (req, res) => {
       const userField = {
         _id: user._id,
         role: user.role,
-        password: user.password,
+        artistName: user.artistName,
       };
 
       const token = jwt.sign({ user: userField }, process.env.ACCESS_TOKEN_SECERT, { expiresIn: "30d" });
@@ -809,9 +823,7 @@ const logOut = async (req, res) => {
 
     return res.status(200).send({ message: "Logout successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };

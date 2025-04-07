@@ -12,25 +12,29 @@ const validateToken = async (req, res, next) => {
           return res.status(401).send({ message: "Please do re-login" });
         }
 
-        let userData = JSON.parse(Buffer.from(req.headers.authorization.split(".")[1], "base64").toString());
+        const user = await Artist.findOne({ _id: verifiedJwt.user._id, isDeleted: false }, { artistName: 1, role: 1, tokens: 1 }).lean();
+        if (!user) return res.status(400).send({ message: "User not found" });
 
-        userData = await Artist.findOne({
-          tokens: { $elemMatch: { $eq: token } },
-          isDeleted: false,
-        }).lean();
+        if (user) {
+          const isTokenPresent = user.tokens.find((item) => item === token);
+          if (!isTokenPresent) return res.status(401).send({ message: "Please do re-login" });
 
-        if (userData) {
-          req.user = userData;
+          const userField = {
+            _id: user._id,
+            role: user.role,
+            artistName: user.artistName,
+          };
+
+          req.user = userField;
           return next();
         }
 
         return res.status(401).send({ message: "Please Login" });
       });
     } else {
-      return res.status(404).send({ message: "Please Login" });
+      return res.status(401).send({ message: "Please Login" });
     }
   } catch (error) {
-    APIErrorLog.error("Error while validate the token");
     APIErrorLog.error(error);
     return res.status(500).send({ error: error, message: "Something went wrong" });
   }

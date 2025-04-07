@@ -4,7 +4,6 @@ const subscriptionTransactionSchema = new mongoose.Schema(
   {
     order: { type: mongoose.Schema.Types.ObjectId },
     user: { type: mongoose.Schema.Types.ObjectId },
-    plan: { type: mongoose.Schema.Types.ObjectId },
     status: { type: String },
     transcationId: { type: String },
     timestamp: { type: String },

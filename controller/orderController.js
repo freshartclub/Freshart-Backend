@@ -452,7 +452,6 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     SubscriptionTransaction.create({
       order: subOrder._id,
       user: user._id,
-      plan: plan._id,
       status: "success",
       amount: plan.standardPrice,
       discount: 0,
@@ -614,7 +613,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   }
 
   const schedule_start = getNextMonthDate();
-  const schedule_end = getEndDate(schedule_start, 1);
+  const schedule_end = getEndDate(schedule_start, 2);
 
   const newSubOrder = await Subscription.create({
     status: "not_started",
@@ -645,7 +644,6 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     SubscriptionTransaction.create({
       order: newSubOrder._id,
       user: req.user._id,
-      plan: plan._id,
       status: "success",
       sha1hash: parseNewScheduleResponse.response.sha1hash[0],
     }),
@@ -746,7 +744,6 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
     SubscriptionTransaction.create({
       order: subOrder._id,
       user: user._id,
-      plan: plan._id,
       status: "success",
       amount: plan.standardPrice,
       discount: 0,
@@ -843,7 +840,7 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
   }
 
   const schedule_start = getNextMonthDate();
-  const schedule_end = getEndDate(schedule_start, 1);
+  const schedule_end = getEndDate(schedule_start, 2);
 
   const newSubOrder = await Subscription.create({
     status: "not_started",
@@ -874,7 +871,6 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
     SubscriptionTransaction.create({
       order: newSubOrder._id,
       user: req.user._id,
-      plan: plan._id,
       status: "success",
       sha1hash: parseNewScheduleResponse.response.sha1hash[0],
     }),
