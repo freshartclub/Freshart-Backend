@@ -204,54 +204,67 @@ const compressAndSaveImage = async (inputPath, outputPath, maxSize, isThumbnail 
 
 const processImages = async (req, res, next) => {
   try {
-    if (!req.files) return;
+    if (!req.files) return next();
+
+    const thumbnailFields = ["backImage", "inProcessImage", "images", "mainImage"];
+    const keepOriginalFields = ["mainVideo", "additionalVideo", "otherVideo", "uploadDocs"];
 
     ensureDirectoryExists("./public/uploads/users");
+    ensureDirectoryExists("./public/uploads/videos");
+    ensureDirectoryExists("./public/uploads/documents");
     ensureDirectoryExists("./public/low");
 
     for (const field in req.files) {
-      if (
-        req.files[field] &&
-        !["mainImage", "mainVideo", "additionalVideo", "otherVideo", "uploadDocs"].includes(field) &&
-        req.files[field][0]?.mimetype?.startsWith("image/")
-      ) {
-        for (const file of req.files[field]) {
-          const originalPath = `./public/uploads/users/${file.filename}`;
+      for (const file of req.files[field]) {
+        if (!file.mimetype?.startsWith("image/")) continue;
 
-          if (!fs.existsSync(originalPath)) {
-            // console.warn(`File not found: ${originalPath}`);
-            continue;
-          }
+        let storagePath;
+        if (file.fieldname === "uploadDocs") {
+          storagePath = `./public/uploads/documents/${file.filename}`;
+        } else if (["additionalVideo", "mainVideo", "otherVideo"].includes(file.fieldname)) {
+          storagePath = `./public/uploads/videos/${file.filename}`;
+        } else {
+          storagePath = `./public/uploads/users/${file.filename}`;
+        }
 
-          const stats = fs.statSync(originalPath);
-          // console.log(`Processing ${originalPath}, size: ${stats.size} bytes`);
+        if (!fs.existsSync(storagePath)) {
+          console.warn(`File not found: ${storagePath}`);
+          continue;
+        }
 
-          // Skip if file is too large for safe processing
-          if (stats.size > MAX_MEMORY_FILE_SIZE) {
-            // console.warn(`File too large for processing: ${originalPath} (${stats.size} bytes)`);
-            continue;
-          }
+        const stats = fs.statSync(storagePath);
 
+        if (keepOriginalFields.includes(field)) {
+          console.log(`Keeping original file: ${storagePath}`);
+          continue;
+        }
+
+        // Process compression for non-thumbnail, non-protected image fields
+        const shouldKeepOriginal = keepOriginalFields.includes(field);
+        const shouldGenerateThumbnail = thumbnailFields.includes(field);
+
+        if (!shouldKeepOriginal && file.mimetype.startsWith("image/")) {
           if (stats.size > MAX_IMAGE_SIZE) {
-            // console.log(`Compressing ${originalPath} (${stats.size} > ${MAX_IMAGE_SIZE})`);
-
-            const success = await compressAndSaveImage(originalPath, originalPath, MAX_IMAGE_SIZE);
+            // console.log(`Compressing ${storagePath} (${stats.size} > ${MAX_IMAGE_SIZE})`);
+            const success = await compressAndSaveImage(storagePath, storagePath, MAX_IMAGE_SIZE);
 
             if (success) {
-              const newStats = fs.statSync(originalPath);
+              const newStats = fs.statSync(storagePath);
               // console.log(`Compressed to: ${newStats.size} bytes`);
             } else {
-              console.error(`Failed to compress ${originalPath}`);
+              console.error(`Failed to compress ${storagePath}`);
             }
           }
         }
       }
     }
 
-    const thumbnailFields = ["backImage", "inProcessImage", "images", "mainImage"];
+    // Generate thumbnails only for specified fields
     for (const field of thumbnailFields) {
       if (req.files[field]) {
         for (const file of req.files[field]) {
+          if (!file.mimetype?.startsWith("image/")) continue;
+
           const originalPath = `./public/uploads/users/${file.filename}`;
           const thumbnailPath = `./public/low/${file.filename}`;
 
