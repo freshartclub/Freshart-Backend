@@ -377,6 +377,7 @@ const verifySMSOTP = async (req, res) => {
 const sendForgotPasswordOTP = async (req, res) => {
   try {
     let { email, langCode } = req.body;
+    langCode = langCode.toUpperCase();
 
     if (!email) return res.status(400).send({ message: "Email is required" });
     if (langCode == "GB") langCode = "EN";

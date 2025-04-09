@@ -228,6 +228,7 @@ const artistSchema = new mongoose.Schema(
     },
     passwordLinkToken: { type: String },
     card: { pay_ref: { type: String }, pmt_ref: { type: String }, card_stored: { type: Boolean }, exp_date: { type: String } },
+    isCardExpired: { type: Boolean },
     isSubscribed: { type: Boolean },
     referralCode: { type: String },
     lastLogin: { type: Date },

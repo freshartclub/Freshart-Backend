@@ -15,7 +15,7 @@ const validateToken = async (req, res, next) => {
         const user = await Artist.findOne({ _id: verifiedJwt.user._id, isDeleted: false }, { artistName: 1, role: 1, tokens: 1 }).lean();
         if (!user) return res.status(400).send({ message: "User not found" });
 
-        if (user) {
+        if (user?.tokens) {
           const isTokenPresent = user.tokens.find((item) => item === token);
           if (!isTokenPresent) return res.status(401).send({ message: "Please do re-login" });
 

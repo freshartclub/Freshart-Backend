@@ -19,15 +19,10 @@ const addPickList = catchAsyncError(async (req, res, next) => {
   if (picklist) {
     const findField = picklist.picklist.find((item) => item.name === name);
     if (findField) {
-      return res
-        .status(400)
-        .send({ message: `Field already exist in "${picklistName}" Picklist` });
+      return res.status(400).send({ message: `Field already exist in "${picklistName}" Picklist` });
     }
 
-    PickList.updateOne(
-      { picklistName: picklistName },
-      { $push: { picklist: { name: name } } }
-    ).then();
+    PickList.updateOne({ picklistName: picklistName }, { $push: { picklist: { name: name } } }).then();
   } else {
     await PickList.create({
       picklistName: picklistName,
@@ -51,10 +46,7 @@ const updatePicklistName = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
   const { picklistName } = req.body;
 
-  const picklist = await PickList.findOne(
-    { _id: id },
-    { picklistName: 1 }
-  ).lean();
+  const picklist = await PickList.findOne({ _id: id }, { picklistName: 1 }).lean();
 
   if (!picklist) {
     return res.status(400).send({ message: "Picklist not found" });
@@ -72,10 +64,7 @@ const updatePicklistName = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Picklist name already exists" });
   }
 
-  await PickList.updateOne(
-    { _id: id },
-    { $set: { picklistName: picklistName } }
-  );
+  await PickList.updateOne({ _id: id }, { $set: { picklistName: picklistName } });
 
   res.status(200).send({ message: "Picklist name updated successfully" });
 });
@@ -140,10 +129,7 @@ const updatePicklist = catchAsyncError(async (req, res, next) => {
   }
 
   if (picklist.picklistName == "Insignia Group") {
-    await Insignia.updateMany(
-      { credentialGroup: queryName },
-      { $set: { credentialGroup: name } }
-    );
+    await Insignia.updateMany({ credentialGroup: queryName }, { $set: { credentialGroup: name } });
   }
 
   await PickList.updateOne(

@@ -23,11 +23,12 @@ module.exports.sendMail = (templateName, mailVariable, email, fromEmail = "hello
           port: 587,
           secure: false,
           auth: {
-            user: "frac-service@freshartclub.com",
-            pass: "X/5083.57559509az$",
+            user: process.env.MAIL_USER,
+            pass: process.env.MAIL_PASS,
           },
           tls: {
-            ciphers: "SSLv3",
+            ciphers: "TLSv1.2",
+            rejectUnauthorized: false,
           },
         })
       );
