@@ -21,12 +21,13 @@ const {
   checkPayerExist,
   createPayer,
   createSubscribeUser,
+  getUserPlans,
 } = require("../controller/orderController");
-const { createPayerBody } = require("../validations/validator");
+const { createPayerBody, createSubscribeOrderBody, createOrderBody } = require("../validations/validator");
 
 const router = express.Router();
 
-router.post("/create-order", validateToken, createOrder);
+router.post("/create-order", validateToken, createOrderBody, createOrder);
 
 router.get("/get-key", validateToken, getKey);
 
@@ -38,7 +39,7 @@ router.post("/create-payer", validateToken, createPayerBody, createPayer);
 router.post("/subscribe-plan", validateToken, createPayerSubscribeUser);
 
 // when card is stored
-router.post("/create-subscribe-plan", validateToken, createSubscribeUser);
+router.post("/create-subscribe-plan", validateToken, createSubscribeOrderBody, createSubscribeUser);
 
 router.get("/get-all-orders", validateAdminToken, getAllOrders);
 
@@ -63,5 +64,7 @@ router.patch("/give-review/:id/:artworkId", validateToken, giveReview);
 router.get("/status", validateToken, getStaus);
 
 router.get("/hash", generateHash);
+
+router.get("/user-plans", validateToken, getUserPlans);
 
 module.exports = router;

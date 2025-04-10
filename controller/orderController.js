@@ -26,6 +26,15 @@ function getTimestamp() {
 }
 
 const createOrder = catchAsyncError(async (req, res, next) => {
+  const errors = validationResult(req);
+  const checkValid = await checkValidations(errors);
+
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
+  }
+
   const user = await Artist.findOne({ _id: req.user._id }, { cart: 1, billingInfo: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
   const { time, currency } = req.body;
@@ -367,8 +376,18 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).json({ error: "Invalid encryption or tampered data" });
   }
 
-  if (decryptedData.cardType == "") {
-    return res.status(400).send({ message: "Card Type not detected. Only Visa, Mastercard, Amex and Discover card are supported" });
+  const allowedTypes = ["VISA", "MASTERCARD", "AMEX", "DISCOVER"];
+  if (!allowedTypes.includes(decryptedData.cardType.toUpperCase())) {
+    return res.status(400).send({ message: "Unsupported card type" });
+  }
+
+  if (!decryptedData.type) {
+    return res.status(400).send({ message: "Provide valid Plan Type" });
+  }
+
+  const validTypes = ["yearly", "monthly"];
+  if (!validTypes.includes(decryptedData.type)) {
+    return res.status(400).send({ message: "Provide valid Plan Type" });
   }
 
   if (user && !user?.card?.pay_ref) {
@@ -456,6 +475,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     plan: plan._id,
     status: "active",
     start_date: new Date(),
+    isScheduled: false,
     orderId: parsePayResponse.response.orderid[0],
     type: payType,
   });
@@ -544,8 +564,8 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   const newTimestamp = getTimestamp();
   const sheduleRef = generateSchedulerRef();
   const newCurr = "EUR";
-  const newAmount = String(plan.currentPrice * 100);
   const schedule = decryptedData.type;
+  const newAmount = String(schedule == "yearly" ? plan.currentYearlyPrice * 100 : plan.currentPrice * 100);
 
   const newHashString = `${newTimestamp}.${MERCHANT_ID}.${sheduleRef}.${newAmount}.${newCurr}.${user.card.pay_ref}.${schedule}`;
   const newHash1 = crypto.createHash("sha1").update(newHashString).digest("hex");
@@ -594,38 +614,83 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: parseNewScheduleResponse.response.message[1] });
   }
 
-  function getNextMonthDate() {
+  function getLastDayOfMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+  }
+
+  function getScheduleStartDate(type) {
     const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
     const day = today.getDate();
+    const month = today.getMonth();
+    const year = today.getFullYear();
 
-    const nextMonth = (month + 1) % 12;
-    const nextMonthYear = month === 11 ? year + 1 : year;
+    if (type === "monthly") {
+      const nextMonth = (month + 1) % 12;
+      const nextYear = month === 11 ? year + 1 : year;
+      const lastDayOfNextMonth = getLastDayOfMonth(nextYear, nextMonth);
 
-    const lastDayOfNextMonth = new Date(nextMonthYear, nextMonth + 1, 0).getDate();
-    const validDay = Math.min(day, lastDayOfNextMonth);
-    return new Date(nextMonthYear, nextMonth, validDay);
+      if (day >= 29) {
+        return new Date(nextYear, nextMonth, lastDayOfNextMonth);
+      }
+
+      return new Date(nextYear, nextMonth, day);
+    }
+
+    if (type === "yearly") {
+      const nextYear = year + 1;
+
+      // Feb 29 case (Leap year issue)
+      const isLeapFeb29 = month === 1 && day === 29;
+      if (isLeapFeb29) {
+        return new Date(nextYear, 1, 28); // 28 Feb next year
+      }
+
+      const lastDayOfTargetMonth = getLastDayOfMonth(nextYear, month);
+      const finalDay = Math.min(day, lastDayOfTargetMonth);
+
+      return new Date(nextYear, month, finalDay);
+    }
+
+    throw new Error("Invalid type provided");
   }
 
-  function getEndDate(schedule_start, cycles) {
-    const startDay = schedule_start.getDate();
-    const startMonth = schedule_start.getMonth();
-    const startYear = schedule_start.getFullYear();
+  function getScheduleEndDate(type, startDate, cycles) {
+    const day = startDate.getDate();
+    let month = startDate.getMonth();
+    let year = startDate.getFullYear();
 
-    const totalMonths = startMonth + cycles - 1;
-    const endYear = startYear + Math.floor(totalMonths / 12);
-    const endMonth = totalMonths % 12;
+    if (type === "monthly") {
+      for (let i = 0; i < cycles - 1; i++) {
+        month += 1;
+        if (month > 11) {
+          month = 0;
+          year += 1;
+        }
+      }
 
-    const endDateObj = new Date(endYear, endMonth + 1, 0);
-    const lastDay = endDateObj.getDate();
+      const lastDay = getLastDayOfMonth(year, month);
+      const finalDay = day >= 29 ? lastDay : Math.min(day, lastDay);
+      return new Date(year, month, finalDay);
+    }
 
-    const validDay = Math.min(startDay, lastDay);
-    return new Date(endYear, endMonth, validDay);
+    if (type === "yearly") {
+      const finalYear = year + (cycles - 1);
+
+      const isLeapFeb29 = month === 1 && day === 29;
+      if (isLeapFeb29) {
+        return new Date(finalYear, 1, 28); // Feb 28 in non-leap years
+      }
+
+      const lastDay = getLastDayOfMonth(finalYear, month);
+      const finalDay = Math.min(day, lastDay);
+      return new Date(finalYear, month, finalDay);
+    }
+
+    throw new Error("Invalid type provided");
   }
 
-  const schedule_start = getNextMonthDate();
-  const schedule_end = getEndDate(schedule_start, 2);
+  const schedule_start = getScheduleStartDate(schedule);
+  const schedule_end = getScheduleEndDate(schedule, schedule_start, 2);
 
   const newSubOrder = await Subscription.create({
     status: "not_started",
@@ -633,7 +698,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     user: req.user._id,
     type: schedule,
     schedule_defined: 1,
-    schedule_completed: 0,
+    isScheduled: true,
     start_date: schedule_start,
     end_date: schedule_end,
     otherSchedule: subOrder._id,
@@ -667,21 +732,26 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
 
 // when card is stored...
 const createSubscribeUser = catchAsyncError(async (req, res, next) => {
+  const errors = validationResult(req);
+  const checkValid = await checkValidations(errors);
+
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
+  }
+
   const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, invite: 1, userId: 1, isSubscribed: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
   const { planId, user_num, plan_type } = req.body;
 
-  if (user?.isSubscribed && user?.isSubscribed == true) {
-    return res.status(400).send({ message: "You already have an active subscription" });
+  if (!user?.card?.pay_ref && !user?.card?.pmt_ref) {
+    return res.status(400).send({ message: "Your Basic information/Payment method not found" });
   }
 
-  if (user && !user?.card?.pay_ref) {
-    return res.status(400).send({ message: "Your Basic information not found" });
-  }
-
-  if (user && user?.card?.card_stored == true) {
-    return res.status(400).send({ message: "Card Info already exist" });
+  if (user?.card?.card_stored == false) {
+    return res.status(400).send({ message: "Card Info not exist" });
   }
 
   const plan = await Plan.findOne({ _id: planId }, { planName: 1, currentPrice: 1, currentYearlyPrice: 1 }).lean();
@@ -754,6 +824,7 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
       user: user._id,
       plan: plan._id,
       status: "active",
+      isScheduled: false,
       start_date: new Date(),
       orderId: parsePayResponse.response.orderid[0],
       type: plan_type,
@@ -788,41 +859,95 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
   const newFinalString = `${newHash1}.${SECRET}`;
   const newSha1Hash = crypto.createHash("sha1").update(newFinalString).digest("hex");
 
-  function getNextMonthDate() {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = today.getMonth();
-    const day = today.getDate();
+  function formatToYYYYMMDD(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
 
-    const nextMonth = (month + 1) % 12;
-    const nextMonthYear = month === 11 ? year + 1 : year;
-
-    const lastDayOfNextMonth = new Date(nextMonthYear, nextMonth + 1, 0).getDate();
-    const validDay = Math.min(day, lastDayOfNextMonth);
-    return new Date(nextMonthYear, nextMonth, validDay);
+    return `${year}${month}${day}`;
   }
 
-  function getEndDate(schedule_start, cycles) {
-    const startDay = schedule_start.getDate();
-    const startMonth = schedule_start.getMonth();
-    const startYear = schedule_start.getFullYear();
+  function getLastDayOfMonth(year, month) {
+    return new Date(year, month + 1, 0).getDate();
+  }
 
-    const totalMonths = startMonth + cycles - 1;
-    const endYear = startYear + Math.floor(totalMonths / 12);
-    const endMonth = totalMonths % 12;
+  function getScheduleStartDate(type) {
+    const today = new Date();
+    const day = today.getDate();
+    const month = today.getMonth();
+    const year = today.getFullYear();
 
-    const endDateObj = new Date(endYear, endMonth + 1, 0);
-    const lastDay = endDateObj.getDate();
+    if (type === "monthly") {
+      const nextMonth = (month + 1) % 12;
+      const nextYear = month === 11 ? year + 1 : year;
+      const lastDayOfNextMonth = getLastDayOfMonth(nextYear, nextMonth);
 
-    const validDay = Math.min(startDay, lastDay);
-    return new Date(endYear, endMonth, validDay);
+      if (day >= 29) {
+        return new Date(nextYear, nextMonth, lastDayOfNextMonth);
+      }
+
+      return new Date(nextYear, nextMonth, day);
+    }
+
+    if (type === "yearly") {
+      const nextYear = year + 1;
+
+      // Feb 29 case (Leap year issue)
+      const isLeapFeb29 = month === 1 && day === 29;
+      if (isLeapFeb29) {
+        return new Date(nextYear, 1, 28); // 28 Feb next year
+      }
+
+      const lastDayOfTargetMonth = getLastDayOfMonth(nextYear, month);
+      const finalDay = Math.min(day, lastDayOfTargetMonth);
+
+      return new Date(nextYear, month, finalDay);
+    }
+
+    throw new Error("Invalid type provided");
+  }
+
+  function getScheduleEndDate(type, startDate, cycles) {
+    const day = startDate.getDate();
+    let month = startDate.getMonth();
+    let year = startDate.getFullYear();
+
+    if (type === "monthly") {
+      for (let i = 0; i < cycles - 1; i++) {
+        month += 1;
+        if (month > 11) {
+          month = 0;
+          year += 1;
+        }
+      }
+
+      const lastDay = getLastDayOfMonth(year, month);
+      const finalDay = day >= 29 ? lastDay : Math.min(day, lastDay);
+      return new Date(year, month, finalDay);
+    }
+
+    if (type === "yearly") {
+      const finalYear = year + (cycles - 1);
+
+      const isLeapFeb29 = month === 1 && day === 29;
+      if (isLeapFeb29) {
+        return new Date(finalYear, 1, 28); // Feb 28 in non-leap years
+      }
+
+      const lastDay = getLastDayOfMonth(finalYear, month);
+      const finalDay = Math.min(day, lastDay);
+      return new Date(finalYear, month, finalDay);
+    }
+
+    throw new Error("Invalid type provided");
   }
 
   let schedule_start, schedule_end;
 
   if (user_suscriptions.length === 0) {
-    schedule_start = getNextMonthDate();
-    schedule_end = getEndDate(schedule_start, 2);
+    schedule_start = getScheduleStartDate(schedule);
+    schedule_end = getScheduleEndDate(schedule, schedule_start, 2);
   } else if (user_suscriptions.length === 1) {
     const endDate = new Date(user_suscriptions[0].end_date);
     const today = new Date();
@@ -834,14 +959,14 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
       nextDay.setDate(endDate.getDate() + 1);
 
       schedule_start = nextDay;
-      schedule_end = getEndDate(schedule_start, 2);
+      schedule_end = getScheduleEndDate(schedule, schedule_start, 2);
     } else {
       schedule_start = endDate;
-      schedule_end = getEndDate(schedule_start, 2);
+      schedule_end = getScheduleEndDate(schedule, schedule_start, 2);
     }
   } else {
     schedule_start = new Date(user_suscriptions[0].end_date);
-    schedule_end = getEndDate(schedule_start, 2);
+    schedule_end = getScheduleEndDate(schedule, schedule_start, 2);
   }
 
   function generateScheduleXmlRequest() {
@@ -870,15 +995,6 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
     };
 
     if (user_suscriptions.length > 0) {
-      function formatToYYYYMMDD(date) {
-        const d = new Date(date);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, "0");
-        const day = String(d.getDate()).padStart(2, "0");
-
-        return `${year}${month}${day}`;
-      }
-
       const formatted = formatToYYYYMMDD(schedule_end);
 
       xmlObj.request["startdate"] = { _: formatted };
@@ -904,11 +1020,11 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
     status: "not_started",
     plan: plan._id,
     user: req.user._id,
-    schedule_type: schedule,
+    type: schedule,
     schedule_defined: 1,
-    schedule_completed: 0,
-    schedule_start: schedule_start,
-    schedule_end: schedule_end,
+    isScheduled: true,
+    start_date: schedule_start,
+    end_date: schedule_end,
   };
 
   if (user_suscriptions.length == 0) {
@@ -928,14 +1044,12 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
       }),
     ]);
   } else {
-    await Promise.all([
-      SubscriptionTransaction.create({
-        order: newSubOrder._id,
-        user: req.user._id,
-        status: "success",
-        sha1hash: parseNewScheduleResponse.response.sha1hash[0],
-      }),
-    ]);
+    await SubscriptionTransaction.create({
+      order: newSubOrder._id,
+      user: req.user._id,
+      status: "success",
+      sha1hash: parseNewScheduleResponse.response.sha1hash[0],
+    });
   }
 
   return res.status(200).send({ message: "Subscription created successfully" });
@@ -1786,6 +1900,52 @@ const getStaus = catchAsyncError(async (req, res, next) => {
   }
 });
 
+// ------------------------------- user plans --------------------------
+
+const getUserPlans = catchAsyncError(async (req, res, next) => {
+  const user_plans = await Subscription.aggregate([
+    {
+      $match: { user: objectId(req.user._id) },
+    },
+    {
+      $lookup: {
+        from: "plans",
+        localField: "plan",
+        foreignField: "_id",
+        as: "planData",
+      },
+    },
+    {
+      $unwind: "$planData",
+    },
+    {
+      $project: {
+        _id: 1,
+        orderId: 1,
+        status: 1,
+        type: 1,
+        isScheduled: 1,
+        start_date: 1,
+        end_date: 1,
+        otherSchedule: 1,
+        createdAt: 1,
+        plan: {
+          planGrp: "$planData.planGrp",
+          planName: "$planData.planName",
+          planImg: "$planData.planImg",
+          planDesc: "$planData.planDesc",
+          currentPrice: "$planData.currentPrice",
+          currentYearlyPrice: "$planData.currentYearlyPrice",
+        },
+      },
+    },
+    {
+      $sort: { createdAt: -1 },
+    },
+  ]);
+  return res.status(200).send({ data: user_plans });
+});
+
 module.exports = {
   createOrder,
   checkPayerExist,
@@ -1807,4 +1967,5 @@ module.exports = {
   createSubscribeUser,
   getStaus,
   getKey,
+  getUserPlans,
 };

@@ -44,7 +44,7 @@ const scheduleJob = new CronJob(
 );
 
 const subscriptionJob = new CronJob(
-  "0 0 * * *",
+  "0 0 * * *", // everyday at 00:00 UTC
   async function () {
     try {
       const users = await User.find({ isSubscribed: true }, { _id: 1 }).lean();
@@ -53,26 +53,55 @@ const subscriptionJob = new CronJob(
         return console.log("No users found.");
       }
 
+      const now = new Date();
+      const subUpdateOps = [];
+      const userUpdateOps = [];
+
       for (const user of users) {
-        const subscriptions = await Subscription.find({ user: user._id, status: { $in: ["active", "not_started"] } })
+        const subscriptions = await Subscription.find({
+          user: user._id,
+          status: { $in: ["active", "not_started"] },
+        })
           .sort({ createdAt: 1 })
           .lean();
 
         if (subscriptions.length === 0) continue;
 
         const oldest = subscriptions[0];
-        const now = new Date();
 
-        if (oldest.end_date < now) {
-          await Subscription.updateOne({ _id: oldest._id }, { $set: { status: "expired" } });
+        if (oldest.end_date <= now) {
+          subUpdateOps.push({
+            updateOne: {
+              filter: { _id: oldest._id },
+              update: { $set: { status: "expired" } },
+            },
+          });
 
-          if (subscriptions.length > 1) {
-            const next = subscriptions[1];
-            await Subscription.updateOne({ _id: next._id }, { $set: { status: "active" } });
+          const next = subscriptions[1];
+          if (next && next.status === "not_started") {
+            subUpdateOps.push({
+              updateOne: {
+                filter: { _id: next._id },
+                update: { $set: { status: "active" } },
+              },
+            });
           } else {
-            await User.updateOne({ _id: user._id }, { $set: { isSubscribed: false } });
+            userUpdateOps.push({
+              updateOne: {
+                filter: { _id: user._id },
+                update: { $set: { isSubscribed: false } },
+              },
+            });
           }
         }
+      }
+
+      if (subUpdateOps.length > 0) {
+        await Subscription.bulkWrite(subUpdateOps);
+      }
+
+      if (userUpdateOps.length > 0) {
+        await User.bulkWrite(userUpdateOps);
       }
 
       console.log("Subscription cron job completed.");

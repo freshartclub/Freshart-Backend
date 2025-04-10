@@ -2047,7 +2047,23 @@ const deleteNotification = async (req, res) => {
 
 const getUserPlans = async (req, res) => {
   try {
-    const planList = await Plan.find({}).lean(true);
+    const planList = await Plan.aggregate([
+      {
+        $project: {
+          planName: 1,
+          currentPrice: 1,
+          currentYearlyPrice: 1,
+          defaultPlan: 1,
+          defaultArtistFees: 1,
+          planId: 1,
+          planDesc: 1,
+          planImg: 1,
+          planGrp: 1,
+          priority: 1,
+          purchaseDiscount: 1,
+        },
+      },
+    ]);
 
     return res.status(200).send({ data: planList });
   } catch (error) {

@@ -492,7 +492,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     owner: artist._id,
   };
 
-  if (req.body.exclusive == "true") {
+  if (req.body.exclusive == "Yes") {
     obj["exclusive"] = true;
   }
 
@@ -2266,6 +2266,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     ...(bigDiscount && bigDiscount == "Yes" && { "pricing.dpersentage": { $gte: 20 } }),
     ...(insig && { "ownerInfo.insignia": objectId(insig) }),
   };
+  const totalCount = await ArtWork.countDocuments(matchStage);
 
   if (cursor) {
     if (direction === "next") {
@@ -2335,27 +2336,6 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     { $limit: limit + 1 },
   ]);
 
-  const totalCountPipeline = [
-    {
-      $lookup: {
-        from: "artists",
-        localField: "owner",
-        foreignField: "_id",
-        as: "ownerInfo",
-      },
-    },
-    {
-      $unwind: {
-        path: "$ownerInfo",
-        preserveNullAndEmptyArrays: true,
-      },
-    },
-    { $match: matchStage },
-    { $count: "totalCount" },
-  ];
-
-  const totalCount = await ArtWork.aggregate(totalCountPipeline);
-
   const hasNextPage =
     (currPage === 1 && artworkList.length > limit) || artworkList.length > limit || (direction === "prev" && artworkList.length === limit);
 
@@ -2374,7 +2354,6 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
   }
 
   const nextCursor = hasNextPage ? artworkList[artworkList.length - 1]._id : null;
-
   const prevCursor = hasPrevPage ? artworkList[0]._id : null;
 
   res.status(200).send({
@@ -2383,7 +2362,7 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
     prevCursor,
     hasNextPage,
     hasPrevPage,
-    totalCount: totalCount.length > 0 ? totalCount[0].totalCount : 0,
+    totalCount: totalCount,
   });
 });
 

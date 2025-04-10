@@ -5,9 +5,9 @@ const loginData = [
   body("password").exists({ checkFalsy: true }).withMessage("Password is required"),
 ];
 
-const createSubscriptionOrderData = [
-  body("email").exists({ checkFalsy: true }).withMessage("Email or phone number is required"),
-  body("password").exists({ checkFalsy: true }).withMessage("Password is required"),
+const createOrderBody = [
+  body("time").exists({ checkFalsy: true }).withMessage("Time is required"),
+  body("currency").exists({ checkFalsy: true }).withMessage("Currency is required"),
 ];
 
 const createPayerBody = [
@@ -22,7 +22,19 @@ const createPayerBody = [
   body("lastName").exists({ checkFalsy: true }).withMessage("Last name is required"),
 ];
 
+const createSubscribeOrderBody = [
+  body("planId").exists({ checkFalsy: true }).withMessage("Plan Id is required"),
+  body("user_num").exists({ checkFalsy: true }).withMessage("CVV is required"),
+  body("plan_type")
+    .exists({ checkFalsy: true })
+    .withMessage("Plan type is required")
+    .isIn(["yearly", "monthly"])
+    .withMessage("Plan type must be either 'yearly' or 'monthly'"),
+];
+
 module.exports = {
   loginData,
+  createOrderBody,
   createPayerBody,
+  createSubscribeOrderBody,
 };
