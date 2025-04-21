@@ -364,7 +364,7 @@ const artistCreateArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  if (artworkData && artworkData.status !== "draft") {
+  if ((artworkData && artworkData.status === "published") || artworkData.status === "modified" || artworkData.status === "rejected") {
     return res.status(400).send({
       message: `You already published/modified this artwork`,
     });
