@@ -410,94 +410,6 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   const MERCHANT_ID = process.env.MERCHANT_ID;
   const SECRET = process.env.SECRET;
 
-  // -------------------------- one time payment ----------------------
-  const payTime = getTimestamp();
-  const payOrderId = generateRandomOrderId();
-  const payType = decryptedData.type;
-  const payAmount = String(payType == "yearly" ? plan.currentYearlyPrice * 100 : plan.currentPrice * 100);
-  const payCurr = "EUR";
-
-  const payHashString = `${payTime}.${MERCHANT_ID}.${payOrderId}.${payAmount}.${payCurr}.${decryptedData.cardNumber}`;
-  const payHash1 = crypto.createHash("sha1").update(payHashString).digest("hex");
-
-  const payFinalString = `${payHash1}.${SECRET}`;
-  const paySha1Hash = crypto.createHash("sha1").update(payFinalString).digest("hex");
-
-  function generatePaymentXmlRequest(paymentData) {
-    const builder = new Builder({ headless: true });
-    const xmlObj = {
-      request: {
-        $: { type: "auth", timestamp: payTime },
-        merchantid: MERCHANT_ID,
-        account: "internet",
-        channel: "ECOM",
-        orderid: payOrderId,
-        amount: { _: payAmount, $: { currency: payCurr } },
-        card: {
-          number: paymentData.cardNumber,
-          expdate: paymentData.expiry,
-          chname: paymentData.cardHolder,
-          type: paymentData.cardType,
-          cvn: {
-            number: paymentData.cardCVV,
-            presind: "1",
-          },
-        },
-        autosettle: { $: { flag: "1" } },
-        comments: {
-          comment: [{ $: { id: "1" }, _: "Payment Done" }],
-        },
-        sha1hash: paySha1Hash,
-      },
-    };
-
-    const xmlBody = builder.buildObject(xmlObj);
-    return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
-  }
-
-  const payData = {
-    cardNumber: decryptedData.cardNumber,
-    expiry: decryptedData.expiry.split("/").join(""),
-    cardHolder: decryptedData.cardHolder,
-    cardType: decryptedData.cardType.toUpperCase(),
-    cardCVV: decryptedData.cvv,
-  };
-
-  const payXmlRequest = generatePaymentXmlRequest(payData);
-  const payResponse = await axios.post(`${url}`, payXmlRequest, {
-    headers: {
-      "Content-Type": "text/xml",
-    },
-  });
-
-  const parsePayResponse = await parseStringPromise(payResponse.data);
-
-  if (parsePayResponse.response.result[0] !== "00") {
-    return res.status(400).send({ message: "One time payment failed" });
-  }
-
-  const subOrder = await Subscription.create({
-    user: user._id,
-    plan: plan._id,
-    status: "active",
-    start_date: new Date(),
-    isScheduled: false,
-    orderId: parsePayResponse.response.orderid[0],
-    type: payType,
-  });
-
-  await SubscriptionTransaction.create({
-    order: subOrder._id,
-    user: user._id,
-    status: "success",
-    amount: payType == "yearly" ? plan.currentYearlyPrice : plan.currentPrice,
-    discount: 0,
-    transcationId: parsePayResponse.response.pasref[0],
-    timestamp: payTime,
-    currency: "EUR",
-    sha1hash: paySha1Hash,
-  });
-
   // --------------------------- store card ---------------------------
   const amount = "";
   const currency = "";
@@ -562,6 +474,122 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   }
   // --------------------------- store card ---------------------------
 
+  // --------------------------- check valid card ------------------------------
+  const payTime = getTimestamp();
+  const payOrderId = generateRandomOrderId();
+
+  const payHashString = `${payTime}.${MERCHANT_ID}.${payOrderId}.${user.card.pay_ref}`;
+  const payHash1 = crypto.createHash("sha1").update(payHashString).digest("hex");
+
+  const payFinalString = `${payHash1}.${SECRET}`;
+  const paySha1Hash = crypto.createHash("sha1").update(payFinalString).digest("hex");
+
+  function generatePaymentXmlRequest() {
+    const builder = new Builder({ headless: true });
+    const xmlObj = {
+      request: {
+        $: { type: "receipt-in-otb", timestamp: payTime },
+        merchantid: MERCHANT_ID,
+        account: "internet",
+        foreignretailer: { $: { flag: "false" } },
+        orderid: payOrderId,
+        payerref: user.card.pay_ref,
+        paymentmethod: pmt_ref,
+        paymentdata: {
+          cvn: {
+            number: paymentData.cardCVV,
+          },
+        },
+        comments: {
+          comment: [{ $: { id: "1" }, _: "Verificataion only" }],
+        },
+        sha1hash: paySha1Hash,
+      },
+    };
+
+    const xmlBody = builder.buildObject(xmlObj);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+  }
+
+  const payXmlRequest = generatePaymentXmlRequest();
+  const payResponse = await axios.post(`${url}`, payXmlRequest, {
+    headers: {
+      "Content-Type": "text/xml",
+    },
+  });
+
+  const parsePayResponse = await parseStringPromise(payResponse.data);
+
+  if (parsePayResponse.response.result[0] !== "00") {
+    const time = getTimestamp();
+    const orderId = generateRandomOrderId();
+
+    const decHashString = `${time}.${MERCHANT_ID}.${user.card.pay_ref}.${pmt_ref}`;
+    const decHash1 = crypto.createHash("sha1").update(decHashString).digest("hex");
+
+    const decFinalString = `${decHash1}.${SECRET}`;
+    const decSha1Hash = crypto.createHash("sha1").update(decFinalString).digest("hex");
+
+    function generateDeclineXmlRequest() {
+      const builder = new Builder({ headless: true });
+      const xmlObj = {
+        request: {
+          $: { type: "card-cancel-card", timestamp: time },
+          merchantid: MERCHANT_ID,
+          account: "internet",
+          orderid: orderId,
+          card: {
+            ref: pmt_ref,
+            payerref: user.card.pay_ref,
+          },
+          comments: {
+            comment: [{ $: { id: "1" }, _: "Card Cancel" }],
+          },
+          sha1hash: decSha1Hash,
+        },
+      };
+
+      const xmlBody = builder.buildObject(xmlObj);
+      return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+    }
+
+    const decXmlRequest = generateDeclineXmlRequest();
+    const decResponse = await axios.post(`${url}`, decXmlRequest, {
+      headers: {
+        "Content-Type": "text/xml",
+      },
+    });
+
+    const parsedecResponse = await parseStringPromise(decResponse.data);
+
+    if (parsedecResponse.response.result[0] !== "00") {
+      return res.status(400).send({ message: "Card deletion failed" });
+    }
+
+    return res.status(400).send({ message: "Card Verification Failed" });
+  }
+  // ----------------------------check valid card ----------------------------
+
+  Artist.updateOne(
+    { _id: req.user._id },
+    {
+      $set: {
+        prev_saved: true,
+        card: {
+          pay_ref: user.card.pay_ref,
+          pmt_ref: pmt_ref,
+          card_stored: true,
+          card_details: {
+            cardNumber: decryptedData.cardNumber.slice(-4),
+            cardType: decryptedData.cardType,
+            cardHolder: decryptedData.cardHolder,
+            cardExpiry: decryptedData.expiry,
+          },
+        },
+      },
+    }
+  );
+
   // --------------------------- create subscription ------------------
 
   const newTimestamp = getTimestamp();
@@ -576,6 +604,18 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   const newFinalString = `${newHash1}.${SECRET}`;
   const newSha1Hash = crypto.createHash("sha1").update(newFinalString).digest("hex");
 
+  function formatToYYYYMMDD(date) {
+    const d = new Date(date);
+    const year = d.getFullYear();
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+
+    return `${year}${month}${day}`;
+  }
+
+  let tomorrow_date = new Date();
+  tomorrow_date.setDate(tomorrow_date.getDate() + 1);
+
   function generateScheduleXmlRequest() {
     const builder = new Builder({ headless: true });
     const xmlObj = {
@@ -589,6 +629,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
         orderidstub: "freshart",
         transtype: "auth",
         schedule: schedule,
+        startdate: formatToYYYYMMDD(tomorrow_date),
         numtimes: "-1",
         payerref: user.card.pay_ref,
         paymentmethod: pmt_ref,
@@ -617,86 +658,24 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: parseNewScheduleResponse.response.message[1] });
   }
 
-  function getLastDayOfMonth(year, month) {
-    return new Date(year, month + 1, 0).getDate();
-  }
-
-  function getScheduleStartDate(type) {
-    const today = new Date();
-    const day = today.getDate();
-    const month = today.getMonth();
-    const year = today.getFullYear();
-
-    if (type === "monthly") {
-      const nextMonth = (month + 1) % 12;
-      const nextYear = month === 11 ? year + 1 : year;
-      const lastDayOfNextMonth = getLastDayOfMonth(nextYear, nextMonth);
-
-      if (day >= 29) {
-        return new Date(nextYear, nextMonth, lastDayOfNextMonth);
-      }
-
-      return new Date(nextYear, nextMonth, day);
-    }
-
-    if (type === "yearly") {
-      const nextYear = year + 1;
-
-      // Feb 29 case (Leap year issue)
-      const isLeapFeb29 = month === 1 && day === 29;
-      if (isLeapFeb29) {
-        return new Date(nextYear, 1, 28); // 28 Feb next year
-      }
-
-      const lastDayOfTargetMonth = getLastDayOfMonth(nextYear, month);
-      const finalDay = Math.min(day, lastDayOfTargetMonth);
-
-      return new Date(nextYear, month, finalDay);
-    }
-
-    throw new Error("Invalid type provided");
-  }
-
-  const schedule_start = getScheduleStartDate(schedule);
   const newSubOrder = await Subscription.create({
-    status: "not_started",
+    status: "active",
     plan: plan._id,
     user: req.user._id,
     sheduleRef: sheduleRef,
+    isCurrActive: true,
     type: schedule,
     schedule_defined: -1,
     isScheduled: true,
-    start_date: schedule_start,
+    start_date: new Date(),
   });
 
-  await Promise.all([
-    Artist.updateOne(
-      { _id: req.user._id },
-      {
-        $set: {
-          prev_saved: true,
-          card: {
-            pay_ref: user.card.pay_ref,
-            pmt_ref: pmt_ref,
-            card_stored: true,
-            card_details: {
-              cardNumber: decryptedData.cardNumber.slice(-4),
-              cardType: decryptedData.cardType,
-              cardHolder: decryptedData.cardHolder,
-              cardExpiry: decryptedData.expiry,
-            },
-          },
-        },
-      }
-    ),
-    Subscription.updateOne({ _id: subOrder._id }, { $set: { end_date: schedule_start } }),
-    SubscriptionTransaction.create({
-      order: newSubOrder._id,
-      user: req.user._id,
-      status: "success",
-      sha1hash: parseNewScheduleResponse.response.sha1hash[0],
-    }),
-  ]);
+  await SubscriptionTransaction.create({
+    order: newSubOrder._id,
+    user: req.user._id,
+    status: "success",
+    sha1hash: parseNewScheduleResponse.response.sha1hash[0],
+  });
 
   return res.status(200).send({ message: "Payment and subscription created successfully" });
 });
@@ -966,7 +945,7 @@ const deleteCard = catchAsyncError(async (req, res, next) => {
     const isRenewalDay = sub.type === "monthly" ? todayDay === startDay : todayDay === startDay && todayMonth === startMonth;
 
     if (isRenewalDay) {
-      await Subscription.updateOne({ _id: sub._id }, { $set: { end_date: today, status: "cancelled" } });
+      await Subscription.updateOne({ _id: sub._id }, { $set: { end_date: today, status: "expired", no_card: true } });
     } else {
       let endDate;
       const currentYear = today.getUTCFullYear();
@@ -1047,90 +1026,14 @@ const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Unsupported card type" });
   }
 
-  // -------------------------- one time payment ----------------------
-  const payTime = getTimestamp();
-  const payOrderId = generateRandomOrderId();
-  const payAmount = "001";
-  const payCurr = "EUR";
-  const MERCHANT_ID = process.env.MERCHANT_ID;
-  const SECRET = process.env.SECRET;
-
-  const payHashString = `${payTime}.${MERCHANT_ID}.${payOrderId}.${payAmount}.${payCurr}.${decryptedData.cardNumber}`;
-  const payHash1 = crypto.createHash("sha1").update(payHashString).digest("hex");
-
-  const payFinalString = `${payHash1}.${SECRET}`;
-  const paySha1Hash = crypto.createHash("sha1").update(payFinalString).digest("hex");
-
-  function generatePaymentXmlRequest(paymentData) {
-    const builder = new Builder({ headless: true });
-    const xmlObj = {
-      request: {
-        $: { type: "auth", timestamp: payTime },
-        merchantid: MERCHANT_ID,
-        account: "internet",
-        channel: "ECOM",
-        orderid: payOrderId,
-        amount: { _: payAmount, $: { currency: payCurr } },
-        card: {
-          number: paymentData.cardNumber,
-          expdate: paymentData.expiry,
-          chname: paymentData.cardHolder,
-          type: paymentData.cardType,
-          cvn: {
-            number: paymentData.cardCVV,
-            presind: "1",
-          },
-        },
-        autosettle: { $: { flag: "1" } },
-        comments: {
-          comment: [{ $: { id: "1" }, _: "Charges for token" }],
-        },
-        sha1hash: paySha1Hash,
-      },
-    };
-
-    const xmlBody = builder.buildObject(xmlObj);
-    return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
-  }
-
-  const payData = {
-    cardNumber: decryptedData.cardNumber,
-    expiry: decryptedData.expiry.split("/").join(""),
-    cardHolder: decryptedData.cardHolder,
-    cardType: decryptedData.cardType.toUpperCase(),
-    cardCVV: decryptedData.cvv,
-  };
-
-  const payXmlRequest = generatePaymentXmlRequest(payData);
-  const payResponse = await axios.post(`${url}`, payXmlRequest, {
-    headers: {
-      "Content-Type": "text/xml",
-    },
-  });
-
-  const parsePayResponse = await parseStringPromise(payResponse.data);
-
-  if (parsePayResponse.response.result[0] !== "00") {
-    return res.status(400).send({ message: "One time payment failed" });
-  }
-
-  await SubscriptionTransaction.create({
-    user: user._id,
-    status: "success",
-    amount: 0,
-    discount: 0,
-    transcationId: parsePayResponse.response.pasref[0],
-    timestamp: payTime,
-    currency: "EUR",
-    sha1hash: paySha1Hash,
-  });
-
   // --------------------------- add new card ---------------------------
   const timestamp = getTimestamp();
   const orderId = generateRandomOrderId();
   const pmt_ref = uuidv4();
   const amount = "";
   const curr = "";
+  const MERCHANT_ID = process.env.MERCHANT_ID;
+  const SECRET = process.env.SECRET;
 
   const hashString = `${timestamp}.${MERCHANT_ID}.${orderId}.${amount}.${curr}.${user.card.pay_ref}.${decryptedData.cardHolder}.${decryptedData.cardNumber}`;
   const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
@@ -1184,6 +1087,104 @@ const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   if (parseStoreResponse.response.result[0] !== "00") {
     return res.status(400).send({ message: parseStoreResponse.response.message[1] });
   }
+  // --------------------------- add new card ---------------------------
+
+  // ----------------------------check card valdation -------------------
+  const payTime = getTimestamp();
+  const payOrderId = generateRandomOrderId();
+
+  const payHashString = `${payTime}.${MERCHANT_ID}.${payOrderId}.${user.card.pay_ref}`;
+  const payHash1 = crypto.createHash("sha1").update(payHashString).digest("hex");
+
+  const payFinalString = `${payHash1}.${SECRET}`;
+  const paySha1Hash = crypto.createHash("sha1").update(payFinalString).digest("hex");
+
+  function generatePaymentXmlRequest() {
+    const builder = new Builder({ headless: true });
+    const xmlObj = {
+      request: {
+        $: { type: "receipt-in-otb", timestamp: payTime },
+        merchantid: MERCHANT_ID,
+        account: "internet",
+        foreignretailer: { $: { flag: "false" } },
+        orderid: payOrderId,
+        payerref: user.card.pay_ref,
+        paymentmethod: pmt_ref,
+        paymentdata: {
+          cvn: {
+            number: paymentData.cardCVV,
+          },
+        },
+        comments: {
+          comment: [{ $: { id: "1" }, _: "Verificataion only" }],
+        },
+        sha1hash: paySha1Hash,
+      },
+    };
+
+    const xmlBody = builder.buildObject(xmlObj);
+    return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+  }
+
+  const payXmlRequest = generatePaymentXmlRequest();
+  const payResponse = await axios.post(`${url}`, payXmlRequest, {
+    headers: {
+      "Content-Type": "text/xml",
+    },
+  });
+
+  const parsePayResponse = await parseStringPromise(payResponse.data);
+
+  if (parsePayResponse.response.result[0] !== "00") {
+    const time = getTimestamp();
+    const orderId = generateRandomOrderId();
+
+    const decHashString = `${time}.${MERCHANT_ID}.${user.card.pay_ref}.${pmt_ref}`;
+    const decHash1 = crypto.createHash("sha1").update(decHashString).digest("hex");
+
+    const decFinalString = `${decHash1}.${SECRET}`;
+    const decSha1Hash = crypto.createHash("sha1").update(decFinalString).digest("hex");
+
+    function generateDeclineXmlRequest() {
+      const builder = new Builder({ headless: true });
+      const xmlObj = {
+        request: {
+          $: { type: "card-cancel-card", timestamp: time },
+          merchantid: MERCHANT_ID,
+          account: "internet",
+          orderid: orderId,
+          card: {
+            ref: pmt_ref,
+            payerref: user.card.pay_ref,
+          },
+          comments: {
+            comment: [{ $: { id: "1" }, _: "Card Cancel" }],
+          },
+          sha1hash: decSha1Hash,
+        },
+      };
+
+      const xmlBody = builder.buildObject(xmlObj);
+      return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+    }
+
+    const decXmlRequest = generateDeclineXmlRequest();
+    const decResponse = await axios.post(`${url}`, decXmlRequest, {
+      headers: {
+        "Content-Type": "text/xml",
+      },
+    });
+
+    const parsedecResponse = await parseStringPromise(decResponse.data);
+
+    if (parsedecResponse.response.result[0] !== "00") {
+      return res.status(400).send({ message: "Card deletion failed" });
+    }
+
+    return res.status(400).send({ message: "Card Verification Failed" });
+  }
+
+  //  -------------------------- check card valdation ----------------------
 
   await Artist.updateOne(
     { _id: user._id },
@@ -1355,10 +1356,15 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
 
   const [sub, numSub] = await Promise.all([
-    Subscription.findOne({ _id: id, user: req.user._id }, { type: 1, sheduleRef: 1, isScheduled: 1, isCurrActive: 1, start_date: 1 }).lean(),
+    Subscription.findOne(
+      { _id: id, user: req.user._id },
+      { type: 1, sheduleRef: 1, isScheduled: 1, isCurrActive: 1, start_date: 1, status: 1 }
+    ).lean(),
     Subscription.countDocuments({ user: req.user._id, status: "active" }).lean(),
   ]);
   if (!sub) return res.status(400).send({ message: "Subscription not found" });
+  if (sub.status == "expired" || sub.status == "cancelled")
+    return res.status(400).send({ message: "You can't cancel an expired or cancelled subscription" });
 
   if (!sub.isScheduled || !sub.sheduleRef) return res.status(400).send({ message: "You can't cancel a non-scheduled subscription" });
   if (numSub > 1 && sub.isCurrActive)
@@ -1406,6 +1412,11 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
+  if (sub.status == "not_started") {
+    await Subscription.updateOne({ _id: sub._id }, { $set: { status: "expired", end_date: today, isCancelled: true, isCurrActive: false } });
+    return res.status(200).send({ message: "Subscription cancelled successfully" });
+  }
+
   const startDate = new Date(sub.start_date);
   startDate.setUTCHours(0, 0, 0, 0);
 
@@ -1417,7 +1428,7 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
   const isRenewalDay = sub.type === "monthly" ? todayDay === startDay : todayDay === startDay && todayMonth === startMonth;
 
   if (isRenewalDay) {
-    await Subscription.updateOne({ _id: sub._id }, { $set: { status: "cancelled", end_date: today, isCancelled: true, isCurrActive: false } });
+    await Subscription.updateOne({ _id: sub._id }, { $set: { status: "expired", end_date: today, isCancelled: true, isCurrActive: false } });
   } else {
     let endDate;
     const currentYear = today.getUTCFullYear();
@@ -2321,6 +2332,7 @@ const getUserPlans = catchAsyncError(async (req, res, next) => {
         start_date: 1,
         end_date: 1,
         isCurrActive: 1,
+        isCancelled: 1,
         createdAt: 1,
         plan: {
           planGrp: "$planData.planGrp",
@@ -2352,16 +2364,13 @@ const makePlanCurrActive = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "You have no active subscription" });
   }
 
+  if (userSubscriptions.length === 1) {
+    return res.status(400).send({ message: "You have only one active subscription" });
+  }
+
   const targetSubscription = userSubscriptions.find((sub) => sub._id.toString() === id);
   if (!targetSubscription) {
     return res.status(404).send({ message: "Subscription not found or not active" });
-  }
-
-  const hasNonScheduledActive = userSubscriptions.some((sub) => !sub.isScheduled);
-  if (hasNonScheduledActive) {
-    return res.status(400).send({
-      message: "Cannot change current active status when you have a non-scheduled active subscription",
-    });
   }
 
   if (targetSubscription.isCurrActive) {
