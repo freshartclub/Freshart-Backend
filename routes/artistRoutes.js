@@ -51,6 +51,7 @@ const {
   randomInviteCode,
   getInvite,
   getFullInviteData,
+  getUserSavedCard,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -218,5 +219,9 @@ router.get("/invite-code", validateToken, randomInviteCode);
 router.get("/get-invite", getInvite);
 
 router.get("/get-invite-data", validateToken, getFullInviteData);
+
+// -------------------------- card/orders-----------------------------
+
+router.get("/card", validateToken, getUserSavedCard);
 
 module.exports = router;

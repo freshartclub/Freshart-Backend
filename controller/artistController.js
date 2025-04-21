@@ -2463,6 +2463,18 @@ const getFullInviteData = async (req, res) => {
   }
 };
 
+const getUserSavedCard = async (req, res) => {
+  try {
+    const card_stored = await Artist.findOne({ _id: req.user._id }, { "card.card_details": 1, isCardExpired: 1, "card.card_stored": 1 }).lean();
+    if (!card_stored) return res.status(400).send({ message: "User not found" });
+
+    return res.status(200).send({ data: card_stored });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2514,4 +2526,5 @@ module.exports = {
   randomInviteCode,
   getInvite,
   getFullInviteData,
+  getUserSavedCard,
 };

@@ -22,6 +22,10 @@ const {
   createPayer,
   createSubscribeUser,
   getUserPlans,
+  makePlanCurrActive,
+  deleteCard,
+  updatePayerSubscribeUser,
+  cancelSchedule,
 } = require("../controller/orderController");
 const { createPayerBody, createSubscribeOrderBody, createOrderBody } = require("../validations/validator");
 
@@ -66,5 +70,16 @@ router.get("/status", validateToken, getStaus);
 router.get("/hash", generateHash);
 
 router.get("/user-plans", validateToken, getUserPlans);
+
+router.patch("/active/:id", validateToken, makePlanCurrActive);
+
+// delete card
+router.delete("/delete", validateToken, deleteCard);
+
+// add new card
+router.post("/add-new", validateToken, updatePayerSubscribeUser);
+
+// cancel schedule
+router.post("/cancel/:id", validateToken, cancelSchedule);
 
 module.exports = router;

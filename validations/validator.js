@@ -24,7 +24,7 @@ const createPayerBody = [
 
 const createSubscribeOrderBody = [
   body("planId").exists({ checkFalsy: true }).withMessage("Plan Id is required"),
-  body("user_num").exists({ checkFalsy: true }).withMessage("CVV is required"),
+  // body("user_num").exists({ checkFalsy: true }).withMessage("CVV is required"),
   body("plan_type")
     .exists({ checkFalsy: true })
     .withMessage("Plan type is required")
