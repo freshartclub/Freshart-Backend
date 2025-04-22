@@ -2173,7 +2173,7 @@ const getFavoriteList = async (req, res) => {
       },
     ]);
 
-    return res.status(200).send({ data: list[0].list });
+    return res.status(200).send({ data: list[0]?.list ? list[0]?.list : {} });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2313,12 +2313,8 @@ const createCustomOrder = async (req, res) => {
     const year = new Date().getFullYear();
     const ticketId = `TI# ${year}-CS${randomNumber}`;
 
-    if (!req.user.artistId) {
-      return res.status(400).send({ message: "Artist not found" });
-    }
-
     const formatName = (val) => {
-      if (!val) return "Unknown"; // Handle missing user/artist data
+      if (!val) return "Unknown";
       let fullName = val?.artistName || "";
       if (val?.nickName) fullName += ` "${val?.nickName}"`;
       if (val?.artistSurname1) fullName += ` ${val?.artistSurname1}`;
@@ -2363,7 +2359,7 @@ const createCustomOrder = async (req, res) => {
       message: "Request Successfully Created",
     });
   } catch (error) {
-    console.error("Error creating custom order:", error);
+    APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
 };

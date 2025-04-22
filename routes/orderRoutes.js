@@ -27,7 +27,8 @@ const {
   updatePayerSubscribeUser,
   cancelSchedule,
 } = require("../controller/orderController");
-const { createPayerBody, createSubscribeOrderBody, createOrderBody } = require("../validations/validator");
+const { createPayerBody, createSubscribeOrderBody, createOrderBody, checkOutSubBody } = require("../validations/validator");
+const { checkOutSub } = require("../controller/checkOutSubController");
 
 const router = express.Router();
 
@@ -81,5 +82,9 @@ router.post("/add-new", validateToken, updatePayerSubscribeUser);
 
 // cancel schedule
 router.post("/cancel/:id", validateToken, cancelSchedule);
+
+// ---------------------- checkout sub --------------------------
+
+router.post("/check-sub", validateToken, checkOutSubBody, checkOutSub);
 
 module.exports = router;

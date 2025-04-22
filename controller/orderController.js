@@ -348,7 +348,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   if (!user) return res.status(400).send({ message: "User not found" });
 
   if (user?.prev_saved && user?.prev_saved == true) {
-    return res.status(400).send({ message: "You can not hit this api" });
+    return res.status(400).send({ message: "You can't perfrom this action" });
   }
 
   function decryptData(encryptedData, encryptionKey) {

@@ -32,9 +32,18 @@ const createSubscribeOrderBody = [
     .withMessage("Plan type must be either 'yearly' or 'monthly'"),
 ];
 
+const checkOutSubBody = [
+  body("ids")
+    .exists({ checkFalsy: true })
+    .withMessage("Subscription Id is required")
+    .isArray({ min: 1 })
+    .withMessage("Subscription Id must be an array"),
+];
+
 module.exports = {
   loginData,
   createOrderBody,
   createPayerBody,
   createSubscribeOrderBody,
+  checkOutSubBody,
 };
