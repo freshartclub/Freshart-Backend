@@ -622,13 +622,13 @@ const artistRegister = async (req, res) => {
       let newArtistImages = [];
       let newArtistVideos = [];
 
-      if (obj.profile.backImage) newArtistImages.push(obj.profile.backImage);
-      if (obj.profile.mainImage) newArtistImages.push(obj.profile.mainImage);
-      if (obj.profile.inProcessImage) newArtistImages.push(obj.profile.inProcessImage);
-      if (obj.profile.additionalImage.length > 0) newArtistImages.push(...obj.profile.additionalImage);
+      if (obj.profile?.backImage) newArtistImages.push(obj.profile?.backImage);
+      if (obj.profile?.mainImage) newArtistImages.push(obj.profile?.mainImage);
+      if (obj.profile?.inProcessImage) newArtistImages.push(obj.profile?.inProcessImage);
+      if (obj.profile?.additionalImage.length > 0) newArtistImages.push(...obj.profile?.additionalImage);
 
-      if (obj.profile.mainVideo) newArtistVideos.push(obj.profile.mainVideo);
-      if (obj.profile.additionalVideo.length > 0) newArtistVideos.push(...obj.profile.additionalVideo);
+      if (obj.profile?.mainVideo) newArtistVideos.push(obj.profile?.mainVideo);
+      if (obj.profile?.additionalVideo.length > 0) newArtistVideos.push(...obj.profile?.additionalVideo);
 
       let removedImages = oldArtworkImages.filter((img) => !newArworkImages.includes(img));
       let removedVideos = oldArtworkVideos.filter((vid) => !newArtworkVideos.includes(vid));
@@ -658,6 +658,7 @@ const artistRegister = async (req, res) => {
   } catch (error) {
     APIErrorLog.error("Error while registered the artist by admin");
     APIErrorLog.error(error);
+    console.log(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -2939,13 +2940,13 @@ const approveArtistChanges = async (req, res) => {
     if (artist.profile.mainVideo) oldArtistVideos.push(artist.profile.mainVideo);
     if (artist.profile.additionalVideo.length > 0) oldArtistVideos.push(...artist.profile.additionalVideo);
 
-    if (artist.reviewDetails.profile.backImage) newArtistImages.push(artist.reviewDetails.profile.backImage);
-    if (artist.reviewDetails.profile.mainImage) newArtistImages.push(artist.reviewDetails.profile.mainImage);
-    if (artist.reviewDetails.profile.inProcessImage) newArtistImages.push(artist.reviewDetails.profile.inProcessImage);
-    if (artist.reviewDetails.profile.additionalImage.length > 0) newArtistImages.push(...artist.reviewDetails.profile.additionalImage);
+    if (artist.reviewDetails?.profile?.backImage) newArtistImages.push(artist.reviewDetails?.profile?.backImage);
+    if (artist.reviewDetails?.profile?.mainImage) newArtistImages.push(artist.reviewDetails?.profile?.mainImage);
+    if (artist.reviewDetails?.profile?.inProcessImage) newArtistImages.push(artist.reviewDetails?.profile?.inProcessImage);
+    if (artist.reviewDetails?.profile?.additionalImage.length > 0) newArtistImages.push(...artist.reviewDetails?.profile?.additionalImage);
 
-    if (artist.reviewDetails.profile.mainVideo) newArtistVideos.push(artist.reviewDetails.profile.mainVideo);
-    if (artist.reviewDetails.profile.additionalVideo.length > 0) newArtistVideos.push(...artist.reviewDetails.profile.additionalVideo);
+    if (artist.reviewDetails?.profile?.mainVideo) newArtistVideos.push(artist.reviewDetails?.profile?.mainVideo);
+    if (artist.reviewDetails?.profile?.additionalVideo.length > 0) newArtistVideos.push(...artist.reviewDetails?.profile?.additionalVideo);
 
     let obj = {};
 

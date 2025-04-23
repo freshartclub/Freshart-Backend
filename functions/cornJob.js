@@ -55,97 +55,24 @@ const scheduleJob = new CronJob(
   "UTC"
 );
 
-// const subscriptionJob = new CronJob(
-//   "0 0 * * *",
-//   async function () {
-//     try {
-//       const users = await User.find({ isSubscribed: true }, { _id: 1 }).lean();
-
-//       if (users.length === 0) {
-//         return console.log("No users found.");
-//       }
-
-//       const now = new Date();
-//       const subUpdateOps = [];
-//       const userUpdateOps = [];
-
-//       for (const user of users) {
-//         const subscriptions = await Subscription.find({
-//           user: user._id,
-//           status: { $in: ["active", "not_started"] },
-//         })
-//           .sort({ createdAt: 1 })
-//           .lean();
-
-//         if (subscriptions.length === 0) continue;
-
-//         const oldest = subscriptions[0];
-
-//         if (oldest.end_date <= now) {
-//           subUpdateOps.push({
-//             updateOne: {
-//               filter: { _id: oldest._id },
-//               update: { $set: { status: "expired" } },
-//             },
-//           });
-
-//           const next = subscriptions[1];
-//           if (next && next.status === "not_started") {
-//             subUpdateOps.push({
-//               updateOne: {
-//                 filter: { _id: next._id },
-//                 update: { $set: { status: "active" } },
-//               },
-//             });
-//           } else {
-//             userUpdateOps.push({
-//               updateOne: {
-//                 filter: { _id: user._id },
-//                 update: { $set: { isSubscribed: false } },
-//               },
-//             });
-//           }
-//         }
-//       }
-
-//       if (subUpdateOps.length > 0) {
-//         await Subscription.bulkWrite(subUpdateOps);
-//       }
-
-//       if (userUpdateOps.length > 0) {
-//         await User.bulkWrite(userUpdateOps);
-//       }
-
-//       console.log("Subscription cron job completed.");
-//     } catch (error) {
-//       console.error("Error updating subscriptions:", error);
-//     }
-//   },
-//   null,
-//   true,
-//   "UTC"
-// );
-
 const subscriptionJob = new CronJob(
   "0 0 * * *",
   async function () {
     try {
       const users = await User.find({ isSubscribed: true }, { _id: 1 }).lean();
-
       if (users.length === 0) {
         return console.log("No users found.");
       }
 
-      const now = new Date();
       const subUpdateOps = [];
-
-      const userIds = users.map((user) => user._id);
+      const userUpdateOps = [];
+      const now = new Date();
 
       const subscriptionResults = await Promise.allSettled(
-        userIds.map((userId) =>
+        users.map((user) =>
           Subscription.find({
-            user: userId,
-            status: { $in: ["active", "not_started"] },
+            user: user._id,
+            status: { $in: ["active", "cancelled"] },
           })
             .sort({ createdAt: 1 })
             .lean()
@@ -160,11 +87,18 @@ const subscriptionJob = new CronJob(
         }
 
         const subscriptions = result.value;
-        if (!subscriptions || subscriptions.length === 0) return;
+        if (!subscriptions || subscriptions.length === 0) {
+          userUpdateOps.push({
+            updateOne: {
+              filter: { _id: user._id },
+              update: { $set: { isSubscribed: false } },
+            },
+          });
+          return;
+        }
 
-        const now = new Date();
+        const expiredSubs = subscriptions.filter((sub) => sub.status === "cancelled" && sub.end_date && sub.end_date <= now);
 
-        const expiredSubs = subscriptions.filter((sub) => sub?.end_date && sub.end_date <= now);
         expiredSubs.forEach((sub) => {
           subUpdateOps.push({
             updateOne: {
@@ -174,46 +108,41 @@ const subscriptionJob = new CronJob(
           });
 
           if (sub.isCurrActive) {
-            const others = subscriptions.filter(
-              (s) => s._id.toString() !== sub._id.toString() && s.status !== "expired" && (!s?.end_date || s?.end_date > now)
+            const otherActive = subscriptions.find(
+              (s) => s._id.toString() !== sub._id.toString() && !expiredSubs.some((ex) => ex._id.toString() === s._id.toString())
             );
 
-            const nextNotStarted = others.find((s) => s.status === "not_started");
-            if (nextNotStarted) {
+            if (otherActive) {
               subUpdateOps.push({
                 updateOne: {
-                  filter: { _id: nextNotStarted._id },
-                  update: { $set: { status: "active", isCurrActive: true } },
+                  filter: { _id: otherActive._id },
+                  update: { $set: { isCurrActive: true } },
                 },
               });
-            } else {
-              const anyActive = others.find((s) => s.status === "active");
-              if (anyActive) {
-                subUpdateOps.push({
-                  updateOne: {
-                    filter: { _id: anyActive._id },
-                    update: { $set: { isCurrActive: true } },
-                  },
-                });
-              }
             }
-
-            others.forEach((other) => {
-              if (other.isCurrActive) {
-                subUpdateOps.push({
-                  updateOne: {
-                    filter: { _id: other._id },
-                    update: { $set: { isCurrActive: false } },
-                  },
-                });
-              }
-            });
           }
         });
+
+        // Check if any subscriptions remain that are not expired
+        const expiredSubIds = new Set(expiredSubs.map((sub) => sub._id.toString()));
+        const stillActive = subscriptions.some((sub) => !expiredSubIds.has(sub._id.toString()));
+
+        if (!stillActive) {
+          userUpdateOps.push({
+            updateOne: {
+              filter: { _id: user._id },
+              update: { $set: { isSubscribed: false } },
+            },
+          });
+        }
       });
 
       if (subUpdateOps.length > 0) {
         await Subscription.bulkWrite(subUpdateOps);
+      }
+
+      if (userUpdateOps.length > 0) {
+        await User.bulkWrite(userUpdateOps);
       }
 
       console.log("Subscription cron job completed.");
@@ -253,11 +182,11 @@ const cardExpiryJob = new CronJob(
         if (expYear === currentYear && expMonth === currentMonth) {
           const subscriptions = await Subscription.find({
             user: user._id,
-            status: { $in: ["active", "not_started"] },
+            status: { $in: ["active", "cancelled"] },
           }).lean();
 
           for (const sub of subscriptions) {
-            if (sub.schedule_defined !== -1) continue;
+            if (sub.schedule_defined !== -1 && sub.status !== "active") continue;
 
             const startDate = new Date(sub.start_date);
             const preferredDay = startDate.getDate();
@@ -313,7 +242,7 @@ const cardExpiryJob = new CronJob(
                 update: {
                   $set: {
                     end_date: endDate,
-                    isCancelled: true,
+                    status: "cancelled",
                     no_card: true,
                     ...(parseNewScheduleResponse.response.result[0] !== "00" && {
                       error_log: parseNewScheduleResponse.response.message[0],
@@ -340,6 +269,25 @@ const cardExpiryJob = new CronJob(
         }
       }
 
+      // Now update the user's `isSubscribed` if no active or future cancelled subscriptions
+      for (const user of users) {
+        const hasActiveOrCancelled = await Subscription.findOne({
+          user: user._id,
+          status: { $in: ["active", "cancelled"] },
+          end_date: { $gte: now }, // Check if there's any future-dated cancelled plan
+        }).lean();
+
+        if (!hasActiveOrCancelled) {
+          userUpdateOps.push({
+            updateOne: {
+              filter: { _id: user._id },
+              update: { $set: { isSubscribed: false } },
+            },
+          });
+        }
+      }
+
+      // Execute bulk writes for subscriptions and users
       if (subUpdateOps.length) await Subscription.bulkWrite(subUpdateOps);
       if (userUpdateOps.length) await User.bulkWrite(userUpdateOps);
 

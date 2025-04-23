@@ -275,13 +275,13 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       let newArworkImages = [];
       let newArtworkVideos = [];
 
-      if (obj.media.backImage) newArworkImages.push(obj.media.backImage);
-      if (obj.media.mainImage) newArworkImages.push(obj.media.mainImage);
-      if (obj.media.inProcessImage) newArworkImages.push(obj.media.inProcessImage);
-      if (obj.media.images.length > 0) newArworkImages.push(...obj.media.images);
+      if (obj?.media?.backImage) newArworkImages.push(obj?.media?.backImage);
+      if (obj?.media?.mainImage) newArworkImages.push(obj?.media?.mainImage);
+      if (obj?.media?.inProcessImage) newArworkImages.push(obj?.media?.inProcessImage);
+      if (obj?.media?.images.length > 0) newArworkImages.push(...obj?.media?.images);
 
-      if (obj.media.mainVideo) newArtworkVideos.push(obj.media.mainVideo);
-      if (obj.media.otherVideo.length > 0) newArtworkVideos.push(...obj.media.otherVideo);
+      if (obj?.media?.mainVideo) newArtworkVideos.push(obj?.media?.mainVideo);
+      if (obj?.media?.otherVideo.length > 0) newArtworkVideos.push(...obj?.media?.otherVideo);
 
       let removedImages = oldArtworkImages.filter((img) => !newArworkImages.includes(img));
       let removedVideos = oldArtworkVideos.filter((vid) => !newArtworkVideos.includes(vid));

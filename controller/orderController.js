@@ -351,11 +351,13 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "You can't perfrom this action" });
   }
 
+  const { discount_code } = req.body;
+
   function decryptData(encryptedData, encryptionKey) {
     const [ivBase64, ciphertext, receivedHmacBase64] = encryptedData.split(":");
 
     const iv = Buffer.from(ivBase64, "base64");
-    const receivedHmac = Buffer.from(receivedHmacBase64, "base64");
+    const receivedHmac = Buffer.from(receivedHmacBase64, "basse64");
 
     const calculatedHmac = crypto.createHmac("sha256", encryptionKey).update(ciphertext).digest();
 
@@ -670,12 +672,22 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     start_date: new Date(),
   });
 
-  await SubscriptionTransaction.create({
-    order: newSubOrder._id,
-    user: req.user._id,
-    status: "success",
-    sha1hash: parseNewScheduleResponse.response.sha1hash[0],
-  });
+  await Promise.all([
+    SubscriptionTransaction.create({
+      order: newSubOrder._id,
+      user: req.user._id,
+      status: "success",
+      sha1hash: parseNewScheduleResponse.response.sha1hash[0],
+    }),
+    Artist.updateOne(
+      {
+        _id: req.user._id,
+      },
+      {
+        $set: { isSubscribed: true },
+      }
+    ),
+  ]);
 
   return res.status(200).send({ message: "Payment and subscription created successfully" });
 });
@@ -816,12 +828,15 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
   }
 
   const newSubOrder = await Subscription.create(obj);
-  await SubscriptionTransaction.create({
-    order: newSubOrder._id,
-    user: req.user._id,
-    status: "success",
-    sha1hash: parseNewScheduleResponse.response.sha1hash[0],
-  });
+  await Promise.all([
+    SubscriptionTransaction.create({
+      order: newSubOrder._id,
+      user: req.user._id,
+      status: "success",
+      sha1hash: parseNewScheduleResponse.response.sha1hash[0],
+    }),
+    Artist.updateOne({ _id: req.user._id }, { $set: { isSubscribed: true } }),
+  ]);
 
   return res.status(200).send({ message: "Subscription created successfully" });
 });
@@ -840,7 +855,7 @@ const deleteCard = catchAsyncError(async (req, res, next) => {
 
   const subscriptions = await Subscription.find({
     user: user._id,
-    status: { $in: ["active", "not_started"] },
+    status: "active",
   }).lean();
 
   for (const sub of subscriptions) {
@@ -970,7 +985,7 @@ const deleteCard = catchAsyncError(async (req, res, next) => {
         }
       }
 
-      await Subscription.updateOne({ _id: sub._id }, { $set: { end_date: endDate, no_card: true } });
+      await Subscription.updateOne({ _id: sub._id }, { $set: { end_date: endDate, status: "cancelled", no_card: true } });
     }
   }
 
@@ -1208,7 +1223,7 @@ const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
 
   // --------------------------- activate subscription ------------------
 
-  const subscriptions = await Subscription.find({ user: user._id, no_card: true, status: { $in: ["active", "not_started"] } }).lean();
+  const subscriptions = await Subscription.find({ user: user._id, no_card: true, status: "cancelled" }).lean();
 
   if (subscriptions.length == 0 || decryptedData.renew == false) {
     return res.status(200).send({ message: "Card Added succesfully" });
@@ -1306,7 +1321,7 @@ const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     }
 
     const newSubOrder = await Subscription.create({
-      status: "not_started",
+      status: "active",
       plan: plan._id,
       user: req.user._id,
       sheduleRef: sheduleRef,
@@ -1316,35 +1331,15 @@ const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
       start_date: schedule_start,
     });
 
-    await Promise.all([
-      Artist.updateOne(
-        { _id: req.user._id },
-        {
-          $set: {
-            card: {
-              pay_ref: user.card.pay_ref,
-              pmt_ref: pmt_ref,
-              card_stored: true,
-              card_details: {
-                cardNumber: decryptedData.cardNumber.slice(-4),
-                cardType: decryptedData.cardType,
-                cardHolder: decryptedData.cardHolder,
-                cardExpiry: decryptedData.expiry,
-              },
-            },
-          },
-        }
-      ),
-
-      SubscriptionTransaction.create({
-        order: newSubOrder._id,
-        user: req.user._id,
-        status: "success",
-        sha1hash: parseNewScheduleResponse.response.sha1hash[0],
-      }),
-    ]);
+    await SubscriptionTransaction.create({
+      order: newSubOrder._id,
+      user: req.user._id,
+      status: "success",
+      sha1hash: parseNewScheduleResponse.response.sha1hash[0],
+    });
   }
 
+  await Artist.updateOne({ _id: req.user._id }, { $set: { isSubscribed: true } });
   return res.status(200).send({ message: "Card Added sccessfully and your active subscrition's are enabled for recurring" });
 });
 
@@ -1412,11 +1407,6 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  if (sub.status == "not_started") {
-    await Subscription.updateOne({ _id: sub._id }, { $set: { status: "expired", end_date: today, isCancelled: true, isCurrActive: false } });
-    return res.status(200).send({ message: "Subscription cancelled successfully" });
-  }
-
   const startDate = new Date(sub.start_date);
   startDate.setUTCHours(0, 0, 0, 0);
 
@@ -1428,7 +1418,7 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
   const isRenewalDay = sub.type === "monthly" ? todayDay === startDay : todayDay === startDay && todayMonth === startMonth;
 
   if (isRenewalDay) {
-    await Subscription.updateOne({ _id: sub._id }, { $set: { status: "expired", end_date: today, isCancelled: true, isCurrActive: false } });
+    await Subscription.updateOne({ _id: sub._id }, { $set: { status: "expired", end_date: today, isCurrActive: false } });
   } else {
     let endDate;
     const currentYear = today.getUTCFullYear();
@@ -1453,7 +1443,7 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
       }
     }
 
-    await Subscription.updateOne({ _id: id }, { $set: { end_date: endDate, isCancelled: true } });
+    await Subscription.updateOne({ _id: id }, { $set: { end_date: endDate, status: "cancelled" } });
   }
 
   return res.status(200).send({ message: "Subscription cancelled successfully" });
