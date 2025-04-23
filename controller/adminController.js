@@ -630,8 +630,8 @@ const artistRegister = async (req, res) => {
       if (obj.profile?.mainVideo) newArtistVideos.push(obj.profile?.mainVideo);
       if (obj.profile?.additionalVideo.length > 0) newArtistVideos.push(...obj.profile?.additionalVideo);
 
-      let removedImages = oldArtworkImages.filter((img) => !newArworkImages.includes(img));
-      let removedVideos = oldArtworkVideos.filter((vid) => !newArtworkVideos.includes(vid));
+      let removedImages = newArtistImages.filter((img) => !newArworkImages.includes(img));
+      let removedVideos = newArtistVideos.filter((vid) => !newArtworkVideos.includes(vid));
 
       if (removedImages.length > 0 || removedVideos.length > 0) {
         await deleteRemovedMedia(removedImages, removedVideos);
