@@ -217,6 +217,7 @@ const artistSchema = new mongoose.Schema(
       type: Number,
       default: 1,
     },
+    monthlyNegotiations: { type: Number, default: 12 },
     views: {
       type: Number,
       default: 0,

@@ -2553,142 +2553,99 @@ const makeAnOffer = catchAsyncError(async (req, res, next) => {
   const { id: artworkId } = req.params;
   const userId = req.user._id;
 
-  const MAX_OFFERS = 3;
-  const OFFER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+  const MAX_COUNTER_OFFERS = 3;
+  const COOLDOWN_DAYS = 30;
 
   const [artwork, artist] = await Promise.all([
-    ArtWork.findById(artworkId, { pricing: 1, commercialization: 1, owner: 1 }).lean(),
-    Artist.findById(artistId, { artistName: 1, isActivated: 1 }).lean(),
+    ArtWork.findById(artworkId, { pricing: 1, commercialization: 1, owner: 1, status: 1 }).lean(),
+    Artist.findById(artistId, { artistName: 1, isActivated: 1, monthlyNegotiations: 1 }).lean(),
   ]);
 
-  if (!artwork) {
-    return res.status(400).send({ message: "Artwork not found." });
-  }
-  if (artwork.status !== "published") {
-    return res.status(400).send({ message: "Artwork is not available." });
-  }
-  if (!artist || !artist.isActivated) {
-    return res.status(400).send({ message: "Artist not found or not activated." });
-  }
-  if (String(artwork.owner) === String(userId)) {
-    return res.status(400).send({ message: "You cannot make an offer on your own artwork." });
-  }
-  if (artwork.commercialization.activeTab === "subscription") {
-    return res.status(400).send({ message: "Artwork is only available for subscription." });
-  }
-  if (artwork.commercialization.purchaseType.toLowerCase() == "fixed price") {
+  if (!artwork || artwork.status !== "published") return res.status(400).send({ message: "Artwork not available." });
+  if (!artist || !artist.isActivated) return res.status(400).send({ message: "Artist not found or not activated." });
+  if (String(artwork.owner) === String(userId)) return res.status(400).send({ message: "You cannot make an offer on your own artwork." });
+  if (artwork.commercialization.activeTab === "subscription") return res.status(400).send({ message: "Artwork is only available for subscription." });
+  if (artwork.commercialization.purchaseType.toLowerCase() === "fixed price")
     return res.status(400).send({ message: "Artwork is fixed-price; offers cannot be made." });
+
+  if (offerType !== artwork.commercialization?.purchaseType) {
+    return res.status(400).send({ message: "Artwork not available for this offer." });
   }
 
-  const now = Date.now();
-
-  // “COOL-OFF” BY ARTIST: no more than 3 offers in 30 days per artist ---
-  const latestByArtist = await MakeOffer.findOne({ owner: userId, offeredArtist: artist._id }).sort({ createdAt: -1 }).lean();
-
-  if (latestByArtist) {
-    const ageMs = now - latestByArtist.createdAt.getTime();
-    const usedCount = latestByArtist.maxOffer;
-
-    if (latestByArtist.isAccepted !== null && ageMs < OFFER_WINDOW_MS) {
-      return res.status(400).send({
-        message: "Your previous offer on this artist was already accepted/rejected. No further offers are allowed for 30 days.",
-      });
-    } else if (usedCount == MAX_OFFERS && ageMs < OFFER_WINDOW_MS) {
-      return res.status(400).send({
-        message: `You can't make any more offers to this artist for 30 days.`,
-      });
-    }
+  if (offerType === "Upward Offer" && offer < Number(artwork.pricing?.acceptOfferPrice)) {
+    return res.status(400).send({ message: "Offer is below minimum acceptable price." });
   }
 
-  let resultOffer;
-  const latestForArtwork = await MakeOffer.findOne({ owner: userId, artwork: artwork._id }).sort({ createdAt: -1 });
+  if (artist.monthlyNegotiations <= 0) {
+    return res.status(400).send({ message: "Artist has no remaining negotiations this month." });
+  }
 
-  if (latestForArtwork) {
-    const ageMs = now - latestForArtwork.createdAt.getTime();
-
-    // a) Already accepted → no further offers
-    if (latestForArtwork.isAccepted !== null) {
+  const offerExists = await MakeOffer.findOne({ user: userId, artwork: artworkId, offeredArtist: artistId }).sort({ createdAt: -1 }).lean();
+  if (offerExists && Date.now() - offerExists.createdAt < COOLDOWN_DAYS) {
+    if (offerExists.maxOffer == MAX_COUNTER_OFFERS) {
       return res.status(400).send({
-        message: "Your previous offer on this artwork was already accepted/rejected. No further offers are allowed.",
+        message: "You have reached the maximum number of counter offers. Please wait 30 days before making another new offer to this artwork.",
       });
     }
 
-    // b) Already reached MAX_OFFERS → must accept/reject
-    if (latestForArtwork.maxOffer == MAX_OFFERS) {
+    const latestCounter = offerExists.counterOffer[offerExists.counterOffer.length - 1];
+
+    if (latestCounter && latestCounter?.isAccepted == null) {
       return res.status(400).send({
-        message: `You’ve made ${MAX_OFFERS} rounds of offers on this artwork. Please accept or reject this offer.`,
+        message: "Please wait for the artist to accept/reject your previous counter offer.",
       });
     }
 
-    // c) Offer older than 30 days → prompt to continue
-    if (ageMs > OFFER_WINDOW_MS) {
-      return res.status(409).send({
-        message:
-          "Your last offer on this artwork is over 30 days old and has not been accepted/rejected. Would you like to continue it or make a new offer?",
+    if (latestCounter && latestCounter?.isAccepted == true) {
+      return res.status(400).send({
+        message: "Offer already accepted.",
       });
     }
 
-    // d) Otherwise → bump maxOffer, update amount
-    resultOffer = await MakeOffer.updateOne(
-      { _id: latestForArtwork._id },
-      {
-        $inc: { maxOffer: 1 },
-        $push: { counterOffer: { comment: comment || "", offerprice: offer, userType: "user" } },
-      }
-    );
-  } else {
-    resultOffer = await MakeOffer.create({
-      owner: userId,
-      artwork: artwork._id,
-      offeredArtist: artist._id,
-      type: offerType,
-      offerprice: offer,
-      maxOffer: 1,
-      isAccepted: null,
+    const [resultOffer, negoUpdate] = await Promise.all([
+      MakeOffer.updateOne(
+        { _id: offerExists._id },
+        {
+          $inc: { maxOffer: 1 },
+          $push: {
+            counterOffer: {
+              offerprice: offer,
+              comment: comment || "",
+              isAccepted: null,
+            },
+          },
+        }
+      ),
+      Artist.updateOne(
+        { _id: artistId },
+        {
+          $inc: { monthlyNegotiations: -1 },
+        }
+      ),
+    ]);
+
+    if (resultOffer.modifiedCount == 0 || negoUpdate.modifiedCount == 0) {
+      return res.status(400).send({ message: "Something went wrong." });
+    }
+
+    return res.status(200).send({
+      message: "Offer submitted successfully.",
     });
   }
+
+  await Promise.all([
+    MakeOffer.create({
+      user: userId,
+      artwork: artworkId,
+      offeredArtist: artistId,
+      maxOffer: 1,
+      counterOffer: [{ offerprice: offer, comment: comment, isAccepted: null }],
+    }),
+    Artist.updateOne({ _id: artistId }, { $inc: { monthlyNegotiations: -1 } }),
+  ]);
 
   return res.status(200).send({
     message: "Offer submitted successfully.",
-    offer: resultOffer,
-  });
-});
-
-const makeAnOfferArtist = catchAsyncError(async (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).send({ errors: errors.array() });
-  }
-
-  const checkValid = await checkValidations(errors);
-  if (checkValid.type === "error") {
-    return res.status(400).send({
-      message: checkValid.errors.msg,
-    });
-  }
-
-  const { offer, comment } = req.body;
-  const { id: offerId } = req.params;
-  const artistId = req.user._id;
-
-  const MAX_OFFERS = 3;
-
-  const offerExists = await MakeOffer.findOne({ _id: offerId, offeredArtist: artistId }).lean();
-  if (!offerExists) return res.status(400).send({ message: "Offer not found" });
-
-  if (offerExists.isAccepted == null) {
-    if (offerExists.maxOffer == MAX_OFFERS) {
-      return res.status(400).send({
-        message: `You’ve made ${MAX_OFFERS} rounds of counter offer on this artwork. Please accept or reject this offer.`,
-      });
-    }
-
-    await MakeOffer.updateOne({ _id: offerId }, { $push: { counterOffer: { comment: comment || "", offerprice: offer, userType: "artist" } } });
-    return res.status(200).send({ message: "Counter offer submitted successfully." });
-  }
-
-  return res.status(400).send({
-    message: "This offer is already accepted/rejected.",
   });
 });
 
@@ -2705,28 +2662,112 @@ const acceptOffer = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const { userType } = req.body;
+  const { isAccepted } = req.body;
   const { id: offerId } = req.params;
-  const userTypeId = req.user._id;
 
-  let offer;
-
-  if (userType == "user") {
-    offer = await MakeOffer.findOne({ _id: offerId, owner: userTypeId }).lean();
-  } else {
-    offer = await MakeOffer.findOne({ _id: offerId, offeredArtist: userTypeId }).lean();
-  }
-
+  let offer = await MakeOffer.findOne({ _id: offerId, offeredArtist: req.user._id }).lean();
   if (!offer) return res.status(400).send({ message: "Offer not found" });
 
-  if (offer.isAccepted == null) {
-    await MakeOffer.updateOne({ _id: offerId }, { $set: { isAccepted: true } });
-    return res.status(200).send({ message: "Offer accepted successfully." });
-  }
+  if (offer.counterOffer.length == 0) return res.status(400).send({ message: "Offer has no counter offer" });
+  const lastIndex = offer.counterOffer.length - 1;
+  if (offer.counterOffer[lastIndex].isAccepted != null) return res.status(400).send({ message: "Offer has already been accepted/rejected" });
 
-  return res.status(400).send({
-    message: "This offer is already accepted/rejected.",
+  await MakeOffer.updateOne(
+    { _id: offerId, offeredArtist: req.user._id },
+    {
+      $set: {
+        [`counterOffer.${lastIndex}.isAccepted`]: isAccepted ? true : false,
+      },
+    }
+  );
+
+  return res.status(200).send({
+    message: "Offer accepted successfully.",
   });
+});
+
+const getAllArtistOffers = catchAsyncError(async (req, res, next) => {
+  const offers = await MakeOffer.aggregate([
+    { $match: { offeredArtist: objectId(req.user._id) } },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1 } }],
+        as: "user",
+      },
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "artwork",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artworkName: 1, "media.mainImage": 1 } }],
+        as: "artwork",
+      },
+    },
+    {
+      $unwind: { path: "$user", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $unwind: { path: "$artwork", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: "$user",
+        artwork: "$artwork",
+        type: 1,
+        maxOffer: 1,
+        counterOffer: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+  return res.status(200).send({ data: offers });
+});
+
+const getAllUserOffers = catchAsyncError(async (req, res, next) => {
+  const offers = await MakeOffer.aggregate([
+    { $match: { user: objectId(req.user._id) } },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "offeredArtist",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1 } }],
+        as: "user",
+      },
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "artwork",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artworkName: 1, "media.mainImage": 1 } }],
+        as: "artwork",
+      },
+    },
+    {
+      $unwind: { path: "$user", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $unwind: { path: "$artwork", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: "$user",
+        artwork: "$artwork",
+        type: 1,
+        maxOffer: 1,
+        counterOffer: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+  return res.status(200).send({ data: offers });
 });
 
 module.exports = {
@@ -2751,6 +2792,7 @@ module.exports = {
   getArtworkGroupBySeries,
   getOtherArtworks,
   makeAnOffer,
-  makeAnOfferArtist,
   acceptOffer,
+  getAllArtistOffers,
+  getAllUserOffers,
 };
