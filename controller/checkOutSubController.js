@@ -9,8 +9,9 @@ const Plan = require("../models/plansModel");
 const Subscription = require("../models/subscriptionModel");
 const axios = require("axios");
 const { validationResult } = require("express-validator");
-const SubscriptionTransaction = require("../models/subscriptionTransaction");
+const SubscribeArtwork = require("../models/subscribeArtwork");
 const { checkValidations } = require("../functions/checkValidation");
+const { sendMail } = require("../functions/mailer");
 
 const checkOutSub = catchAsyncError(async (req, res, next) => {
   const errors = validationResult(req);
@@ -54,7 +55,6 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
   }
 
   const allRequestedIds = ids.map((id) => id.toString());
-
   const subPlans = await Subscription.aggregate([
     {
       $match: { user: objectId(req.user._id), status: "active" },
@@ -64,7 +64,7 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
         from: "plans",
         localField: "plan",
         foreignField: "_id",
-        pipeline: [{ $project: { _id: 1, name: 1, catalogs: 1 } }],
+        pipeline: [{ $project: { _id: 1, planName: 1, planGrp: 1, catalogs: 1 } }],
         as: "plan",
       },
     },
@@ -83,6 +83,7 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
       $project: {
         _id: 1,
         isCurrActive: 1,
+        planGrp: "$plan.planGrp",
         planName: "$plan.planName",
         "plan.catalogs.artworkList": 1,
       },
@@ -95,13 +96,14 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
   subPlans.forEach((sub) => {
     const isCurrent = sub.isCurrActive;
     const planName = sub.planName;
+    const planGrp = sub.planGrp;
 
     sub.plan.catalogs.artworkList.forEach((artId) => {
       const strId = artId.toString();
       if (isCurrent) {
-        currentPlanArtworkMap.set(strId, planName);
+        currentPlanArtworkMap.set(strId, { planName, planGrp });
       } else if (!currentPlanArtworkMap.has(strId)) {
-        otherPlanArtworkMap.set(strId, planName);
+        otherPlanArtworkMap.set(strId, { planName, planGrp });
       }
     });
   });
@@ -110,20 +112,24 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
   const errorDetails = [];
 
   allRequestedIds.forEach((id) => {
+    const planData = otherPlanArtworkMap.get(id);
+
     if (currentPlanArtworkMap.has(id)) {
       presentInCurrentPlan.push(id);
     } else if (otherPlanArtworkMap.has(id)) {
       errorDetails.push({
         artworkId: id,
         status: "inOtherPlan",
-        planName: otherPlanArtworkMap.get(id),
-        message: `This artwork is not in your currently active plan but is available in another plan: ${otherPlanArtworkMap.get(id)}`,
+        planName: planData.planName,
+        planGrp: planData.planGrp,
+        message: `This artwork is not in your currently active plan but is available in another plan: ${planData.planGrp} - ${planData.planName}.`,
       });
     } else {
       errorDetails.push({
         artworkId: id,
         status: "notInAnyPlan",
         planName: null,
+        planGrp: null,
         message: "This artwork is not available in any of your subscription plans.",
       });
     }
@@ -142,4 +148,101 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
   });
 });
 
-module.exports = { checkOutSub };
+const confrimExchange = catchAsyncError(async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const checkValid = await checkValidations(errors);
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
+  }
+
+  const { subscribeIds, exchangeIds, returnDate, pickupDate, instructions } = req.body;
+
+  if (exchangeIds && exchangeIds.length > 0) {
+    // if user has already has an another artwork
+    const exchange = await SubscribeArtwork.find({ artwork: { $in: exchangeIds }, user: req.user._id, status: "active" }).lean();
+
+    if (exchange.length !== exchangeIds.length) {
+      return res.status(400).send({
+        message: "Some artworks were not found in your exchange request.",
+      });
+    }
+  }
+
+  // if user has no another artwork
+  const validArtworks = await ArtWork.find({ _id: { $in: subscribeIds }, status: "published" }, { owner: 1, artworkName: 1, artworkId: 1 }).lean();
+  const artOwners = new Set();
+
+  if (validArtworks.length !== subscribeIds.length) {
+    return res.status(400).send({
+      message: "Some artworks were not found or are not available for subscription.",
+    });
+  }
+
+  for (let i = 0; i < subscribeIds.length; i++) {
+    if (validArtworks[i].owner.toString() === req.user._id.toString()) {
+      return res.status(400).send({
+        message: "You cannot subscribe to your own artwork.",
+      });
+    }
+  }
+
+  const newSub = await SubscribeArtwork.create({
+    user: req.user._id,
+    artwork: subscribeIds,
+    pickupDate,
+    returnDate,
+    instructions,
+    status: "requested",
+  });
+
+  let langCode = req.body?.langCode || "EN";
+  if (langCode == "GB") langCode = "EN";
+
+  const findEmail = await EmailType.findOne({
+    emailType: "artwork-subscribe-request",
+    emailLang: langCode,
+    isDeleted: false,
+  }).lean(true);
+
+  artOwners.forEach(async (owner) => {
+    const artist = await Artist.findOne({ _id: owner }, { email: 1, artistName: 1 }).lean();
+
+    let artworkRows = artworks
+      .map(
+        (art) => `
+      <tr>
+        <td><img src="${art.image}" alt="${art.name}" width="100"/></td>
+        <td>${art.name}</td>
+        <td>${art._id}</td>
+        <td>
+          <a href="https://freshartclub.com/artist-panel">Accept / Reject</a>
+        </td>
+      </tr>
+    `
+      )
+      .join("");
+
+    const mailVariable = {
+      "%head%": findEmail.emailHead,
+      "%email%": artist.email,
+      "%msg%": findEmail.emailDesc,
+      "%name%": artist.artistName,
+      "%userName%": req.user.artistName,
+    };
+
+    await sendMail("sample-email", mailVariable, email);
+  });
+
+  return res.status(200).json({
+    message: "Exchange Requested Successfully.",
+    data: newSub,
+  });
+});
+
+module.exports = { checkOutSub, confrimExchange };

@@ -1,4 +1,4 @@
-const { body } = require("express-validator");
+const { body, param } = require("express-validator");
 
 const loginData = [
   body("email").exists({ checkFalsy: true }).withMessage("Email or phone number is required"),
@@ -40,10 +40,57 @@ const checkOutSubBody = [
     .withMessage("Subscription Id must be an array"),
 ];
 
+const makeOfferBody = [
+  param("id").exists({ checkFalsy: true }).withMessage("Artwork Id is required"),
+  body("offer")
+    .exists({ checkFalsy: true })
+    .withMessage("Offer Price is required")
+    .isInt({ min: 1 })
+    .withMessage("Offer Price must be a number greater than 0"),
+  body("offerType")
+    .exists({ checkFalsy: true })
+    .withMessage("Offer Type is required")
+    .isIn(["Fixed Price", "Downward Offer", "Upward Offer"])
+    .withMessage("Offer Type is invalid"),
+  body("artistId").exists({ checkFalsy: true }).withMessage("Artist Id is required"),
+  // body("comment").optional({ checkFalsy: true }).isLength({ max: 300 }).withMessage("Comment cannot exceed 300 characters").trim().escape(),
+];
+
+const makeOfferArtistBody = [
+  param("id").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
+  body("offer")
+    .exists({ checkFalsy: true })
+    .withMessage("Offer Price is required")
+    .isInt({ min: 1 })
+    .withMessage("Offer Price must be a number greater than 0"),
+  body("comment").optional({ checkFalsy: true }).isLength({ max: 300 }).withMessage("Comment cannot exceed 300 characters").trim().escape(),
+];
+
+const acceptOfferBody = [
+  param("id").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
+  body("userType").exists({ checkFalsy: true }).withMessage("Offer Type is required").isIn(["artist", "user"]).withMessage("Offer Type is invalid"),
+];
+
+const confrimExchangeBody = [
+  body("subscribeIds")
+    .exists({ checkFalsy: true })
+    .withMessage("Subscription Ids is required")
+    .isArray({ min: 1 })
+    .withMessage("Subscription Ids is invalid"),
+  body("exchangeIds").exists({ checkFalsy: true }).withMessage("Exchange Ids is required").isArray({ min: 0 }).withMessage("Exchange Ids is invalid"),
+  body("returnDate").exists({ checkFalsy: true }).withMessage("Return Date is required").isDate().withMessage("Return Date is invalid"),
+  body("pickupDate").exists({ checkFalsy: true }).withMessage("Pickup Date is required").isDate().withMessage("Pickup Date is invalid"),
+  body("instructions").exists({ checkFalsy: true }).withMessage("Instructions is required").isString().withMessage("Instructions is invalid"),
+];
+
 module.exports = {
   loginData,
   createOrderBody,
   createPayerBody,
   createSubscribeOrderBody,
   checkOutSubBody,
+  makeOfferBody,
+  makeOfferArtistBody,
+  acceptOfferBody,
+  confrimExchangeBody,
 };

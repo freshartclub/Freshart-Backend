@@ -249,13 +249,13 @@ const artistRegister = async (req, res) => {
     }
 
     if (artist) {
-      if (artist.profile.backImage) oldArtistImages.push(artist.profile.backImage);
-      if (artist.profile.mainImage) oldArtistImages.push(artist.profile.mainImage);
-      if (artist.profile.inProcessImage) oldArtistImages.push(artist.profile.inProcessImage);
-      if (artist.profile.additionalImage.length > 0) oldArtistImages.push(...artist.profile.additionalImage);
+      if (artist?.profile?.backImage) oldArtistImages.push(artist?.profile?.backImage);
+      if (artist?.profile?.mainImage) oldArtistImages.push(artist?.profile?.mainImage);
+      if (artist?.profile?.inProcessImage) oldArtistImages.push(artist?.profile?.inProcessImage);
+      if (artist?.profile?.additionalImage.length > 0) oldArtistImages.push(...artist?.profile?.additionalImage);
 
-      if (artist.profile.mainVideo) oldArtistVideos.push(artist.profile.mainVideo);
-      if (artist.profile.additionalVideo.length > 0) oldArtistVideos.push(...artist.profile.additionalVideo);
+      if (artist?.profile?.mainVideo) oldArtistVideos.push(artist?.profile?.mainVideo);
+      if (artist?.profile?.additionalVideo.length > 0) oldArtistVideos.push(...artist?.profile?.additionalVideo);
     }
 
     let additionalImages = [];
@@ -656,9 +656,7 @@ const artistRegister = async (req, res) => {
       message: "Artist Registered successfully",
     });
   } catch (error) {
-    APIErrorLog.error("Error while registered the artist by admin");
     APIErrorLog.error(error);
-    console.log(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
 };

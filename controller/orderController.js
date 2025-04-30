@@ -1355,17 +1355,16 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
       { _id: id, user: req.user._id },
       { type: 1, sheduleRef: 1, isScheduled: 1, isCurrActive: 1, start_date: 1, status: 1 }
     ).lean(),
-    Subscription.countDocuments({ user: req.user._id, status: "active" }).lean(),
+    Subscription.countDocuments({ user: req.user._id, status: { $in: ["active", "cancelled"] } }).lean(),
   ]);
   if (!sub) return res.status(400).send({ message: "Subscription not found" });
   if (sub.status == "expired" || sub.status == "cancelled")
     return res.status(400).send({ message: "You can't cancel an expired or cancelled subscription" });
 
-  if (!sub.isScheduled || !sub.sheduleRef) return res.status(400).send({ message: "You can't cancel a non-scheduled subscription" });
   if (numSub > 1 && sub.isCurrActive)
     return res
       .status(400)
-      .send({ message: "You can't cancel an currently active subscription. First you need to cancel the current active subscription" });
+      .send({ message: "You can't cancel an currently active subscription. First you need to change the current active subscription" });
 
   const timestamp = getTimestamp();
   const MERCHANT_ID = process.env.MERCHANT_ID;
@@ -2347,7 +2346,7 @@ const makePlanCurrActive = catchAsyncError(async (req, res, next) => {
 
   const userSubscriptions = await Subscription.find({
     user: req.user._id,
-    status: { $in: ["active"] },
+    status: "active",
   }).lean();
 
   if (userSubscriptions.length === 0) {

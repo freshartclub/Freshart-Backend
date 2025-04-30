@@ -68,11 +68,15 @@ const {
   getAllArtworks,
   getArtworkGroupBySeries,
   getOtherArtworks,
+  makeAnOffer,
+  acceptOffer,
+  makeAnOfferArtist,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
 const { getUserSideCollections, getUserSideCollectionById } = require("../controller/collectionController");
 const { getResponData } = require("../controller/orderController");
+const { makeOfferBody, makeOfferArtistBody, acceptOfferBody } = require("../validations/validator");
 
 router.post("/login", login);
 
@@ -223,5 +227,11 @@ router.get("/get-invite-data", validateToken, getFullInviteData);
 // -------------------------- card/orders-----------------------------
 
 router.get("/card", validateToken, getUserSavedCard);
+
+// ---------------------------- make offer ---------------------------
+
+router.post("/make-offer/:id", validateToken, makeOfferBody, makeAnOffer);
+router.post("/counter-offer/:id", validateToken, makeOfferArtistBody, makeAnOfferArtist);
+router.patch("/accept-offer/:id", validateToken, acceptOfferBody, acceptOffer);
 
 module.exports = router;

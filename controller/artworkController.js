@@ -10,6 +10,9 @@ const Notification = require("../models/notificationModel");
 const HomeArtwork = require("../models/homeArtworkModel");
 const { processImages } = require("../functions/upload");
 const Circle = require("../models/circleModel");
+const MakeOffer = require("../models/makeOfferModel");
+const { validationResult } = require("express-validator");
+const { checkValidations } = require("../functions/checkValidation");
 
 const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
@@ -44,13 +47,13 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       });
     }
 
-    if (artwork.media.backImage) oldArtworkImages.push(artwork.media.backImage);
-    if (artwork.media.mainImage) oldArtworkImages.push(artwork.media.mainImage);
-    if (artwork.media.inProcessImage) oldArtworkImages.push(artwork.media.inProcessImage);
-    if (artwork.media.images.length > 0) oldArtworkImages.push(...artwork.media.images);
+    if (artwork?.media?.backImage) oldArtworkImages.push(artwork?.media?.backImage);
+    if (artwork?.media?.mainImage) oldArtworkImages.push(artwork?.media?.mainImage);
+    if (artwork?.media?.inProcessImage) oldArtworkImages.push(artwork?.media?.inProcessImage);
+    if (artwork?.media?.images.length > 0) oldArtworkImages.push(...artwork?.media?.images);
 
-    if (artwork.media.mainVideo) oldArtworkVideos.push(artwork.media.mainVideo);
-    if (artwork.media.otherVideo.length > 0) oldArtworkVideos.push(...artwork.media.otherVideo);
+    if (artwork?.media?.mainVideo) oldArtworkVideos.push(artwork?.media?.mainVideo);
+    if (artwork?.media?.otherVideo.length > 0) oldArtworkVideos.push(...artwork?.media?.otherVideo);
   }
 
   const fileData = await fileUploadFunc(req, res);
@@ -1803,13 +1806,31 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         activeTab: "$commercialization.activeTab",
         price: {
           $cond: {
-            if: { $eq: ["$commercialization.activeTab", "purchase"] },
+            if: {
+              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+            },
             then: "$pricing.basePrice",
-            else: "",
+            else: "$$REMOVE",
           },
         },
-        discount: "$pricing.dpersentage",
-        currency: "$pricing.currency",
+        currency: {
+          $cond: {
+            if: {
+              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+            },
+            then: "$pricing.currency",
+            else: "$$REMOVE",
+          },
+        },
+        dpersentage: {
+          $cond: {
+            if: {
+              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+            },
+            then: "$pricing.dpersentage",
+            else: "$$REMOVE",
+          },
+        },
         discipline: 1,
         "inventoryShipping.comingSoon": 1,
       }
@@ -1873,13 +1894,40 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
                 activeTab: "$$item.commercialization.activeTab",
                 price: {
                   $cond: {
-                    if: { $eq: ["$$item.commercialization.activeTab", "purchase"] },
-                    then: "$$item.pricing.basePrice",
-                    else: "",
+                    if: {
+                      $and: [
+                        { $eq: ["$item.commercialization.activeTab", "purchase"] },
+                        { $eq: ["$item.commercialization.purchaseType", "Fixed Price"] },
+                      ],
+                    },
+                    then: "$item.commercialization.basePrice",
+                    else: "$$REMOVE",
                   },
                 },
-                discount: "$$item.pricing.dpersentage",
-                currency: "$$item.pricing.currency",
+                currency: {
+                  $cond: {
+                    if: {
+                      $and: [
+                        { $eq: ["$item.commercialization.activeTab", "purchase"] },
+                        { $eq: ["$item.commercialization.purchaseType", "Fixed Price"] },
+                      ],
+                    },
+                    then: "$item.commercialization.currency",
+                    else: "$$REMOVE",
+                  },
+                },
+                discount: {
+                  $cond: {
+                    if: {
+                      $and: [
+                        { $eq: ["$item.commercialization.activeTab", "purchase"] },
+                        { $eq: ["$item.commercialization.purchaseType", "Fixed Price"] },
+                      ],
+                    },
+                    then: "$item.commercialization.dpersentage",
+                    else: "$$REMOVE",
+                  },
+                },
                 discipline: "$$item.discipline",
                 comingSoon: "$$item.inventoryShipping.comingSoon",
                 owner: {
@@ -1924,14 +1972,32 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         activeTab: "$commercialization.activeTab",
         price: {
           $cond: {
-            if: { $eq: ["$commercialization.activeTab", "purchase"] },
+            if: {
+              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+            },
             then: "$pricing.basePrice",
-            else: "",
+            else: "$$REMOVE",
+          },
+        },
+        currency: {
+          $cond: {
+            if: {
+              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+            },
+            then: "$pricing.currency",
+            else: "$$REMOVE",
+          },
+        },
+        discounr: {
+          $cond: {
+            if: {
+              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+            },
+            then: "$pricing.dpersentage",
+            else: "$$REMOVE",
           },
         },
         discipline: 1,
-        currency: "$pricing.currency",
-        discount: "$pricing.dpersentage",
         "inventoryShipping.comingSoon": 1,
       }
     )
@@ -2041,9 +2107,9 @@ const getRecentlyView = catchAsyncError(async (req, res, next) => {
         offensive: "$additionalInfo.offensive",
         artworkName: 1,
         media: "$media.mainImage",
-        additionalInfo: 1,
-        pricing: 1,
-        inventoryShipping: 1,
+        additionalInfo: {
+          artworkTechnic: "$additionalInfo.artworkTechnic",
+        },
         discipline: 1,
       },
     },
@@ -2310,20 +2376,31 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         pricing: {
           basePrice: {
             $cond: {
-              if: { $eq: ["$commercialization.activeTab", "purchase"] },
-              // $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $ne: ["$inventoryShipping.comingSoon", true] }],
+              if: {
+                $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+              },
               then: "$pricing.basePrice",
               else: "$$REMOVE",
             },
           },
           currency: {
             $cond: {
-              if: { $eq: ["$commercialization.activeTab", "purchase"] },
+              if: {
+                $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+              },
               then: "$pricing.currency",
               else: "$$REMOVE",
             },
           },
-          dpersentage: "$pricing.dpersentage",
+          dpersentage: {
+            $cond: {
+              if: {
+                $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+              },
+              then: "$pricing.dpersentage",
+              else: "$$REMOVE",
+            },
+          },
         },
         artworkTechnic: 1,
         additionalInfo: 1,
@@ -2459,6 +2536,199 @@ const getOtherArtworks = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const makeAnOffer = catchAsyncError(async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  const checkValid = await checkValidations(errors);
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
+  }
+
+  const { offer, comment, offerType, artistId } = req.body;
+  const { id: artworkId } = req.params;
+  const userId = req.user._id;
+
+  const MAX_OFFERS = 3;
+  const OFFER_WINDOW_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+  const [artwork, artist] = await Promise.all([
+    ArtWork.findById(artworkId, { pricing: 1, commercialization: 1, owner: 1 }).lean(),
+    Artist.findById(artistId, { artistName: 1, isActivated: 1 }).lean(),
+  ]);
+
+  if (!artwork) {
+    return res.status(400).send({ message: "Artwork not found." });
+  }
+  if (artwork.status !== "published") {
+    return res.status(400).send({ message: "Artwork is not available." });
+  }
+  if (!artist || !artist.isActivated) {
+    return res.status(400).send({ message: "Artist not found or not activated." });
+  }
+  if (String(artwork.owner) === String(userId)) {
+    return res.status(400).send({ message: "You cannot make an offer on your own artwork." });
+  }
+  if (artwork.commercialization.activeTab === "subscription") {
+    return res.status(400).send({ message: "Artwork is only available for subscription." });
+  }
+  if (artwork.commercialization.purchaseType.toLowerCase() == "fixed price") {
+    return res.status(400).send({ message: "Artwork is fixed-price; offers cannot be made." });
+  }
+
+  const now = Date.now();
+
+  // “COOL-OFF” BY ARTIST: no more than 3 offers in 30 days per artist ---
+  const latestByArtist = await MakeOffer.findOne({ owner: userId, offeredArtist: artist._id }).sort({ createdAt: -1 }).lean();
+
+  if (latestByArtist) {
+    const ageMs = now - latestByArtist.createdAt.getTime();
+    const usedCount = latestByArtist.maxOffer;
+
+    if (latestByArtist.isAccepted !== null && ageMs < OFFER_WINDOW_MS) {
+      return res.status(400).send({
+        message: "Your previous offer on this artist was already accepted/rejected. No further offers are allowed for 30 days.",
+      });
+    } else if (usedCount == MAX_OFFERS && ageMs < OFFER_WINDOW_MS) {
+      return res.status(400).send({
+        message: `You can't make any more offers to this artist for 30 days.`,
+      });
+    }
+  }
+
+  let resultOffer;
+  const latestForArtwork = await MakeOffer.findOne({ owner: userId, artwork: artwork._id }).sort({ createdAt: -1 });
+
+  if (latestForArtwork) {
+    const ageMs = now - latestForArtwork.createdAt.getTime();
+
+    // a) Already accepted → no further offers
+    if (latestForArtwork.isAccepted !== null) {
+      return res.status(400).send({
+        message: "Your previous offer on this artwork was already accepted/rejected. No further offers are allowed.",
+      });
+    }
+
+    // b) Already reached MAX_OFFERS → must accept/reject
+    if (latestForArtwork.maxOffer == MAX_OFFERS) {
+      return res.status(400).send({
+        message: `You’ve made ${MAX_OFFERS} rounds of offers on this artwork. Please accept or reject this offer.`,
+      });
+    }
+
+    // c) Offer older than 30 days → prompt to continue
+    if (ageMs > OFFER_WINDOW_MS) {
+      return res.status(409).send({
+        message:
+          "Your last offer on this artwork is over 30 days old and has not been accepted/rejected. Would you like to continue it or make a new offer?",
+      });
+    }
+
+    // d) Otherwise → bump maxOffer, update amount
+    resultOffer = await MakeOffer.updateOne(
+      { _id: latestForArtwork._id },
+      {
+        $inc: { maxOffer: 1 },
+        $push: { counterOffer: { comment: comment || "", offerprice: offer, userType: "user" } },
+      }
+    );
+  } else {
+    resultOffer = await MakeOffer.create({
+      owner: userId,
+      artwork: artwork._id,
+      offeredArtist: artist._id,
+      type: offerType,
+      offerprice: offer,
+      maxOffer: 1,
+      isAccepted: null,
+    });
+  }
+
+  return res.status(200).send({
+    message: "Offer submitted successfully.",
+    offer: resultOffer,
+  });
+});
+
+const makeAnOfferArtist = catchAsyncError(async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).send({ errors: errors.array() });
+  }
+
+  const checkValid = await checkValidations(errors);
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
+  }
+
+  const { offer, comment } = req.body;
+  const { id: offerId } = req.params;
+  const artistId = req.user._id;
+
+  const MAX_OFFERS = 3;
+
+  const offerExists = await MakeOffer.findOne({ _id: offerId, offeredArtist: artistId }).lean();
+  if (!offerExists) return res.status(400).send({ message: "Offer not found" });
+
+  if (offerExists.isAccepted == null) {
+    if (offerExists.maxOffer == MAX_OFFERS) {
+      return res.status(400).send({
+        message: `You’ve made ${MAX_OFFERS} rounds of counter offer on this artwork. Please accept or reject this offer.`,
+      });
+    }
+
+    await MakeOffer.updateOne({ _id: offerId }, { $push: { counterOffer: { comment: comment || "", offerprice: offer, userType: "artist" } } });
+    return res.status(200).send({ message: "Counter offer submitted successfully." });
+  }
+
+  return res.status(400).send({
+    message: "This offer is already accepted/rejected.",
+  });
+});
+
+const acceptOffer = catchAsyncError(async (req, res, next) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).send({ errors: errors.array() });
+  }
+
+  const checkValid = await checkValidations(errors);
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
+  }
+
+  const { userType } = req.body;
+  const { id: offerId } = req.params;
+  const userTypeId = req.user._id;
+
+  let offer;
+
+  if (userType == "user") {
+    offer = await MakeOffer.findOne({ _id: offerId, owner: userTypeId }).lean();
+  } else {
+    offer = await MakeOffer.findOne({ _id: offerId, offeredArtist: userTypeId }).lean();
+  }
+
+  if (!offer) return res.status(400).send({ message: "Offer not found" });
+
+  if (offer.isAccepted == null) {
+    await MakeOffer.updateOne({ _id: offerId }, { $set: { isAccepted: true } });
+    return res.status(200).send({ message: "Offer accepted successfully." });
+  }
+
+  return res.status(400).send({
+    message: "This offer is already accepted/rejected.",
+  });
+});
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
@@ -2480,4 +2750,7 @@ module.exports = {
   getAllArtworks,
   getArtworkGroupBySeries,
   getOtherArtworks,
+  makeAnOffer,
+  makeAnOfferArtist,
+  acceptOffer,
 };
