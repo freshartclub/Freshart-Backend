@@ -52,6 +52,9 @@ const {
   getInvite,
   getFullInviteData,
   getUserSavedCard,
+  getAllArtistOffers,
+  getAllUserOffers,
+  getArtistOverViewData,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -70,9 +73,6 @@ const {
   getOtherArtworks,
   makeAnOffer,
   acceptOffer,
-  makeAnOfferArtist,
-  getAllArtistOffers,
-  getAllUserOffers,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
@@ -236,5 +236,9 @@ router.post("/make-offer/:id", validateToken, makeOfferBody, makeAnOffer);
 router.patch("/accept-offer/:id", validateToken, acceptOfferBody, acceptOffer);
 router.get("/artist-offers", validateToken, getAllArtistOffers);
 router.get("/user-offers", validateToken, getAllUserOffers);
+
+// ----------------------------- dashboard data -----------------------
+
+router.get("/get-dashboard-data", validateToken, getArtistOverViewData);
 
 module.exports = router;

@@ -1,4 +1,5 @@
 const Artist = require("../models/artistModel");
+const catchAsyncError = require("../functions/catchAsyncError");
 const Artwork = require("../models/artWorksModel");
 const jwt = require("jsonwebtoken");
 const { createLog, fileUploadFunc, generateRandomId, generateRandomOTP } = require("../functions/common");
@@ -18,7 +19,9 @@ const Style = require("../models/styleModel");
 const Discipline = require("../models/disciplineModel");
 const Collection = require("../models/collectionModel");
 const Favorite = require("../models/favoriteModel");
+const MakeOffer = require("../models/makeOfferModel");
 const Invite = require("../models/inviteModel");
+const Circle = require("../models/circleModel");
 const generateInviteCode = require("../functions/generateInviteCode");
 
 const isStrongPassword = (password) => {
@@ -2471,6 +2474,149 @@ const getUserSavedCard = async (req, res) => {
   }
 };
 
+const getAllArtistOffers = catchAsyncError(async (req, res, next) => {
+  const offers = await MakeOffer.aggregate([
+    { $match: { offeredArtist: objectId(req.user._id) } },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "user",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1 } }],
+        as: "user",
+      },
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "artwork",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artworkName: 1, "media.mainImage": 1 } }],
+        as: "artwork",
+      },
+    },
+    {
+      $unwind: { path: "$user", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $unwind: { path: "$artwork", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: "$user",
+        artwork: "$artwork",
+        type: 1,
+        maxOffer: 1,
+        counterOffer: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+  return res.status(200).send({ data: offers });
+});
+
+const getAllUserOffers = catchAsyncError(async (req, res, next) => {
+  const offers = await MakeOffer.aggregate([
+    { $match: { user: objectId(req.user._id) } },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "offeredArtist",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1 } }],
+        as: "user",
+      },
+    },
+    {
+      $lookup: {
+        from: "artworks",
+        localField: "artwork",
+        foreignField: "_id",
+        pipeline: [{ $project: { _id: 1, artworkName: 1, "media.mainImage": 1 } }],
+        as: "artwork",
+      },
+    },
+    {
+      $unwind: { path: "$user", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $unwind: { path: "$artwork", preserveNullAndEmptyArrays: true },
+    },
+    {
+      $project: {
+        _id: 1,
+        user: "$user",
+        artwork: "$artwork",
+        type: 1,
+        maxOffer: 1,
+        counterOffer: 1,
+        createdAt: 1,
+      },
+    },
+  ]);
+  return res.status(200).send({ data: offers });
+});
+
+const getArtistOverViewData = catchAsyncError(async (req, res, next) => {
+  const [numArtwork, publish, draft, createdDate, artworks, circle] = await Promise.all([
+    Artwork.countDocuments({ owner: req.user._id }),
+    Artwork.countDocuments({ owner: req.user._id, status: "published" }),
+    Artwork.countDocuments({ owner: req.user._id, status: "draft" }),
+    Artist.findOne(
+      { _id: req.user._id },
+      { createdAt: 1, lastRevalidationDate: 1, nextRevalidationDate: 1, insignia: 1, "commercilization.scoreProfessional": 1 }
+    )
+      .populate("insignia", "_id credentialName insigniaImage")
+      .lean(),
+    Artwork.find({ owner: req.user._id }, { views: 1, artworkName: 1, "media.mainImage": 1 }).lean(),
+    Circle.find({ managers: { $in: [req.user._id] } }, { followerCount: 1 }).lean(),
+  ]);
+
+  let totalViews = {};
+  let top4ArtCumViews = [];
+  let totalUsers = 0;
+
+  artworks.forEach((artwork) => {
+    const viewsArray = artwork.views || [];
+    viewsArray.forEach(({ type, count }) => {
+      if (!totalViews[type]) totalViews[type] = 0;
+      totalViews[type] += count;
+    });
+  });
+
+  artworks.forEach((artwork) => {
+    const viewsArray = artwork.views || [];
+    const totalArtworkViews = viewsArray.reduce((sum, { count }) => sum + count, 0);
+
+    top4ArtCumViews.push({
+      id: artwork._id,
+      artworkName: artwork.artworkName,
+      mainImage: artwork.media?.mainImage,
+      totalViews: totalArtworkViews,
+    });
+  });
+
+  top4ArtCumViews = top4ArtCumViews.sort((a, b) => b.totalViews - a.totalViews).slice(0, 4);
+
+  circle.forEach(({ followerCount }) => {
+    totalUsers += followerCount;
+  });
+
+  return res.status(200).send({
+    publish,
+    numArtwork,
+    draft,
+    createdDate: createdDate.createdAt,
+    revaliadtion: { lastRevalidationDate: createdDate.lastRevalidationDate, nextRevalidationDate: createdDate.nextRevalidationDate },
+    views: totalViews,
+    circleUser: totalUsers,
+    top4: top4ArtCumViews,
+    insignia: createdDate.insignia,
+    score: createdDate.commercilization.scoreProfessional,
+  });
+});
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2523,4 +2669,7 @@ module.exports = {
   getInvite,
   getFullInviteData,
   getUserSavedCard,
+  getAllArtistOffers,
+  getAllUserOffers,
+  getArtistOverViewData,
 };

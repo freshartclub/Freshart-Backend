@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require("uuid");
 const crypto = require("crypto");
 const axios = require("axios");
 const { Builder, parseStringPromise } = require("xml2js");
+const MakeOffer = require("../models/makeOfferModel");
 
 function getTimestamp() {
   const now = new Date();
@@ -294,6 +295,77 @@ const cardExpiryJob = new CronJob(
       console.log("Card expiry cron job completed.");
     } catch (error) {
       console.error("Error in card expiry job:", error);
+    }
+  },
+  null,
+  true,
+  "UTC"
+);
+
+const rejectOfferafter72hours = new CronJob(
+  "0 0 * * *",
+  async function () {
+    try {
+      const now = new Date();
+      const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+      const startOfNextMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+      const hours72 = 72 * 60 * 60 * 1000;
+
+      const offers = await MakeOffer.find(
+        {
+          status: "pending",
+          createdAt: { $gte: startOfMonth, $lt: startOfNextMonth },
+          counterOffer: { $exists: true, $ne: [] },
+        },
+        { _id: 1, counterOffer: 1 }
+      ).lean();
+
+      if (offers.length === 0) {
+        return console.log("No offers found.");
+      }
+
+      const updateOps = [];
+
+      for (const offer of offers) {
+        const lastIndex = offer.counterOffer.length - 1;
+        const lastCounter = offer.counterOffer[lastIndex];
+
+        if (lastCounter.isAccepted == null && new Date(lastCounter.createdAt).getTime() + hours72 < now.getTime()) {
+          updateOps.push({
+            updateOne: {
+              filter: { _id: offer._id },
+              update: {
+                $set: { [`counterOffer.${lastIndex}.isAccepted`]: false },
+              },
+            },
+          });
+        }
+      }
+
+      if (updateOps.length) {
+        await MakeOffer.bulkWrite(updateOps);
+        console.log(`Updated ${updateOps.length} offers.`);
+      } else {
+        console.log("No offers to reject.");
+      }
+    } catch (error) {
+      console.error("Error in offer rejection cron job:", error);
+    }
+  },
+  null,
+  true,
+  "UTC"
+);
+
+const refillUserNegociationEveryMonth = new CronJob(
+  "0 0 1 * *", // every month starting
+  async function () {
+    try {
+      const result = await User.updateMany({ userId: { $exists: true } }, { $set: { monthlyNegotiations: 12 } });
+
+      console.log(`Updated ${result.modifiedCount} users' monthlyNegotiations.`);
+    } catch (error) {
+      console.error("Error in offer rejection cron job:", error);
     }
   },
   null,

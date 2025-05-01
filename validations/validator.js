@@ -53,7 +53,7 @@ const makeOfferBody = [
     .isIn(["Downward Offer", "Upward Offer"])
     .withMessage("Offer Type is invalid"),
   body("artistId").exists({ checkFalsy: true }).withMessage("Artist Id is required"),
-  // body("comment").optional({ checkFalsy: true }).isLength({ max: 300 }).withMessage("Comment cannot exceed 300 characters").trim().escape(),
+  body("comment").optional({ checkFalsy: true }).isLength({ max: 200 }).withMessage("Comment cannot exceed 200 characters").trim().escape(),
 ];
 
 const makeOfferArtistBody = [
@@ -68,7 +68,7 @@ const makeOfferArtistBody = [
 
 const acceptOfferBody = [
   param("id").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
-  body("isAccepted").exists({ checkFalsy: true }).withMessage("Acceptance is required").isBoolean().withMessage("Acceptance must be a boolean"),
+  body("isAccepted").isBoolean().withMessage("Acceptance must be a boolean").exists().withMessage("Acceptance is required"),
 ];
 
 const confrimExchangeBody = [

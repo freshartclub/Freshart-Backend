@@ -7,11 +7,13 @@ const makeOfferSchema = new mongoose.Schema(
     offeredArtist: { type: mongoose.Schema.Types.ObjectId },
     type: { type: String },
     maxOffer: { type: Number, default: 1 },
+    status: { type: String },
     counterOffer: [
       {
         isAccepted: { type: Boolean },
         comment: { type: String },
         offerprice: { type: Number },
+        createdAt: { type: Date },
       },
     ],
   },
