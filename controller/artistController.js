@@ -1963,6 +1963,7 @@ const artistReValidate = async (req, res) => {
     if (!artist) return res.status(400).send({ message: "Artist not found" });
 
     let { langCode } = req.body;
+    if (langCode?.toLowerCase() == "gb") langCode = "EN";
     langCode = langCode.toUpperCase();
 
     const findEmail = await EmailType.findOne({
@@ -2619,9 +2620,6 @@ const getArtistOverViewData = catchAsyncError(async (req, res, next) => {
 });
 
 const uploadCheckImages = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  if (!id) return res.status(400).send({ message: "Please provide artwork id" });
-
   const fileData = await fileUploadFunc(req, res);
   if (fileData.type !== "success") {
     return res.status(fileData.status).send({
@@ -2629,18 +2627,17 @@ const uploadCheckImages = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const artwork = await Artwork.findOne({ _id: id }, { _id: 1 }).lean(true);
-  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
-
-  await CheckImage.create({ user: req.user._id, artwork: artwork._id, images: fileData.data.checkImage.map((x) => x.filename) });
+  await CheckImage.create({ user: req.user._id, image: fileData.data?.checkImage[0].filename });
   return res.status(200).send({ message: "Image uploaded successfully" });
 });
 
-const getUploadChcekImages = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  if (!id) return res.status(400).send({ message: "Please provide artwork id" });
+const getUploadLatestImage = catchAsyncError(async (req, res, next) => {
+  const latestImg = await CheckImage.findOne({ user: req.user._id }, { image: 1 }).sort({ createdAt: -1 }).lean();
+  return res.status(200).send({ data: latestImg });
+});
 
-  const images = await CheckImage.findOne({ artwork: id, user: req.user._id }, { images: 1 }).lean(true);
+const getUploadAllImages = catchAsyncError(async (req, res, next) => {
+  const images = await CheckImage.find({ user: req.user._id }, { image: 1 }).lean();
   return res.status(200).send({ data: images });
 });
 
@@ -2700,5 +2697,6 @@ module.exports = {
   getAllUserOffers,
   getArtistOverViewData,
   uploadCheckImages,
-  getUploadChcekImages,
+  getUploadLatestImage,
+  getUploadAllImages,
 };

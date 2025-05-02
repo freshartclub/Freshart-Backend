@@ -57,6 +57,8 @@ const {
   getArtistOverViewData,
   uploadCheckImages,
   getUploadChcekImages,
+  getUploadLatestImage,
+  getUploadAllImages,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -245,7 +247,8 @@ router.get("/get-dashboard-data", validateToken, getArtistOverViewData);
 
 // ----------------------------- check images --------------------------
 
-router.post("/check-upload-images/:id", validateToken, uploadCheckImages);
-router.get("/get-upload-images/:id", validateToken, getUploadChcekImages);
+router.post("/check-upload-images", validateToken, uploadCheckImages);
+router.get("/get-upload-images", validateToken, getUploadLatestImage);
+router.get("/get-all-images", validateToken, getUploadAllImages);
 
 module.exports = router;
