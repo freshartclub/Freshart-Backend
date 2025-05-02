@@ -114,7 +114,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
 
   obj["media"] = {
     backImage: fileData.data?.backImage?.length ? fileData.data?.backImage[0].filename : req.body?.hasBackImg === "true" ? req.body?.backImage : null,
-    images: newImageArr,
+    images: images,
     inProcessImage: fileData.data?.inProcessImage?.length
       ? fileData.data?.inProcessImage[0].filename
       : req.body?.hasInProcessImg === "true"
@@ -126,7 +126,7 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
       : req.body?.hasMainVideo === "true"
       ? req.body?.mainVideo
       : null,
-    otherVideo: newVideoArr,
+    otherVideo: videos,
   };
 
   obj["additionalInfo"] = {

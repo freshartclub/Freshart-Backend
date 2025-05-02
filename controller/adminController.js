@@ -334,22 +334,6 @@ const artistRegister = async (req, res) => {
       }
     }
 
-    const newImageArr =
-      additionalImages?.map((element) => {
-        if (typeof element === "string" && element.includes("https://freshartclub.com/images/users")) {
-          return element.replace("https://freshartclub.com/images/users/", "");
-        }
-        return element;
-      }) || [];
-
-    const newVideoArr =
-      additionalVideos?.map((element) => {
-        if (typeof element === "string" && element.includes("https://freshartclub.com/images/users")) {
-          return element.replace("https://freshartclub.com/images/users/", "");
-        }
-        return element;
-      }) || [];
-
     const count = fileData?.data ? (req.body.count === "4" ? 4 : 7) : Number(req.body.count);
 
     switch (count) {
@@ -447,20 +431,16 @@ const artistRegister = async (req, res) => {
           mainImage: fileData.data?.profileImage
             ? fileData.data.profileImage[0].filename
             : req.body?.hasMainImg === "true"
-            ? artist?.profile?.mainImage
+            ? req.body?.mainImage
             : null,
-          additionalImage: newImageArr,
+          additionalImage: additionalImages,
           inProcessImage: fileData.data?.inProcessImage
             ? fileData.data.inProcessImage[0].filename
             : req.body?.hasInProcessImg === "true"
-            ? artist?.profile?.inProcessImage
+            ? req.body?.inProcessImage
             : null,
-          mainVideo: fileData.data?.mainVideo
-            ? fileData.data.mainVideo[0].filename
-            : req.body?.hasMainVideo === "true"
-            ? artist?.profile?.mainVideo
-            : null,
-          additionalVideo: newVideoArr,
+          mainVideo: fileData.data?.mainVideo ? fileData.data.mainVideo[0].filename : req.body?.hasMainVideo === "true" ? req.body?.mainVideo : null,
+          additionalVideo: additionalVideos,
         };
 
         if (count > artist.pageCount) {
@@ -613,7 +593,6 @@ const artistRegister = async (req, res) => {
         await Promise.all(
           req.body.PublishingCatalog.map(async (item) => {
             await Catalog.updateMany({ artProvider: artistId }, { $pull: { artProvider: artistId } });
-
             await Catalog.updateOne({ _id: item.PublishingCatalog }, { $addToSet: { artProvider: artistId } });
           })
         );
@@ -628,10 +607,10 @@ const artistRegister = async (req, res) => {
       if (obj.profile?.additionalImage.length > 0) newArtistImages.push(...obj.profile?.additionalImage);
 
       if (obj.profile?.mainVideo) newArtistVideos.push(obj.profile?.mainVideo);
-      if (obj.profile?.additionalVideo.length > 0) newArtistVideos.push(...obj.profile?.additionalVideo);
+      if (obj.profile?.additionalVideo?.length > 0) newArtistVideos.push(...obj.profile?.additionalVideo);
 
-      let removedImages = newArtistImages.filter((img) => !newArworkImages.includes(img));
-      let removedVideos = newArtistVideos.filter((vid) => !newArtworkVideos.includes(vid));
+      let removedImages = oldArtistImages.filter((img) => !newArtistImages.includes(img));
+      let removedVideos = oldArtistVideos.filter((vid) => !newArtistVideos.includes(vid));
 
       if (removedImages.length > 0 || removedVideos.length > 0) {
         await deleteRemovedMedia(removedImages, removedVideos);
