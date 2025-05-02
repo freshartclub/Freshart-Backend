@@ -431,7 +431,7 @@ const artistRegister = async (req, res) => {
           mainImage: fileData.data?.profileImage
             ? fileData.data.profileImage[0].filename
             : req.body?.hasMainImg === "true"
-            ? req.body?.mainImage
+            ? req.body?.profileImage
             : null,
           additionalImage: additionalImages,
           inProcessImage: fileData.data?.inProcessImage
