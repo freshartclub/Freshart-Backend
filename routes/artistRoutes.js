@@ -55,6 +55,8 @@ const {
   getAllArtistOffers,
   getAllUserOffers,
   getArtistOverViewData,
+  uploadCheckImages,
+  getUploadChcekImages,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -240,5 +242,10 @@ router.get("/user-offers", validateToken, getAllUserOffers);
 // ----------------------------- dashboard data -----------------------
 
 router.get("/get-dashboard-data", validateToken, getArtistOverViewData);
+
+// ----------------------------- check images --------------------------
+
+router.post("/check-upload-images/:id", validateToken, uploadCheckImages);
+router.get("/get-upload-images/:id", validateToken, getUploadChcekImages);
 
 module.exports = router;

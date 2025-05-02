@@ -6,7 +6,6 @@ const path = require("path");
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 const THUMBNAIL_MAX_SIZE = 80 * 1024;
-const MAX_MEMORY_FILE_SIZE = 10 * 1024 * 1024;
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -70,6 +69,7 @@ const storage = multer.diskStorage({
         "evidenceImg",
         "planImg",
         "carouselImg",
+        "checkImage",
         "circleFile",
       ].includes(file?.fieldname)
     ) {
@@ -155,6 +155,7 @@ const upload = multer({
   { name: "planImg", maxCount: 1 },
   { name: "carouselImg", maxCount: 1 },
   { name: "circleFile", maxCount: 5 },
+  { name: "checkImage", maxCount: 5 },
 ]);
 
 const ensureDirectoryExists = (dirPath) => {

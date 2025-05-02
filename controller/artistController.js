@@ -21,6 +21,7 @@ const Collection = require("../models/collectionModel");
 const Favorite = require("../models/favoriteModel");
 const MakeOffer = require("../models/makeOfferModel");
 const Invite = require("../models/inviteModel");
+const CheckImage = require("../models/checkImageModel");
 const Circle = require("../models/circleModel");
 const generateInviteCode = require("../functions/generateInviteCode");
 
@@ -2617,6 +2618,32 @@ const getArtistOverViewData = catchAsyncError(async (req, res, next) => {
   });
 });
 
+const uploadCheckImages = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Please provide artwork id" });
+
+  const fileData = await fileUploadFunc(req, res);
+  if (fileData.type !== "success") {
+    return res.status(fileData.status).send({
+      message: fileData?.type === "fileNotFound" ? "Please upload the image" : fileData.type,
+    });
+  }
+
+  const artwork = await Artwork.findOne({ _id: id }, { _id: 1 }).lean(true);
+  if (!artwork) return res.status(400).send({ message: "Artwork not found" });
+
+  await CheckImage.create({ user: req.user._id, artwork: artwork._id, images: fileData.data.checkImage.map((x) => x.filename) });
+  return res.status(200).send({ message: "Image uploaded successfully" });
+});
+
+const getUploadChcekImages = catchAsyncError(async (req, res, next) => {
+  const { id } = req.params;
+  if (!id) return res.status(400).send({ message: "Please provide artwork id" });
+
+  const images = await CheckImage.findOne({ artwork: id, user: req.user._id }, { images: 1 }).lean(true);
+  return res.status(200).send({ data: images });
+});
+
 module.exports = {
   login,
   sendVerifyEmailOTP,
@@ -2672,4 +2699,6 @@ module.exports = {
   getAllArtistOffers,
   getAllUserOffers,
   getArtistOverViewData,
+  uploadCheckImages,
+  getUploadChcekImages,
 };
