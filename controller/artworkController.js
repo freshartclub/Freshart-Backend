@@ -94,22 +94,6 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  const newImageArr =
-    images?.map((element) => {
-      if (typeof element === "string" && element.includes("https://freshartclub.com/images/users")) {
-        return element.replace("https://freshartclub.com/images/users/", "");
-      }
-      return element;
-    }) || [];
-
-  const newVideoArr =
-    videos?.map((element) => {
-      if (typeof element === "string" && element.includes("https://freshartclub.com/images/videos")) {
-        return element.replace("https://freshartclub.com/images/videos/", "");
-      }
-      return element;
-    }) || [];
-
   let obj = {
     artworkName: req.body.artworkName,
     artworkCreationYear: req.body.artworkCreationYear ? req.body.artworkCreationYear : new Date().getFullYear(),
@@ -129,26 +113,18 @@ const adminCreateArtwork = catchAsyncError(async (req, res, next) => {
   }
 
   obj["media"] = {
-    backImage: fileData.data?.backImage?.length
-      ? fileData.data?.backImage[0].filename
-      : req.body?.hasBackImg === "true"
-      ? artwork?.media?.backImage
-      : null,
+    backImage: fileData.data?.backImage?.length ? fileData.data?.backImage[0].filename : req.body?.hasBackImg === "true" ? req.body?.backImage : null,
     images: newImageArr,
     inProcessImage: fileData.data?.inProcessImage?.length
       ? fileData.data?.inProcessImage[0].filename
       : req.body?.hasInProcessImg === "true"
-      ? artwork?.media?.inProcessImage
+      ? req.body?.inProcessImage
       : null,
-    mainImage: fileData.data?.mainImage?.length
-      ? fileData.data?.mainImage[0].filename
-      : req.body?.hasMainImg === "true"
-      ? artwork?.media?.mainImage
-      : null,
+    mainImage: fileData.data?.mainImage?.length ? fileData.data?.mainImage[0].filename : req.body?.hasMainImg === "true" ? req.body?.mainImage : null,
     mainVideo: fileData.data?.mainVideo?.length
       ? fileData.data?.mainVideo[0].filename
       : req.body?.hasMainVideo === "true"
-      ? artwork?.media?.mainVideo
+      ? req.body?.mainVideo
       : null,
     otherVideo: newVideoArr,
   };
@@ -1228,9 +1204,9 @@ const getAdminArtworkList = catchAsyncError(async (req, res, next) => {
     artworkList.reverse();
   }
 
-  const nextCursor = hasNextPage ? artworkList[artworkList.length - 1]._id : null;
+  const nextCursor = hasNextPage ? artworkList[artworkList.length - 1]?._id : null;
 
-  const prevCursor = hasPrevPage ? artworkList[0]._id : null;
+  const prevCursor = hasPrevPage ? artworkList[0]?._id : null;
 
   res.status(200).send({
     data: artworkList,
