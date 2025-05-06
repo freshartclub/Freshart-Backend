@@ -1093,13 +1093,14 @@ const completeProfile = async (req, res) => {
         city: req.body.city,
         state: req.body.state,
       },
+      profile: {},
     };
 
     if (fileData?.data?.mainImage) {
-      obj["profile"]["mainImage"] = fileData?.data?.mainImage[0].filename;
+      obj.profile.mainImage = fileData.data.mainImage[0].filename;
     }
 
-    const artist = await Artist.findOneAndUpdate({ _id: req.user._id, isDeleted: false }, { $set: obj }).lean(true);
+    const artist = await Artist.findOneAndUpdate({ _id: req.user._id, isDeleted: false }, { $set: obj }).lean();
 
     return res.status(200).send({ message: "Profile completed successfully", data: artist });
   } catch (error) {
