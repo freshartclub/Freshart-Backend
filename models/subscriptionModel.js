@@ -14,7 +14,6 @@ const subscriptionModel = new mongoose.Schema(
     no_card: { type: Boolean },
     user: { type: mongoose.Schema.Types.ObjectId },
     plan: { type: mongoose.Schema.Types.ObjectId },
-    otherSub: { type: mongoose.Schema.Types.ObjectId },
     error_log: { type: String },
     isCancelled: { type: Boolean },
   },

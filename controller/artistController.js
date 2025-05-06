@@ -23,6 +23,7 @@ const MakeOffer = require("../models/makeOfferModel");
 const Invite = require("../models/inviteModel");
 const CheckImage = require("../models/checkImageModel");
 const Circle = require("../models/circleModel");
+const Follow = require("../models/followerModel");
 const generateInviteCode = require("../functions/generateInviteCode");
 
 const isStrongPassword = (password) => {
@@ -277,7 +278,7 @@ const verifyEmailOTP = async (req, res) => {
           isDeleted: false,
         },
         { OTP: 1, role: 1, password: 1, artistName: 1 }
-      ).lean(true);
+      ).lean();
 
       if (!user) return res.status(400).send({ message: "User not found" });
       if (otp !== user.OTP) return res.status(400).send({ message: "Invalid OTP" });
@@ -979,6 +980,8 @@ const getArtistDetailById = async (req, res) => {
     return res.status(400).send({ message: "Artist Id not found" });
   }
 
+  const { userId } = req.query;
+
   try {
     const artist = await Artist.aggregate([
       {
@@ -1051,9 +1054,16 @@ const getArtistDetailById = async (req, res) => {
       },
     ]);
 
+    let isFollowArtist = false;
+    if (userId) {
+      const follow = await Follow.findOne({ user: userId, artist: req.params.id }).lean();
+      if (follow) isFollowArtist = true;
+    }
+
     res.status(200).send({
       artist: artist[0],
       artworks: artistArtworks,
+      is_followed: isFollowArtist,
     });
   } catch (error) {
     APIErrorLog.error(error);
@@ -2220,6 +2230,7 @@ const getFullFavoriteList = async (req, res) => {
           from: "artists",
           localField: "list.items.item",
           foreignField: "_id",
+          pipeline: [{ $project: { _id: 1, artistName: 1 } }],
           as: "artistDetails",
         },
       },
@@ -2561,7 +2572,7 @@ const getAllUserOffers = catchAsyncError(async (req, res, next) => {
 });
 
 const getArtistOverViewData = catchAsyncError(async (req, res, next) => {
-  const [numArtwork, publish, draft, createdDate, artworks, circle] = await Promise.all([
+  const [numArtwork, publish, draft, createdDate, artworks, circle, followers] = await Promise.all([
     Artwork.countDocuments({ owner: req.user._id }),
     Artwork.countDocuments({ owner: req.user._id, status: "published" }),
     Artwork.countDocuments({ owner: req.user._id, status: "draft" }),
@@ -2573,6 +2584,40 @@ const getArtistOverViewData = catchAsyncError(async (req, res, next) => {
       .lean(),
     Artwork.find({ owner: req.user._id }, { views: 1, artworkName: 1, "media.mainImage": 1 }).lean(),
     Circle.find({ managers: { $in: [req.user._id] } }, { followerCount: 1 }).lean(),
+    Follow.aggregate([
+      { $match: { artist: { $in: [objectId(req.user._id)] } } },
+      {
+        $lookup: {
+          from: "artists",
+          localField: "user",
+          foreignField: "_id",
+          as: "artist",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                artistName: 1,
+                artistSurname1: 1,
+                artistSurname2: 1,
+                nickName: 1,
+                mainImg: "$profile.mainImage",
+              },
+            },
+          ],
+        },
+      },
+      { $unwind: { path: "$artist", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          _id: "$artist._id",
+          artistName: "$artist.artistName",
+          artistSurname1: "$artist.artistSurname1",
+          artistSurname2: "$artist.artistSurname2",
+          nickName: "$artist.nickName",
+          mainImg: "$artist.mainImg",
+        },
+      },
+    ]),
   ]);
 
   let totalViews = {};
@@ -2616,6 +2661,7 @@ const getArtistOverViewData = catchAsyncError(async (req, res, next) => {
     top4: top4ArtCumViews,
     insignia: createdDate.insignia,
     score: createdDate.commercilization.scoreProfessional,
+    followers,
   });
 });
 
@@ -2637,8 +2683,66 @@ const getUploadLatestImage = catchAsyncError(async (req, res, next) => {
 });
 
 const getUploadAllImages = catchAsyncError(async (req, res, next) => {
-  const images = await CheckImage.find({ user: req.user._id }, { image: 1 }).lean();
+  const images = await CheckImage.find({ user: req.user._id }, { image: 1 }).sort({ createdAt: -1 }).lean();
   return res.status(200).send({ data: images });
+});
+
+const followArtist = catchAsyncError(async (req, res, next) => {
+  const { artistId } = req.params;
+
+  if (req.user._id.toString() === artistId) {
+    return res.status(400).send({ message: "You can't follow yourself" });
+  }
+
+  const [existingFollow, artist] = await Promise.all([
+    Follow.findOne({
+      user: req.user._id,
+      artist: artistId,
+    }),
+    Artist.findById(artistId, { isActivated: 1 }).lean(),
+  ]);
+
+  if (existingFollow) {
+    return res.status(400).send({ message: "You are already following this artist" });
+  }
+
+  if (!artist.isActivated) {
+    return res.status(400).send({ message: "Artist not found" });
+  }
+
+  await Follow.findOneAndUpdate({ user: req.user._id }, { $addToSet: { artist: artistId } }, { upsert: true, new: true });
+  return res.status(200).send({ message: "Artist followed successfully" });
+});
+
+const unfollowArtist = catchAsyncError(async (req, res, next) => {
+  const { artistId } = req.params;
+
+  const unfollow = await Follow.updateOne({ user: req.user._id }, { $pull: { artist: artistId } });
+  if (!unfollow.matchedCount || !unfollow.modifiedCount) {
+    return res.status(400).send({ message: "You are not following this artist" });
+  }
+
+  return res.status(200).send({ message: "Artist unfollowed successfully" });
+});
+
+const getUserFollowList = catchAsyncError(async (req, res, next) => {
+  const list = await Follow.aggregate([
+    { $match: { user: objectId(req.user._id) } },
+    {
+      $lookup: {
+        from: "artists",
+        localField: "artist",
+        foreignField: "_id",
+        as: "artist",
+        pipeline: [{ $project: { artistName: 1, nickName: 1, mainImg: "$profile.mainImage" } }],
+      },
+    },
+    { $project: { artist: 1, _id: 1 } },
+  ]);
+
+  if (list.length === 0) return res.status(400).send({ message: "Follow List not found" });
+
+  return res.status(200).send({ data: list[0].artist });
 });
 
 module.exports = {
@@ -2699,4 +2803,7 @@ module.exports = {
   uploadCheckImages,
   getUploadLatestImage,
   getUploadAllImages,
+  followArtist,
+  unfollowArtist,
+  getUserFollowList,
 };

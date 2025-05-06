@@ -1400,7 +1400,7 @@ const getArtistArtwork = catchAsyncError(async (req, res, next) => {
 
 const getArtworkById = catchAsyncError(async (req, res, next) => {
   const { id } = req.params;
-  let { preview, viewType } = req.query;
+  let { preview, viewType, userId } = req.query;
 
   let artwork = null;
   let artworks = [];
@@ -1663,7 +1663,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
       const viewTypes = ["new", "trending", "comingSoon", "highlight", "search"];
       const type = viewTypes.includes(viewType) ? viewType : null;
 
-      if (type !== null) {
+      if (userId && type !== null && userId !== artwork[0].owner._id) {
         await ArtWork.updateOne({ _id: objectId(id), "views.type": type }, { $inc: { "views.$.count": 1 } }).then(async (res) => {
           if (res.matchedCount === 0) {
             await ArtWork.updateOne({ _id: objectId(id) }, { $push: { views: { type, count: 1 } } });

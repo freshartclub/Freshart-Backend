@@ -31,6 +31,7 @@ const Coupon = require("../models/couponModel");
 const fs = require("fs");
 const path = require("path");
 const deleteRemovedMedia = require("../functions/deleteMedia");
+const Subscription = require("../models/subscriptionModel");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -90,7 +91,6 @@ const sendLoginOTP = async (req, res) => {
 
     return res.status(400).send({ message: "Invalid Email/Password" });
   } catch (error) {
-    APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -116,13 +116,13 @@ const validateOTP = async (req, res) => {
     if (admins && admins.OTP == otp) {
       const token = jwt.sign({ user: adminField }, process.env.ACCESS_TOKEN_SECERT, { expiresIn: "30d" });
 
-      Admin.updateOne(
+      await Admin.updateOne(
         { _id: admins._id, isDeleted: false },
         {
           $unset: { OTP: "" },
           $push: { tokens: token },
         }
-      ).then();
+      );
 
       return res.status(200).send({
         token,
@@ -132,7 +132,6 @@ const validateOTP = async (req, res) => {
 
     return res.status(400).send({ message: "Invalid OTP" });
   } catch (error) {
-    APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }
@@ -172,25 +171,20 @@ const resendOTP = async (req, res) => {
       });
     }
   } catch (error) {
-    APIErrorLog.error("Error while login the admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
 
 const logOut = async (req, res) => {
   try {
-    // get token from headers
     const { 1: token } = req.headers.authorization.split(" ");
     const decodeToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECERT);
 
     await Admin.updateOne({ _id: decodeToken.user._id }, { $pull: { tokens: token } });
     return res.status(200).send({ message: "Logout successfully" });
   } catch (error) {
-    APIErrorLog.error("Error while get the list of the artist");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -202,14 +196,19 @@ const testAdmin = async (req, res) => {
       isDeleted: false,
     }).lean(true);
 
+    const fields = {
+      _id: req.user._id,
+      firstName: admin.firstName,
+      middleName: admin.middleName,
+      lastName: admin.lastName,
+    };
+
     return res.status(200).send({
-      admin: req.user,
+      admin: fields,
       message: `welcome ${admin?.firstName}`,
     });
   } catch (error) {
-    APIErrorLog.error("Error while get the data of the dashboard admin");
     APIErrorLog.error(error);
-    // error response
     return res.status(500).send({ message: "Something went wrong" });
   }
 };
@@ -3490,6 +3489,49 @@ const getUserNotificationHistory = async (req, res) => {
   }
 };
 
+const getSubscriptionHistory = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (!id) return res.status(400).send({ message: `Provide valid user Id` });
+
+    const susbcriptions = await Subscription.aggregate([
+      {
+        $match: { user: objectId(id) },
+      },
+      {
+        $lookup: {
+          from: "plans",
+          localField: "plan",
+          foreignField: "_id",
+          pipeline: [{ $project: { planGrp: 1, planName: 1, planImg: 1 } }],
+          as: "plan",
+        },
+      },
+      { $unwind: "$plan" },
+      {
+        $project: {
+          _id: 1,
+          planGrp: "$plan.planGrp",
+          planName: "$plan.planName",
+          planImg: "$plan.planImg",
+          createdAt: 1,
+          status: 1,
+          type: 1,
+          start_date: 1,
+          end_date: 1,
+          isCurrActive: 1,
+          isCancelled: 1,
+        },
+      },
+    ]);
+
+    return res.status(200).send({ data: susbcriptions });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
 const downloadArtworkDataCSV = async (req, res) => {
   try {
     const workbook = new ExcelJS.Workbook();
@@ -4258,6 +4300,7 @@ module.exports = {
   updateJSONFile,
   getJSONFile,
   getUserNotificationHistory,
+  getSubscriptionHistory,
   downloadArtworkDataCSV,
   downloadArtistDataCSV,
   downloadDisciplineDataCSV,

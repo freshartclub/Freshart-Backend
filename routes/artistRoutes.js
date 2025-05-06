@@ -59,6 +59,9 @@ const {
   getUploadChcekImages,
   getUploadLatestImage,
   getUploadAllImages,
+  followArtist,
+  unfollowArtist,
+  getUserFollowList,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -83,6 +86,7 @@ const { getAllSeriesList } = require("../controller/generalController");
 const { getUserSideCollections, getUserSideCollectionById } = require("../controller/collectionController");
 const { getResponData } = require("../controller/orderController");
 const { makeOfferBody, acceptOfferBody } = require("../validations/validator");
+const { getAllUserVisualize } = require("../controller/visualizeController");
 
 router.post("/login", login);
 
@@ -250,5 +254,15 @@ router.get("/get-dashboard-data", validateToken, getArtistOverViewData);
 router.post("/check-upload-images", validateToken, uploadCheckImages);
 router.get("/get-upload-images", validateToken, getUploadLatestImage);
 router.get("/get-all-images", validateToken, getUploadAllImages);
+
+// -------------------------- follow artist -----------------------------
+
+router.post("/follow/:artistId", validateToken, followArtist);
+router.patch("/unfollow/:artistId", validateToken, unfollowArtist);
+router.get("/get-following", validateToken, getUserFollowList);
+
+// --------------------------- visulaise --------------------------
+
+router.get("/get-visualise-data", validateToken, getAllUserVisualize);
 
 module.exports = router;

@@ -60,6 +60,7 @@ const {
   getUserNotificationHistory,
   getUserById,
   getAllUsersOnSearch,
+  getSubscriptionHistory,
 } = require("../controller/adminController");
 const validateAdminToken = require("../middleware/adminValidateToken");
 const {
@@ -74,19 +75,8 @@ const {
   addSeriesToArtist,
   moveArtworkToPending,
 } = require("../controller/artworkController");
-const {
-  addIncident,
-  getAllIncident,
-  getIncidentById,
-} = require("../controller/incidentController");
-const {
-  addCatalog,
-  getCatalog,
-  getCatalogById,
-  getCatalogList,
-  deleteCatalog,
-  getCatalogName,
-} = require("../controller/catalogController");
+const { addIncident, getAllIncident, getIncidentById } = require("../controller/incidentController");
+const { addCatalog, getCatalog, getCatalogById, getCatalogList, deleteCatalog, getCatalogName } = require("../controller/catalogController");
 const {
   addCollection,
   getCollectionById,
@@ -97,16 +87,8 @@ const {
   restoreCollection,
 } = require("../controller/collectionController");
 const { getAllSeriesList } = require("../controller/generalController");
-const {
-  addPlan,
-  getPlans,
-  getPlanById,
-} = require("../controller/planController");
-const {
-  addCoupon,
-  getCoupons,
-  getCoupon,
-} = require("../controller/couponController");
+const { addPlan, getPlans, getPlanById } = require("../controller/planController");
+const { addCoupon, getCoupons, getCoupon } = require("../controller/couponController");
 const {
   addHomeArtwork,
   getHomeArtworkById,
@@ -118,6 +100,7 @@ const {
   deleteCarousel,
   activateCarousel,
 } = require("../controller/homeArtworkController");
+const { addVisualize, getAllVisualize, getVisualizeById } = require("../controller/visualizeController");
 
 router.post("/send-login-otp", loginData, sendLoginOTP);
 
@@ -143,25 +126,13 @@ router.get("/get-all-insignia", validateAdminToken, getInsignias);
 
 router.post("/activate-artist/:id", validateAdminToken, activateArtist);
 
-router.get(
-  "/get-all-completed-artists",
-  validateAdminToken,
-  getAllCompletedArtists
-);
+router.get("/get-all-completed-artists", validateAdminToken, getAllCompletedArtists);
 
 router.get("/get-all-artists", validateAdminToken, getAllArtists);
 
-router.get(
-  "/get-artist-request-list",
-  validateAdminToken,
-  getArtistRequestList
-);
+router.get("/get-artist-request-list", validateAdminToken, getArtistRequestList);
 
-router.get(
-  "/get-artist-pending-list",
-  validateAdminToken,
-  getArtistPendingList
-);
+router.get("/get-artist-pending-list", validateAdminToken, getArtistPendingList);
 
 router.post("/create-new-user/:id?", validateAdminToken, createNewUser);
 
@@ -179,45 +150,21 @@ router.patch("/suspend-artist/:id", validateAdminToken, suspendArtist);
 
 router.patch("/unsuspend-artist/:id", validateAdminToken, unSuspendArtist);
 
-router.patch(
-  "/change-artist-password/:id",
-  validateAdminToken,
-  changeArtistPassword
-);
+router.patch("/change-artist-password/:id", validateAdminToken, changeArtistPassword);
 
 router.get("/get-artist-by-id", validateAdminToken, getArtistById);
 
-router.patch(
-  "/reject-artist-request/:id",
-  validateAdminToken,
-  rejectArtistRequest
-);
+router.patch("/reject-artist-request/:id", validateAdminToken, rejectArtistRequest);
 
-router.patch(
-  "/unreject-artist-request/:id",
-  validateAdminToken,
-  unRejectArtistRequest
-);
+router.patch("/unreject-artist-request/:id", validateAdminToken, unRejectArtistRequest);
 
 router.patch("/ban-artist-request/:id", validateAdminToken, banArtistRequest);
 
-router.patch(
-  "/unban-artist-request/:id",
-  validateAdminToken,
-  unBanArtistRequest
-);
+router.patch("/unban-artist-request/:id", validateAdminToken, unBanArtistRequest);
 
-router.get(
-  "/get-review-artist-detail/:id",
-  validateAdminToken,
-  getReviewDetailArtist
-);
+router.get("/get-review-artist-detail/:id", validateAdminToken, getReviewDetailArtist);
 
-router.get(
-  "/get-review-artwork/:id",
-  validateAdminToken,
-  getReviewDetailArtwork
-);
+router.get("/get-review-artwork/:id", validateAdminToken, getReviewDetailArtwork);
 
 router.post("/add-ticket", validateAdminToken, addTicket);
 
@@ -235,11 +182,7 @@ router.get("/get-incident-by-id/:id", validateAdminToken, getIncidentById);
 
 router.get("/get-all-incidents", validateAdminToken, getAllIncident);
 
-router.patch(
-  "/add-series-to-artist/:id",
-  validateAdminToken,
-  addSeriesToArtist
-);
+router.patch("/add-series-to-artist/:id", validateAdminToken, addSeriesToArtist);
 
 router.get("/get-series-list/:id", validateAdminToken, getAllSeriesList);
 
@@ -249,11 +192,9 @@ router.patch("/approve-changes/:id", validateAdminToken, approveArtistChanges);
 
 router.patch("/revalidate-artist/:id", validateAdminToken, reValidateArtist);
 
-router.get(
-  "/get-notification-history/:id",
-  validateAdminToken,
-  getUserNotificationHistory
-);
+router.get("/get-notification-history/:id", validateAdminToken, getUserNotificationHistory);
+
+router.get("/get-subscriptions/:id", validateAdminToken, getSubscriptionHistory);
 
 // ------------------- Artwork Routes ------------------------
 
@@ -261,11 +202,7 @@ router.post("/add-artwork/:id?", validateAdminToken, adminCreateArtwork);
 
 router.get("/get-artwork-list", validateAdminToken, getAdminArtworkList);
 
-router.patch(
-  "/approve-artwork-changes/:id",
-  validateAdminToken,
-  approveArtworkChanges
-);
+router.patch("/approve-artwork-changes/:id", validateAdminToken, approveArtworkChanges);
 
 router.patch("/remove-artwork/:id", validateAdminToken, removeArtwork);
 
@@ -303,11 +240,7 @@ router.get("/get-collection-by-id/:id", validateAdminToken, getCollectionById);
 
 router.get("/get-search-collection", validateAdminToken, searchCollection);
 
-router.patch(
-  "/delete-artwork-from-collection/:id",
-  validateAdminToken,
-  deleteArtworkFromCollection
-);
+router.patch("/delete-artwork-from-collection/:id", validateAdminToken, deleteArtworkFromCollection);
 
 router.patch("/delete-collection/:id", validateAdminToken, deleteCollection);
 
@@ -349,19 +282,11 @@ router.get("/get-coupon-by-id/:id", validateAdminToken, getCoupon);
 
 router.post("/add-home-artwork/:id?", validateAdminToken, addHomeArtwork);
 
-router.get(
-  "/get-admin-home-artworks",
-  validateAdminToken,
-  getAdminHomeArtworks
-);
+router.get("/get-admin-home-artworks", validateAdminToken, getAdminHomeArtworks);
 
 router.get("/get-home-artwork/:id", validateAdminToken, getHomeArtworkById);
 
-router.patch(
-  "/delete-item/:id/:itemId",
-  validateAdminToken,
-  deleteHomeArtworkItem
-);
+router.patch("/delete-item/:id/:itemId", validateAdminToken, deleteHomeArtworkItem);
 
 // -----------------carousel route ----------------------
 
@@ -381,39 +306,27 @@ router.post("/upload-json", validateAdminToken, updateJSONFile);
 
 router.get("/get-files", validateAdminToken, getJSONFile);
 
+// --------------------visulaize -----------------------------
+
+router.post("/add-visualize/:id?", validateAdminToken, addVisualize);
+
+router.get("/get-all-visualize", validateAdminToken, getAllVisualize);
+
+router.get("/get-visualize/:id", validateAdminToken, getVisualizeById);
+
 // -----------------doenload CSV -----------------------------
 
-router.get(
-  "/download-artwork-list",
-  validateAdminToken,
-  downloadArtworkDataCSV
-);
+router.get("/download-artwork-list", validateAdminToken, downloadArtworkDataCSV);
 
-router.get(
-  "/download-all-artist-list",
-  validateAdminToken,
-  downloadArtistDataCSV
-);
+router.get("/download-all-artist-list", validateAdminToken, downloadArtistDataCSV);
 
-router.get(
-  "/download-discipline-list",
-  validateAdminToken,
-  downloadDisciplineDataCSV
-);
+router.get("/download-discipline-list", validateAdminToken, downloadDisciplineDataCSV);
 
-router.get(
-  "/download-category-list",
-  validateAdminToken,
-  downloadCategoryDataCSV
-);
+router.get("/download-category-list", validateAdminToken, downloadCategoryDataCSV);
 
 router.get("/download-picklist", validateAdminToken, downloadPicklistDataCSV);
 
-router.get(
-  "/download-insignia-list",
-  validateAdminToken,
-  downloadInsigniaDataCSV
-);
+router.get("/download-insignia-list", validateAdminToken, downloadInsigniaDataCSV);
 
 router.get("/download-kb-list", validateAdminToken, downloadKBDataCSV);
 
