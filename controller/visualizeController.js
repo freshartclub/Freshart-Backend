@@ -3,6 +3,7 @@ const catchAsyncError = require("../functions/catchAsyncError");
 const { fileUploadFunc } = require("../functions/common");
 const objectId = require("mongoose").Types.ObjectId;
 const Visualize = require("../models/visualizeModel");
+const deleteRemovedMedia = require("../functions/deleteMedia");
 
 const addVisualize = catchAsyncError(async (req, res) => {
   const { id } = req.params;
@@ -13,9 +14,15 @@ const addVisualize = catchAsyncError(async (req, res) => {
   };
 
   if (id) {
+    const visualize = await Visualize.findById(id, { image: 1 }).lean();
+    let image = visualize.image;
+
     if (fileData.data?.planImg) {
       obj["image"] = fileData.data.planImg[0].filename;
+
+      await deleteRemovedMedia([image], []);
     }
+
     const updatedVisualize = await Visualize.updateOne({ _id: id }, { $set: obj });
     return res.status(200).send({ message: "Visualize updated successfully", data: updatedVisualize });
   }
