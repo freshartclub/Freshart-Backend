@@ -357,7 +357,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     const [ivBase64, ciphertext, receivedHmacBase64] = encryptedData.split(":");
 
     const iv = Buffer.from(ivBase64, "base64");
-    const receivedHmac = Buffer.from(receivedHmacBase64, "basse64");
+    const receivedHmac = Buffer.from(receivedHmacBase64, "base64");
 
     const calculatedHmac = crypto.createHmac("sha256", encryptionKey).update(ciphertext).digest();
 
@@ -572,7 +572,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
   }
   // ----------------------------check valid card ----------------------------
 
-  Artist.updateOne(
+  await Artist.updateOne(
     { _id: req.user._id },
     {
       $set: {
