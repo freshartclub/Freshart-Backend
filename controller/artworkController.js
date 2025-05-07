@@ -1550,7 +1550,6 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
             status: 1,
             artworkId: 1,
             commingSoon: "$inventoryShipping.comingSoon",
-            views: 1,
             owner: {
               _id: "$ownerInfo._id",
               artistName: "$ownerInfo.artistName",

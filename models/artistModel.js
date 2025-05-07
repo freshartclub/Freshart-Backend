@@ -105,12 +105,6 @@ const artistSchema = new mongoose.Schema(
       country: {
         type: String,
       },
-      latitude: {
-        type: String,
-      },
-      longitude: {
-        type: String,
-      },
     },
     cart: [
       {

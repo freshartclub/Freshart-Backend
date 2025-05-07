@@ -71,4 +71,24 @@ async function getSingleAccessToken() {
   }
 }
 
-module.exports = { getAccessToken, getSingleAccessToken };
+// ------------------- shipment token generate -------------------------
+
+async function getShipmentAccessToken() {
+  const url = "https://servicios.apipre.seur.io/pic_token";
+
+  const data = qs.stringify({
+    grant_type: "password",
+    client_id: process.env.SHIPMENT_CLIENT_ID,
+    client_secret: process.env.SHIPMENT_CLIENT_SECRET,
+    username: process.env.SHIPMENT_USERNAME,
+    password: process.env.SHIPMENT_PASSWORD,
+  });
+
+  const response = await axios.post(url, data, {
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+  });
+
+  return response.data.access_token;
+}
+
+module.exports = { getAccessToken, getSingleAccessToken, getShipmentAccessToken };

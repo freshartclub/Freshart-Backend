@@ -16,8 +16,11 @@ const Invite = require("../models/inviteModel");
 const { validationResult } = require("express-validator");
 const SubscriptionTransaction = require("../models/subscriptionTransaction");
 const { checkValidations } = require("../functions/checkValidation");
+const { sendMail } = require("../functions/mailer");
 
 const url = "https://remote.sandbox.addonpayments.com/remote";
+
+const languageCode = ["EN", "CAT", "ES"];
 
 function getTimestamp() {
   const now = new Date();
@@ -244,7 +247,7 @@ const createPayer = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, billingInfo: 1 }).lean();
+  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, billingInfo: 1, email: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
   if (user && user?.card?.pay_ref) {
@@ -327,24 +330,44 @@ const createPayer = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: parseResponse.response.message[1] });
   }
 
-  await Artist.updateOne(
-    { _id: req.user._id },
-    {
-      $set: {
-        card: {
-          pay_ref: pay_ref,
-          card_stored: false,
+  let langCode = "EN";
+  if (req.body?.langCode && languageCode.includes(req.body?.langCode)) {
+    langCode = req.body.langCode;
+  }
+
+  const findEmail = await EmailType.findOne({
+    emailType: "payer-register",
+    emailLang: langCode,
+  }).lean();
+
+  const mailVaribles = {
+    "%head%": findEmail.emailHead,
+    "%email%": user.email,
+    "%msg%": findEmail.emailDesc,
+    "%name%": user.artistName,
+  };
+
+  await Promise.all([
+    Artist.updateOne(
+      { _id: req.user._id },
+      {
+        $set: {
+          card: {
+            pay_ref: pay_ref,
+            card_stored: false,
+          },
         },
-      },
-    }
-  );
+      }
+    ),
+    sendMail("sample-email", mailVaribles, user.email),
+  ]);
 
   return res.status(200).send({ message: "Payer created successfully" });
 });
 
 // when card is not stored...
 const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, invite: 1, userId: 1, prev_saved: 1 }).lean();
+  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, invite: 1, userId: 1, prev_saved: 1, email: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
   if (user?.prev_saved && user?.prev_saved == true) {
@@ -406,7 +429,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Card Info already exist" });
   }
 
-  const plan = await Plan.findOne({ _id: decryptedData.planId }, { planName: 1, currentPrice: 1, currentYearlyPrice: 1 }).lean();
+  const plan = await Plan.findOne({ _id: decryptedData.planId }, { planName: 1, planGrp: 1, currentPrice: 1, currentYearlyPrice: 1 }).lean();
   if (!plan) return res.status(400).send({ message: "Plan not found" });
 
   const MERCHANT_ID = process.env.MERCHANT_ID;
@@ -660,6 +683,16 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: parseNewScheduleResponse.response.message[1] });
   }
 
+  let langCode = "EN";
+  if (req.body?.langCode && languageCode.includes(req.body?.langCode)) {
+    langCode = req.body.langCode;
+  }
+
+  const findEmail = await EmailType.findOne({
+    emailType: "subscription-create-no-card",
+    emailLang: langCode,
+  }).lean();
+
   const newSubOrder = await Subscription.create({
     status: "active",
     plan: plan._id,
@@ -671,6 +704,17 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
     isScheduled: true,
     start_date: new Date(),
   });
+
+  const mailVaribles = {
+    "%head%": findEmail.emailHead,
+    "%email%": user.email,
+    "%msg%": findEmail.emailDesc,
+    "%name%": user.artistName,
+    "%subName%": plan.planName,
+    "%subGrp%": plan.planGrp,
+    "%type%": schedule.toUpperCase(),
+    "%date%": formatToYYYYMMDD(newSubOrder.createdAt) + "(UTC)",
+  };
 
   await Promise.all([
     SubscriptionTransaction.create({
@@ -687,6 +731,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
         $set: { isSubscribed: true },
       }
     ),
+    sendMail("sample-email", mailVaribles, user.email),
   ]);
 
   return res.status(200).send({ message: "Payment and subscription created successfully" });
@@ -705,7 +750,7 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
 
   const user = await Artist.findOne(
     { _id: req.user._id },
-    { artistName: 1, card: 1, invite: 1, userId: 1, isCardExpired: 1, isCardExpiring: 1 }
+    { artistName: 1, card: 1, invite: 1, userId: 1, isCardExpired: 1, isCardExpiring: 1, email: 1 }
   ).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
@@ -727,7 +772,7 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Card Info not exist" });
   }
 
-  const plan = await Plan.findOne({ _id: planId }, { planName: 1, currentPrice: 1, currentYearlyPrice: 1 }).lean();
+  const plan = await Plan.findOne({ _id: planId }, { planName: 1, planGrp: 1, currentPrice: 1, currentYearlyPrice: 1 }).lean();
   if (!plan) return res.status(400).send({ message: "Plan not found" });
 
   const MERCHANT_ID = process.env.MERCHANT_ID;
@@ -827,7 +872,29 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
     obj["isCurrActive"] = false;
   }
 
+  let langCode = "EN";
+  if (req.body?.langCode && languageCode.includes(req.body?.langCode)) {
+    langCode = req.body.langCode;
+  }
+
+  const findEmail = await EmailType.findOne({
+    emailType: "subscription-create-no-card",
+    emailLang: langCode,
+  }).lean();
+
   const newSubOrder = await Subscription.create(obj);
+
+  const mailVaribles = {
+    "%head%": findEmail.emailHead,
+    "%email%": user.email,
+    "%msg%": findEmail.emailDesc,
+    "%name%": user.artistName,
+    "%subName%": plan.planName,
+    "%subGrp%": plan.planGrp,
+    "%type%": schedule.toUpperCase(),
+    "%date%": formatToYYYYMMDD(newSubOrder.createdAt) + "(UTC)",
+  };
+
   await Promise.all([
     SubscriptionTransaction.create({
       order: newSubOrder._id,
@@ -836,6 +903,7 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
       sha1hash: parseNewScheduleResponse.response.sha1hash[0],
     }),
     Artist.updateOne({ _id: req.user._id }, { $set: { isSubscribed: true } }),
+    sendMail("sample-email", mailVaribles, user.email),
   ]);
 
   return res.status(200).send({ message: "Subscription created successfully" });
@@ -843,7 +911,7 @@ const createSubscribeUser = catchAsyncError(async (req, res, next) => {
 
 // delete the saved card
 const deleteCard = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { card: 1 }).lean();
+  const user = await Artist.findOne({ _id: req.user._id }, { card: 1, artistName: 1, email: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
   if (!user.card) return res.status(400).send({ message: "Card not found" });
@@ -989,13 +1057,33 @@ const deleteCard = catchAsyncError(async (req, res, next) => {
     }
   }
 
-  await Artist.updateOne({ _id: req.user._id }, { $unset: { "card.card_details": "", "card.pmt_ref": "" }, $set: { "card.card_stored": false } });
+  let langCode = "EN";
+  if (req.body?.langCode && languageCode.includes(req.body?.langCode)) {
+    langCode = req.body.langCode;
+  }
+
+  const findEmail = await EmailType.findOne({
+    emailType: "delete-card",
+    emailLang: langCode,
+  }).lean();
+
+  const mailVaribles = {
+    "%head%": findEmail.emailHead,
+    "%email%": user.email,
+    "%msg%": findEmail.emailDesc,
+    "%name%": user.artistName,
+  };
+
+  await Promise.all([
+    Artist.updateOne({ _id: req.user._id }, { $unset: { "card.card_details": "", "card.pmt_ref": "" }, $set: { "card.card_stored": false } }),
+    sendMail("sample-email", mailVaribles, user.email),
+  ]);
   return res.status(200).send({ message: "Card deleted successfully" });
 });
 
 // new/update card...
 const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { card: 1, prev_saved: 1 }).lean();
+  const user = await Artist.findOne({ _id: req.user._id }, { card: 1, prev_saved: 1, artistName: 1, email: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
   if (user?.prev_saved && user?.prev_saved == false) {
@@ -1201,24 +1289,44 @@ const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
 
   //  -------------------------- check card valdation ----------------------
 
-  await Artist.updateOne(
-    { _id: user._id },
-    {
-      $set: {
-        card: {
-          pay_ref: user.card.pay_ref,
-          pmt_ref: pmt_ref,
-          card_stored: true,
-          card_details: {
-            cardNumber: decryptedData.cardNumber.slice(-4),
-            cardType: decryptedData.cardType,
-            cardHolder: decryptedData.cardHolder,
-            cardExpiry: decryptedData.expiry,
+  let langCode = "EN";
+  if (req.body?.langCode && languageCode.includes(req.body?.langCode)) {
+    langCode = req.body.langCode;
+  }
+
+  const findEmail = await EmailType.findOne({
+    emailType: "new-card",
+    emailLang: langCode,
+  }).lean();
+
+  const mailVaribles = {
+    "%head%": findEmail.emailHead,
+    "%email%": user.email,
+    "%msg%": findEmail.emailDesc,
+    "%name%": user.artistName,
+  };
+
+  await Promise.all([
+    Artist.updateOne(
+      { _id: user._id },
+      {
+        $set: {
+          card: {
+            pay_ref: user.card.pay_ref,
+            pmt_ref: pmt_ref,
+            card_stored: true,
+            card_details: {
+              cardNumber: decryptedData.cardNumber.slice(-4),
+              cardType: decryptedData.cardType,
+              cardHolder: decryptedData.cardHolder,
+              cardExpiry: decryptedData.expiry,
+            },
           },
         },
-      },
-    }
-  );
+      }
+    ),
+    sendMail("sample-email", mailVaribles, user.email),
+  ]);
   // --------------------------- add new card ---------------------------
 
   // --------------------------- activate subscription ------------------
@@ -1345,7 +1453,7 @@ const updatePayerSubscribeUser = catchAsyncError(async (req, res, next) => {
 
 // cancel schedule
 const cancelSchedule = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { card: 1 }).lean();
+  const user = await Artist.findOne({ _id: req.user._id }, { card: 1, artistName: 1, email: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
   const { id } = req.params;
@@ -1353,13 +1461,15 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
   const [sub, numSub] = await Promise.all([
     Subscription.findOne(
       { _id: id, user: req.user._id },
-      { type: 1, sheduleRef: 1, isScheduled: 1, isCurrActive: 1, start_date: 1, status: 1 }
+      { type: 1, plan: 1, sheduleRef: 1, isScheduled: 1, isCurrActive: 1, start_date: 1, status: 1 }
     ).lean(),
     Subscription.countDocuments({ user: req.user._id, status: { $in: ["active", "cancelled"] } }).lean(),
   ]);
   if (!sub) return res.status(400).send({ message: "Subscription not found" });
   if (sub.status == "expired" || sub.status == "cancelled")
     return res.status(400).send({ message: "You can't cancel an expired or cancelled subscription" });
+
+  const plan = await Plan.findOne({ _id: sub.plan }, { planName: 1, planGrp: 1 }).lean();
 
   if (numSub > 1 && sub.isCurrActive)
     return res
@@ -1445,6 +1555,24 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
     await Subscription.updateOne({ _id: id }, { $set: { end_date: endDate, status: "cancelled" } });
   }
 
+  let langCode = "EN";
+  if (req.body?.langCode && languageCode.includes(req.body?.langCode)) {
+    langCode = req.body.langCode;
+  }
+
+  const findEmail = await EmailType.findOne({
+    emailType: "cancel-schedule",
+    emailLang: langCode,
+  }).lean();
+
+  const mailVaribles = {
+    "%head%": findEmail.emailHead,
+    "%email%": user.email,
+    "%msg%": findEmail.emailDesc,
+    "%name%": user.artistName,
+  };
+
+  await sendMail("sample-email", mailVaribles, user.email);
   return res.status(200).send({ message: "Subscription cancelled successfully" });
 });
 

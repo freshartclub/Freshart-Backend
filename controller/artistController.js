@@ -854,6 +854,7 @@ const checkArtistToken = async (req, res) => {
           phone: 1,
           email: 1,
           gender: 1,
+          language: 1,
           isActivated: 1,
           userId: 1,
         },
@@ -2674,7 +2675,12 @@ const uploadCheckImages = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  await CheckImage.create({ user: req.user._id, image: fileData.data?.checkImage[0].filename });
+  const { height, width } = req.body;
+  if (!height || !width || height <= 0 || width <= 0) {
+    return res.status(400).send({ message: "Please provide valid height and width" });
+  }
+
+  await CheckImage.create({ user: req.user._id, image: fileData.data?.checkImage[0].filename, height, width });
   return res.status(200).send({ message: "Image uploaded successfully" });
 });
 
