@@ -6,6 +6,7 @@ const checkImageSchema = new mongoose.Schema(
     image: { type: String },
     height: { type: Number },
     width: { type: Number },
+    isDeleted: { type: Boolean, default: false },
   },
   {
     timestamps: true,

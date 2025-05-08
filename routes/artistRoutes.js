@@ -62,6 +62,7 @@ const {
   followArtist,
   unfollowArtist,
   getUserFollowList,
+  deleteUploadImage,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -254,6 +255,8 @@ router.get("/get-dashboard-data", validateToken, getArtistOverViewData);
 router.post("/check-upload-images", validateToken, uploadCheckImages);
 router.get("/get-upload-images", validateToken, getUploadLatestImage);
 router.get("/get-all-images", validateToken, getUploadAllImages);
+router.patch("/delete-uploaded-image/:id", validateToken, deleteUploadImage);
+
 
 // -------------------------- follow artist -----------------------------
 

@@ -2690,9 +2690,38 @@ const getUploadLatestImage = catchAsyncError(async (req, res, next) => {
 });
 
 const getUploadAllImages = catchAsyncError(async (req, res, next) => {
-  const images = await CheckImage.find({ user: req.user._id }, { image: 1 }).sort({ createdAt: -1 }).lean();
+  const images = await CheckImage.find(
+    { user: req.user._id, isDeleted: false },
+    { image: 1, height: 1, width: 1 }
+  )
+    .sort({ createdAt: -1 })
+    .lean();
+
+
+    
+
   return res.status(200).send({ data: images });
 });
+
+
+const deleteUploadImage = catchAsyncError(async (req, res, next) => {
+  const imageId = req.params.id;
+
+  const image = await CheckImage.findOneAndUpdate(
+    { _id: imageId, user: req.user._id },
+    { isDeleted: true },
+    { new: true }
+  );
+
+  if (!image) {
+    return res.status(404).json({ message: "Image not found or unauthorized" });
+  }
+
+  return res.status(200).json({ message: "Image soft-deleted successfully" });
+});
+
+
+
 
 const followArtist = catchAsyncError(async (req, res, next) => {
   const { artistId } = req.params;
@@ -2813,4 +2842,5 @@ module.exports = {
   followArtist,
   unfollowArtist,
   getUserFollowList,
+  deleteUploadImage,
 };
