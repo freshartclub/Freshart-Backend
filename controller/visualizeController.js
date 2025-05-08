@@ -95,9 +95,21 @@ const getAllUserVisualize = catchAsyncError(async (req, res) => {
         image: 1,
       },
     },
+    {
+      $group: {
+        _id: '$group',
+        data: { $push: '$$ROOT' },
+      },
+    },
   ]);
 
-  return res.status(200).send({ data: allVisualize });
+  // Convert `_id` to key name
+  const groupedData = {};
+  allVisualize.forEach(group => {
+    groupedData[group._id] = group.data;
+  });
+
+  return res.status(200).send({ data: groupedData });
 });
 
 module.exports = { addVisualize, getAllVisualize, getVisualizeById, getAllUserVisualize };
