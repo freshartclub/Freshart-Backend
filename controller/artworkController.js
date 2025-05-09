@@ -2512,19 +2512,16 @@ const getOtherArtworks = catchAsyncError(async (req, res, next) => {
 });
 
 const makeAnOffer = catchAsyncError(async (req, res, next) => {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
+  const err_res = validationResult(req);
+  const errors = err_res.array();
 
-  const checkValid = await checkValidations(errors);
-  if (checkValid.type === "error") {
+  if (errors.length > 0) {
     return res.status(400).send({
-      message: checkValid.errors.msg,
+      message: errors[0].msg,
     });
   }
 
-  const { offer, comment, offerType, artistId } = req.body;
+  const { offer, offerType, artistId } = req.body;
   const { id: artworkId } = req.params;
   const userId = req.user._id;
 

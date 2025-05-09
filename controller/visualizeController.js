@@ -55,7 +55,7 @@ const getAllVisualize = catchAsyncError(async (req, res) => {
         _id: 1,
         name: 1,
         group: 1,
-        dimension_weight: 1,
+        dimension_width: 1,
         dimension_height: 1,
         tags: 1,
         image: 1,
@@ -85,7 +85,7 @@ const getAllUserVisualize = catchAsyncError(async (req, res) => {
         _id: 1,
         name: 1,
         group: 1,
-        dimension_weight: 1,
+        dimension_width: 1,
         dimension_height: 1,
         area_x1: 1,
         area_y1: 1,
@@ -97,15 +97,15 @@ const getAllUserVisualize = catchAsyncError(async (req, res) => {
     },
     {
       $group: {
-        _id: '$group',
-        data: { $push: '$$ROOT' },
+        _id: "$group",
+        data: { $push: "$$ROOT" },
       },
     },
   ]);
 
   // Convert `_id` to key name
   const groupedData = {};
-  allVisualize.forEach(group => {
+  allVisualize.forEach((group) => {
     groupedData[group._id] = group.data;
   });
 
