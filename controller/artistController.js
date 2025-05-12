@@ -95,7 +95,6 @@ const login = async (req, res) => {
       message: "Artist login Successfully",
     });
   } catch (error) {
-    APIErrorLog.error("Error while login the artist");
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
   }

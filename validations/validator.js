@@ -18,8 +18,8 @@ const createPayerBody = [
   body("country").exists({ checkFalsy: true }).withMessage("Country is required"),
   body("zipCode").exists({ checkFalsy: true }).withMessage("Zip Code is required"),
   body("phone").exists({ checkFalsy: true }).withMessage("Phone number is required"),
-  body("firstName").exists({ checkFalsy: true }).withMessage("First name is required"),
-  body("lastName").exists({ checkFalsy: true }).withMessage("Last name is required"),
+  body("artistName").exists({ checkFalsy: true }).withMessage("Artist name is required"),
+  body("artistSurname1").exists({ checkFalsy: true }).withMessage("Surname 1 is required"),
 ];
 
 const createSubscribeOrderBody = [
@@ -43,7 +43,7 @@ const checkOutSubBody = [
 const makeOfferBody = [
   param("id").exists({ checkFalsy: true }).withMessage("Artwork Id is required"),
   body("offer")
-    .exists({ checkFalsy: true })
+    .exists({ checkFalsy: false })
     .withMessage("Offer Price is required")
     .isInt({ min: 1 })
     .withMessage("Offer Price must be a number greater than 0"),
@@ -53,22 +53,19 @@ const makeOfferBody = [
     .isIn(["Downward Offer", "Upward Offer"])
     .withMessage("Offer Type is invalid"),
   body("artistId").exists({ checkFalsy: true }).withMessage("Artist Id is required"),
-  body("comment").optional({ checkFalsy: true }).isLength({ max: 200 }).withMessage("Comment cannot exceed 200 characters").trim().escape(),
+  body("isAccepted").isBoolean().withMessage("Acceptance must be a boolean"),
+  body("counterAccept").isBoolean().withMessage("Acceptance must be a boolean").exists().withMessage("Counter Acceptance is required"),
 ];
 
 const makeOfferArtistBody = [
   param("id").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
   body("offer")
-    .exists({ checkFalsy: true })
+    .exists({ checkFalsy: false })
     .withMessage("Offer Price is required")
     .isInt({ min: 1 })
     .withMessage("Offer Price must be a number greater than 0"),
-  body("comment").optional({ checkFalsy: true }).isLength({ max: 300 }).withMessage("Comment cannot exceed 300 characters").trim().escape(),
-];
-
-const acceptOfferBody = [
-  param("id").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
-  body("isAccepted").isBoolean().withMessage("Acceptance must be a boolean").exists().withMessage("Acceptance is required"),
+  body("isAccepted").isBoolean().withMessage("Acceptance must be a boolean"),
+  body("counterAccept").isBoolean().withMessage("Acceptance must be a boolean").exists().withMessage("Counter Acceptance is required"),
 ];
 
 const confrimExchangeBody = [
@@ -91,6 +88,5 @@ module.exports = {
   checkOutSubBody,
   makeOfferBody,
   makeOfferArtistBody,
-  acceptOfferBody,
   confrimExchangeBody,
 };

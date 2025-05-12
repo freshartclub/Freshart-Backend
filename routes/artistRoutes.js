@@ -79,14 +79,15 @@ const {
   getAllArtworks,
   getArtworkGroupBySeries,
   getOtherArtworks,
-  makeAnOffer,
-  acceptOffer,
+  makeUserOffer,
+  makeArtistOffer,
+  getOffer,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
 const { getUserSideCollections, getUserSideCollectionById } = require("../controller/collectionController");
 const { getResponData } = require("../controller/orderController");
-const { makeOfferBody, acceptOfferBody } = require("../validations/validator");
+const { makeOfferBody, makeOfferArtistBody } = require("../validations/validator");
 const { getAllUserVisualize } = require("../controller/visualizeController");
 
 router.post("/login", login);
@@ -241,8 +242,9 @@ router.get("/card", validateToken, getUserSavedCard);
 
 // ---------------------------- make offer ---------------------------
 
-router.post("/make-offer/:id", validateToken, makeOfferBody, makeAnOffer);
-router.patch("/accept-offer/:id", validateToken, acceptOfferBody, acceptOffer);
+router.post("/user-offer/:id", validateToken, makeOfferBody, makeUserOffer);
+router.get("/get-offer/:id", validateToken, getOffer);
+router.post("/artist-offer/:id", validateToken, makeOfferArtistBody, makeArtistOffer);
 router.get("/artist-offers", validateToken, getAllArtistOffers);
 router.get("/user-offers", validateToken, getAllUserOffers);
 
@@ -256,7 +258,6 @@ router.post("/check-upload-images", validateToken, uploadCheckImages);
 router.get("/get-upload-images", validateToken, getUploadLatestImage);
 router.get("/get-all-images", validateToken, getUploadAllImages);
 router.patch("/delete-uploaded-image/:id", validateToken, deleteUploadImage);
-
 
 // -------------------------- follow artist -----------------------------
 

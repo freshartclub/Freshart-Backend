@@ -12,7 +12,7 @@ const validateToken = async (req, res, next) => {
           return res.status(401).send({ message: "Please do re-login" });
         }
 
-        const user = await Artist.findOne({ _id: verifiedJwt.user._id, isDeleted: false }, { artistName: 1, role: 1, tokens: 1 }).lean();
+        const user = await Artist.findOne({ _id: verifiedJwt.user._id, isDeleted: false }, { artistName: 1, role: 1, tokens: 1, email: 1 }).lean();
         if (!user) return res.status(400).send({ message: "User not found" });
 
         if (user?.tokens) {
@@ -23,6 +23,7 @@ const validateToken = async (req, res, next) => {
             _id: user._id,
             role: user.role,
             artistName: user.artistName,
+            email: user.email,
           };
 
           req.user = userField;

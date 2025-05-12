@@ -10,8 +10,8 @@ const makeOfferSchema = new mongoose.Schema(
     status: { type: String },
     counterOffer: [
       {
+        userType: { type: String },
         isAccepted: { type: Boolean },
-        comment: { type: String },
         offerprice: { type: Number },
         createdAt: { type: Date },
       },

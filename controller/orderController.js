@@ -2,7 +2,7 @@ const catchAsyncError = require("../functions/catchAsyncError");
 const Artist = require("../models/artistModel");
 const ArtWork = require("../models/artWorksModel");
 const objectId = require("mongoose").Types.ObjectId;
-const { fileUploadFunc, generateRandomOrderId, generateSchedulerRef } = require("../functions/common");
+const { fileUploadFunc, generateRandomOrderId, generateSchedulerRef, generateRandomOTP } = require("../functions/common");
 const Order = require("../models/orderModel");
 const crypto = require("crypto");
 const countries = require("i18n-iso-countries");
@@ -17,6 +17,8 @@ const { validationResult } = require("express-validator");
 const SubscriptionTransaction = require("../models/subscriptionTransaction");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
+const EmailType = require("../models/emailTypeModel");
+const exp = require("constants");
 
 const url = "https://remote.sandbox.addonpayments.com/remote";
 
@@ -211,30 +213,75 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const checkPayerExist = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, billingInfo: 1, isCardExpired: 1, prev_saved: 1 }).lean();
+  const user = await Artist.findOne(
+    { _id: req.user._id },
+    {
+      artistName: 1,
+      artistSurname1: 1,
+      artistSurname2: 1,
+      email: 1,
+      phone: 1,
+      address: 1,
+      card: 1,
+      billingInfo: 1,
+      isCardExpired: 1,
+      prev_saved: 1,
+      order_OTP: 1,
+    }
+  ).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
 
   if (!user?.card?.pay_ref) {
-    if (user.billingInfo.length > 0) {
-      const findDefaultBilling = user.billingInfo.find((i) => i.isDefault == true);
-      return res.status(200).send({ data: false, billing: findDefaultBilling.billingDetails });
-    }
-    return res.status(200).send({ data: false, billing: {} });
+    return res.status(200).send({
+      data: false,
+      billing: {
+        artistName: user?.artistName,
+        artistSurname1: user?.artistSurname1,
+        artistSurname2: user?.artistSurname2,
+        email: user?.email,
+        phone: user?.phone,
+        address: user?.address,
+      },
+    });
   }
 
   if (user?.card?.pay_ref && user?.card?.card_stored == false) {
-    return res.status(200).send({ data: true, status: "inactive", store: false, prev_saved: user?.prev_saved == true ? true : false });
+    return res.status(200).send({
+      data: true,
+      status: "inactive",
+      store: false,
+      isVerified: user?.order_OTP?.isVerified == true ? true : false,
+      prev_saved: user?.prev_saved == true ? true : false,
+    });
   }
 
   if (user?.isCardExpiring) {
-    return res.status(200).send({ data: true, status: user?.isCardExpiring, store: true, prev_saved: user?.prev_saved == true ? true : false });
+    return res.status(200).send({
+      data: true,
+      status: user?.isCardExpiring,
+      store: true,
+      isVerified: user?.order_OTP?.isVerified == true ? true : false,
+      prev_saved: user?.prev_saved == true ? true : false,
+    });
   }
 
   if (user?.isCardExpired && user?.isCardExpired == true) {
-    return res.status(200).send({ data: true, status: "expired", store: true, prev_saved: user?.prev_saved == true ? true : false });
+    return res.status(200).send({
+      data: true,
+      status: "expired",
+      store: true,
+      isVerified: user?.order_OTP?.isVerified == true ? true : false,
+      prev_saved: user?.prev_saved == true ? true : false,
+    });
   }
 
-  return res.status(200).send({ data: true, status: "active", store: true, prev_saved: user?.prev_saved == true ? true : false });
+  return res.status(200).send({
+    data: true,
+    status: "active",
+    store: true,
+    isVerified: user?.order_OTP?.isVerified == true ? true : false,
+    prev_saved: user?.prev_saved == true ? true : false,
+  });
 });
 
 const createPayer = catchAsyncError(async (req, res, next) => {
@@ -290,8 +337,8 @@ const createPayer = catchAsyncError(async (req, res, next) => {
         payer: {
           $: { ref: pay_ref, type: "Retail" },
           title: "Sr.",
-          firstname: req.body.firstName,
-          surname: req.body.lastName,
+          firstname: req.body.artistName,
+          surname: req.body.artistSurname1,
           company: "Addon Payments",
           address: {
             line1: req.body.address,
@@ -365,10 +412,73 @@ const createPayer = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ message: "Payer created successfully" });
 });
 
+const sendOrderSMSOTP = catchAsyncError(async (req, res, next) => {
+  const { phone } = req.body;
+  if (!phone) {
+    return res.status(400).send({ message: "Please provide phone number" });
+  }
+
+  const authHeader = Buffer.from(`${process.env.API_SMS_USER}:${process.env.API_SMS_PWD}`).toString("base64");
+  const otp = generateRandomOTP();
+
+  let phoneArr = [];
+  phoneArr.push(phone.replace("+", ""));
+
+  const data = {
+    to: phoneArr,
+    text: `To verify your phone number, use OTP - ${otp}. OTP is valid for 15 minutes`,
+    from: "FreshArt",
+  };
+
+  const url = "https://dashboard.wausms.com/Api/rest/message";
+
+  const headers = {
+    Accept: "application/json",
+    "Content-Type": "application/json",
+    Authorization: `Basic ${authHeader}`,
+  };
+
+  // await axios.post(url, data, { headers });
+
+  await Artist.updateOne(
+    { _id: req.user._id, isDeleted: false },
+    { $set: { order_OTP: { otp: otp, isVerified: false, expiry: Date.now() + 15 * 60 * 1000 } } }
+  );
+  return res.status(200).send({ message: "OTP sent Successfully" });
+});
+
+const verifyOrderSMSOTP = catchAsyncError(async (req, res, next) => {
+  const { otp } = req.body;
+  if (!otp) return res.status(400).send({ message: "Provide OTP" });
+
+  const user = await Artist.findOne(
+    {
+      _id: req.user._id,
+      isDeleted: false,
+    },
+    { order_OTP: 1 }
+  ).lean();
+
+  if (!user) return res.status(400).send({ message: "User not found" });
+  if (otp !== user?.order_OTP?.otp || Date.now() > user?.order_OTP?.expiry) {
+    return res.status(400).send({ message: "Invalid/Expired OTP" });
+  }
+
+  await Artist.updateOne({ _id: req.user._id, isDeleted: false }, { $set: { order_OTP: { isVerified: true } } });
+
+  return res.status(200).send({
+    message: "Phone Number verified Successfully",
+  });
+});
+
 // when card is not stored...
 const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
-  const user = await Artist.findOne({ _id: req.user._id }, { artistName: 1, card: 1, invite: 1, userId: 1, prev_saved: 1, email: 1 }).lean();
+  const user = await Artist.findOne(
+    { _id: req.user._id },
+    { artistName: 1, card: 1, invite: 1, userId: 1, prev_saved: 1, email: 1, order_OTP: 1 }
+  ).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
+  if (user?.order_OTP?.isVerified !== true) return res.status(400).send({ message: "Please verify your phone number" });
 
   if (user?.prev_saved && user?.prev_saved == true) {
     return res.status(400).send({ message: "You can't perfrom this action" });
@@ -612,6 +722,7 @@ const createPayerSubscribeUser = catchAsyncError(async (req, res, next) => {
           },
         },
       },
+      $unset: { order_OTP: 1 },
     }
   );
 
@@ -2529,6 +2640,8 @@ module.exports = {
   createOrder,
   checkPayerExist,
   createPayer,
+  sendOrderSMSOTP,
+  verifyOrderSMSOTP,
   createSubcribeOrder,
   getAllOrders,
   getAllUserOrders,

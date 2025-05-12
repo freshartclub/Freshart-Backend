@@ -26,6 +26,8 @@ const {
   deleteCard,
   updatePayerSubscribeUser,
   cancelSchedule,
+  sendOrderSMSOTP,
+  verifyOrderSMSOTP,
 } = require("../controller/orderController");
 const { createPayerBody, createSubscribeOrderBody, createOrderBody, checkOutSubBody, confrimExchangeBody } = require("../validations/validator");
 const { checkOutSub, confrimExchange } = require("../controller/checkOutSubController");
@@ -39,6 +41,10 @@ router.get("/get-key", validateToken, getKey);
 router.get("/check-user-ref", validateToken, checkPayerExist);
 
 router.post("/create-payer", validateToken, createPayerBody, createPayer);
+
+router.post("/send-otp", validateToken, sendOrderSMSOTP);
+
+router.patch("/verify-otp", validateToken, verifyOrderSMSOTP);
 
 // when card is not stored
 router.post("/subscribe-plan", validateToken, createPayerSubscribeUser);

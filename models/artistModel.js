@@ -207,6 +207,9 @@ const artistSchema = new mongoose.Schema(
     OTP: {
       type: String,
     },
+    order_OTP: {
+      type: Object,
+    },
     pageCount: {
       type: Number,
       default: 1,
