@@ -2589,6 +2589,47 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
           return res.status(400).send({ message: "Something went wrong." });
         }
 
+        // making all other offer complete and isAccepted -> false
+        const allOtherOffers = await MakeOffer.find({
+          _id: { $ne: offerExists._id },
+          artwork: offerExists.artwork,
+          status: "pending",
+        });
+
+        const bulkOperations = allOtherOffers
+          .map((offerDoc) => {
+            const lastIndex = offerDoc.counterOffer.length - 1;
+            if (lastIndex < 0) return null;
+
+            if (offerDoc.counterOffer[lastIndex].isAccepted === null) {
+              return {
+                updateOne: {
+                  filter: { _id: offerDoc._id },
+                  update: {
+                    $set: {
+                      status: "complete",
+                      [`counterOffer.${lastIndex}.isAccepted`]: false,
+                    },
+                  },
+                },
+              };
+            }
+
+            return {
+              updateOne: {
+                filter: { _id: offerDoc._id },
+                update: {
+                  $set: { status: "complete" },
+                },
+              },
+            };
+          })
+          .filter((op) => op !== null);
+
+        if (bulkOperations.length > 0) {
+          await MakeOffer.bulkWrite(bulkOperations);
+        }
+
         return res.status(200).send({ message: "Offer accepted successfully." });
       }
 
@@ -2734,8 +2775,51 @@ const makeArtistOffer = catchAsyncError(async (req, res, next) => {
     }
 
     const result = await MakeOffer.updateOne({ _id: checkOffer._id }, { $set: updateFields });
+
     if (result.modifiedCount == 0) {
       return res.status(400).send({ message: "Something went wrong." });
+    }
+
+    if (isAccepted == true) {
+      const allOtherOffers = await MakeOffer.find({
+        _id: { $ne: checkOffer._id },
+        artwork: checkOffer.artwork,
+        status: "pending",
+      });
+
+      const bulkOperations = allOtherOffers
+        .map((offerDoc) => {
+          const lastIndex = offerDoc.counterOffer.length - 1;
+          if (lastIndex < 0) return null;
+
+          if (offerDoc.counterOffer[lastIndex].isAccepted === null) {
+            return {
+              updateOne: {
+                filter: { _id: offerDoc._id },
+                update: {
+                  $set: {
+                    status: "complete",
+                    [`counterOffer.${lastIndex}.isAccepted`]: false,
+                  },
+                },
+              },
+            };
+          }
+
+          return {
+            updateOne: {
+              filter: { _id: offerDoc._id },
+              update: {
+                $set: { status: "complete" },
+              },
+            },
+          };
+        })
+        .filter((op) => op !== null);
+
+      if (bulkOperations.length > 0) {
+        await MakeOffer.bulkWrite(bulkOperations);
+      }
     }
 
     return res.status(200).send({ message: "Offer accepted successfully." });
@@ -2744,8 +2828,6 @@ const makeArtistOffer = catchAsyncError(async (req, res, next) => {
   if (checkOffer.counterOffer[lastIndex].isAccepted != null) {
     return res.status(400).send({ message: "Can't make counter offer" });
   }
-
-  // make previous offer automatically reject if counter offer is false
 
   await MakeOffer.updateOne(
     { _id: checkOffer._id },
