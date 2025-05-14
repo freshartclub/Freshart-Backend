@@ -2506,7 +2506,7 @@ const getOtherArtworks = catchAsyncError(async (req, res, next) => {
     },
   ]);
 
-  res.status(200).send({
+  return res.status(200).send({
     data: artworks,
   });
 });
@@ -2523,17 +2523,16 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const { offer, offerType, artistId, isAccepted, counterAccept } = req.body;
+  const { offer, offerType, artistId, counterAccept } = req.body;
   const { id: artworkId } = req.params;
   const userId = req.user._id;
 
-  console.log(req.body);
-
   const MAX_COUNTER_OFFERS = 3;
 
-  const [artwork, artist] = await Promise.all([
+  const [artwork, artist, user] = await Promise.all([
     ArtWork.findById(artworkId, { pricing: 1, commercialization: 1, owner: 1, status: 1 }).lean(),
-    Artist.findById(artistId, { artistName: 1, isActivated: 1, monthlyNegotiations: 1 }).lean(),
+    Artist.findById(artistId, { artistName: 1, isActivated: 1 }).lean(),
+    Artist.findById(userId, { artistName: 1, monthlyNegotiations: 1 }).lean(),
   ]);
 
   if (!artwork || artwork.status !== "published") return res.status(400).send({ message: "Artwork not available." });
@@ -2547,21 +2546,17 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Artwork not available for this offer." });
   }
 
-  if (offerType === "Upward Offer" && offer < Number(artwork.pricing?.acceptOfferPrice)) {
+  if (offerType === "Upward Offer" && offer && offer < Number(artwork.pricing?.acceptOfferPrice)) {
     return res.status(400).send({ message: "Offer is below minimum acceptable price." });
   }
 
-  if (artist.monthlyNegotiations == 0) {
+  if (user.monthlyNegotiations == 0) {
     return res.status(400).send({ message: "User has no remaining negotiations this month." });
   }
 
   const offerExists = await MakeOffer.findOne({ user: userId, artwork: artworkId, type: offerType, offeredArtist: artistId })
     .sort({ createdAt: -1 })
     .lean();
-
-  if (offerExists && offerExists.status === "complete") {
-    return res.status(400).send({ message: "Offer has been completed" });
-  }
 
   if (offerExists) {
     const offerCreatedDate = new Date(offerExists.createdAt);
@@ -2570,9 +2565,13 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
     const isSameMonth = offerCreatedDate.getFullYear() === currentDate.getFullYear() && offerCreatedDate.getMonth() === currentDate.getMonth();
 
     if (isSameMonth) {
+      if (offerExists.status === "complete") {
+        return res.status(400).send({ message: "Your previous offer has been completed. Please wait for next month to again make an offer" });
+      }
+
       const lastIndex = offerExists.counterOffer.length - 1;
-      if (offerExists.counterOffer[lastIndex].userType !== "artist") {
-        return res.status(400).send({ message: "Wait for the artist to make a counter offer" });
+      if (offerExists.counterOffer[lastIndex].userType == "user" && offerExists.counterOffer[lastIndex].isAccepted == null) {
+        return res.status(400).send({ message: "Wait for the artist to accept/reject or counter the offer" });
       }
 
       if (counterAccept == true) {
@@ -2581,14 +2580,9 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
         }
 
         const updateFields = {
-          [`counterOffer.${lastIndex}.isAccepted`]: isAccepted,
+          [`counterOffer.${lastIndex}.isAccepted`]: true,
+          status: "complete",
         };
-
-        if (offerExists.maxOffer === 3 && (isAccepted == true || isAccepted == false)) {
-          updateFields.status = "complete";
-        } else if (isAccepted) {
-          updateFields.status = "complete";
-        }
 
         const result = await MakeOffer.updateOne({ _id: offerExists._id }, { $set: updateFields });
         if (result.modifiedCount == 0) {
@@ -2598,44 +2592,55 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
         return res.status(200).send({ message: "Offer accepted successfully." });
       }
 
-      if (offerExists.maxOffer == MAX_COUNTER_OFFERS) {
-        return res.status(400).send({
-          message: "You have reached the maximum number of counter offers. Please wait for next month to make a new offer.",
-        });
-      }
-
-      if (offerExists.counterOffer[lastIndex].isAccepted == null) {
-        return res.status(400).send({ message: "First accept/reject the counter offer" });
-      }
-
-      const [resultOffer, negoUpdate] = await Promise.all([
-        MakeOffer.updateOne(
+      if (offerExists.maxOffer < MAX_COUNTER_OFFERS) {
+        await MakeOffer.updateOne(
           { _id: offerExists._id },
           {
-            $inc: { maxOffer: 1 },
-            $push: {
-              counterOffer: {
-                offerprice: offer,
-                createdAt: new Date(),
-                userType: "user",
-                isAccepted: null,
+            $set: { [`counterOffer.${lastIndex}.isAccepted`]: false },
+          }
+        );
+
+        const [resultOffer, negoUpdate] = await Promise.all([
+          MakeOffer.updateOne(
+            { _id: offerExists._id },
+            {
+              $inc: { maxOffer: 1 },
+              $push: {
+                counterOffer: {
+                  offerprice: offer,
+                  createdAt: new Date(),
+                  userType: "user",
+                  isAccepted: null,
+                },
               },
+            }
+          ),
+          Artist.updateOne(
+            { _id: artistId },
+            {
+              $inc: { monthlyNegotiations: -1 },
+            }
+          ),
+        ]);
+
+        if (resultOffer.modifiedCount == 0 || negoUpdate.modifiedCount == 0) {
+          return res.status(400).send({ message: "Something went wrong." });
+        }
+
+        return res.status(200).send({ message: "Counter Offer made successfully." });
+      } else {
+        await MakeOffer.updateOne(
+          { _id: offerExists._id },
+          {
+            $set: {
+              [`counterOffer.${lastIndex}.isAccepted`]: false,
+              status: "complete",
             },
           }
-        ),
-        Artist.updateOne(
-          { _id: artistId },
-          {
-            $inc: { monthlyNegotiations: -1 },
-          }
-        ),
-      ]);
+        );
 
-      if (resultOffer.modifiedCount == 0 || negoUpdate.modifiedCount == 0) {
-        return res.status(400).send({ message: "Something went wrong." });
+        return res.status(200).send({ message: "Counter Offer rejected." });
       }
-
-      return res.status(200).send({ message: "Counter Offer made successfully." });
     }
 
     return res.status(400).send({
@@ -2653,7 +2658,7 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
       maxOffer: 1,
       counterOffer: [{ offerprice: offer, userType: "user", isAccepted: null, createdAt: new Date() }],
     }),
-    Artist.updateOne({ _id: artistId }, { $inc: { monthlyNegotiations: -1 } }),
+    Artist.updateOne({ _id: userId }, { $inc: { monthlyNegotiations: -1 } }),
   ]);
 
   return res.status(200).send({
@@ -2683,8 +2688,6 @@ const makeArtistOffer = catchAsyncError(async (req, res, next) => {
   const { id: offerId } = req.params;
   const artistId = req.user._id;
 
-  console.log(req.body);
-
   const [checkOffer, artist] = await Promise.all([
     MakeOffer.findById(offerId).lean(),
     Artist.findById(artistId, { artistName: 1, isActivated: 1, monthlyNegotiations: 1 }).lean(),
@@ -2711,6 +2714,10 @@ const makeArtistOffer = catchAsyncError(async (req, res, next) => {
     return res.status(400).send({ message: "Wait for the user to make a counter offer" });
   }
 
+  if (checkOffer.maxOffer === 3 && checkOffer.counterOffer[lastIndex].userType == "artist") {
+    return res.status(400).send({ message: "Offer has reached the maximum number of counter" });
+  }
+
   if (counterAccept == true) {
     if (checkOffer.counterOffer[lastIndex].isAccepted != null) {
       return res.status(400).send({ message: "Offer has already been accepted/rejected" });
@@ -2734,29 +2741,32 @@ const makeArtistOffer = catchAsyncError(async (req, res, next) => {
     return res.status(200).send({ message: "Offer accepted successfully." });
   }
 
-  if (checkOffer.maxOffer === 3 && checkOffer.counterOffer.length == 6) {
-    return res.status(400).send({ message: "Offer has reached the maximum number of counter" });
+  if (checkOffer.counterOffer[lastIndex].isAccepted != null) {
+    return res.status(400).send({ message: "Can't make counter offer" });
   }
 
-  if (checkOffer.counterOffer[lastIndex].isAccepted == null) {
-    return res.status(400).send({ message: "First accept/reject the counter offer" });
-  }
+  // make previous offer automatically reject if counter offer is false
 
-  const [resultOffer] = await Promise.all([
-    MakeOffer.updateOne(
-      { _id: checkOffer._id },
-      {
-        $push: {
-          counterOffer: {
-            offerprice: offer,
-            createdAt: new Date(),
-            userType: "artist",
-            isAccepted: null,
-          },
+  await MakeOffer.updateOne(
+    { _id: checkOffer._id },
+    {
+      $set: { [`counterOffer.${lastIndex}.isAccepted`]: false },
+    }
+  );
+
+  const resultOffer = await MakeOffer.updateOne(
+    { _id: checkOffer._id },
+    {
+      $push: {
+        counterOffer: {
+          offerprice: offer,
+          createdAt: new Date(),
+          userType: "artist",
+          isAccepted: null,
         },
-      }
-    ),
-  ]);
+      },
+    }
+  );
 
   if (resultOffer.modifiedCount == 0) {
     return res.status(400).send({ message: "Something went wrong." });

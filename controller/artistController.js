@@ -2496,7 +2496,7 @@ const getAllArtistOffers = catchAsyncError(async (req, res, next) => {
         from: "artists",
         localField: "user",
         foreignField: "_id",
-        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1 } }],
+        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1, mainImg: "$profile.mainImage" } }],
         as: "user",
       },
     },
@@ -2521,6 +2521,7 @@ const getAllArtistOffers = catchAsyncError(async (req, res, next) => {
         user: "$user",
         artwork: "$artwork",
         type: 1,
+        status: 1,
         maxOffer: 1,
         counterOffer: 1,
         createdAt: 1,
@@ -2538,8 +2539,8 @@ const getAllUserOffers = catchAsyncError(async (req, res, next) => {
         from: "artists",
         localField: "offeredArtist",
         foreignField: "_id",
-        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1 } }],
-        as: "user",
+        pipeline: [{ $project: { _id: 1, artistName: 1, nickName: 1, mainImg: "$profile.mainImage" } }],
+        as: "artist",
       },
     },
     {
@@ -2552,7 +2553,7 @@ const getAllUserOffers = catchAsyncError(async (req, res, next) => {
       },
     },
     {
-      $unwind: { path: "$user", preserveNullAndEmptyArrays: true },
+      $unwind: { path: "$artist", preserveNullAndEmptyArrays: true },
     },
     {
       $unwind: { path: "$artwork", preserveNullAndEmptyArrays: true },
@@ -2560,8 +2561,9 @@ const getAllUserOffers = catchAsyncError(async (req, res, next) => {
     {
       $project: {
         _id: 1,
-        user: "$user",
+        artist: "$artist",
         artwork: "$artwork",
+        status: 1,
         type: 1,
         maxOffer: 1,
         counterOffer: 1,

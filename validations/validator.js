@@ -42,29 +42,20 @@ const checkOutSubBody = [
 
 const makeOfferBody = [
   param("id").exists({ checkFalsy: true }).withMessage("Artwork Id is required"),
-  body("offer")
-    .exists({ checkFalsy: false })
-    .withMessage("Offer Price is required")
-    .isInt({ min: 1 })
-    .withMessage("Offer Price must be a number greater than 0"),
+  body("offer").optional({ checkFalsy: true }).isFloat({ min: 0.01 }).withMessage("Offer Price must be a number greater than 0"),
   body("offerType")
     .exists({ checkFalsy: true })
     .withMessage("Offer Type is required")
     .isIn(["Downward Offer", "Upward Offer"])
     .withMessage("Offer Type is invalid"),
   body("artistId").exists({ checkFalsy: true }).withMessage("Artist Id is required"),
-  body("isAccepted").isBoolean().withMessage("Acceptance must be a boolean"),
   body("counterAccept").isBoolean().withMessage("Acceptance must be a boolean").exists().withMessage("Counter Acceptance is required"),
 ];
 
 const makeOfferArtistBody = [
   param("id").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
-  body("offer")
-    .exists({ checkFalsy: false })
-    .withMessage("Offer Price is required")
-    .isInt({ min: 1 })
-    .withMessage("Offer Price must be a number greater than 0"),
-  body("isAccepted").isBoolean().withMessage("Acceptance must be a boolean"),
+  body("offer").optional({ checkFalsy: true }).isFloat({ min: 0.01 }).withMessage("Offer Price must be a number greater than 0"),
+  body("isAccepted").optional().isBoolean().withMessage("Acceptance must be a boolean"),
   body("counterAccept").isBoolean().withMessage("Acceptance must be a boolean").exists().withMessage("Counter Acceptance is required"),
 ];
 
