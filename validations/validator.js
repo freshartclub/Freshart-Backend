@@ -8,6 +8,14 @@ const loginData = [
 const createOrderBody = [
   body("time").exists({ checkFalsy: true }).withMessage("Time is required"),
   body("currency").exists({ checkFalsy: true }).withMessage("Currency is required"),
+  body("tax").exists({ checkFalsy: true }).isFloat({ min: 0.01 }).withMessage("Tax is required"),
+  body("shipping").exists({ checkFalsy: true }).isFloat({ min: 0.01 }).withMessage("Shipping is required"),
+  body("note").optional().isString().withMessage("Note is invalid"),
+  body("type")
+    .exists({ checkFalsy: true })
+    .withMessage("Offer Type is required")
+    .isIn(["offer", "request", "custom", "instant"])
+    .withMessage("Offer Type is invalid"),
 ];
 
 const createPayerBody = [
@@ -51,6 +59,21 @@ const makeOfferBody = [
   body("counterAccept").isBoolean().withMessage("Acceptance must be a boolean").exists().withMessage("Counter Acceptance is required"),
 ];
 
+const addToCartOfferBody = [
+  param("id").exists({ checkFalsy: true }).withMessage("Artwork Id is required"),
+  body("offerprice")
+    .exists({ checkFalsy: true })
+    .withMessage("Offer Price is required")
+    .isFloat({ min: 0.01 })
+    .withMessage("Offer Price must be a number greater than 0"),
+  body("offerId").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
+  body("type")
+    .exists({ checkFalsy: true })
+    .withMessage("Offer Type is required")
+    .isIn(["offer", "request", "custom"])
+    .withMessage("Offer Type is invalid"),
+];
+
 const makeOfferArtistBody = [
   param("id").exists({ checkFalsy: true }).withMessage("Offer Id is required"),
   body("offer").optional({ checkFalsy: true }).isFloat({ min: 0.01 }).withMessage("Offer Price must be a number greater than 0"),
@@ -79,4 +102,5 @@ module.exports = {
   makeOfferBody,
   makeOfferArtistBody,
   confrimExchangeBody,
+  addToCartOfferBody,
 };

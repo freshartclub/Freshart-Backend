@@ -88,7 +88,7 @@ const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
 const { getUserSideCollections, getUserSideCollectionById } = require("../controller/collectionController");
 const { getResponData } = require("../controller/orderController");
-const { makeOfferBody, makeOfferArtistBody } = require("../validations/validator");
+const { makeOfferBody, makeOfferArtistBody, addToCartOfferBody } = require("../validations/validator");
 const { getAllUserVisualize } = require("../controller/visualizeController");
 
 router.post("/login", login);
@@ -181,7 +181,7 @@ router.get("/get-other-artworks", getOtherArtworks);
 
 router.patch("/add-to-cart/:id", validateToken, addToCart);
 
-router.patch("/add-offer-cart/:id", validateToken, addToOfferCart);
+router.patch("/add-offer-cart/:id", validateToken, addToCartOfferBody, addToOfferCart);
 
 router.patch("/remove-from-cart/:id", validateToken, removeFromCart);
 

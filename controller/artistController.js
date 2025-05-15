@@ -1635,7 +1635,7 @@ const addToCart = async (req, res) => {
 const addToOfferCart = async (req, res) => {
   try {
     const { id } = req.params;
-    const { offerprice, offerId } = req.body;
+    const { offerprice, offerId, type } = req.body;
 
     const makeOffer = await MakeOffer.findById(offerId, { status: 1, counterOffer: 1, artwork: 1 }).lean();
     if (!makeOffer) return res.status(400).send({ message: "Your Offer not found" });
@@ -1665,7 +1665,7 @@ const addToOfferCart = async (req, res) => {
 
     const result = await Artist.updateOne(
       { _id: req.user._id, "offer_cart.artwork": { $ne: id } },
-      { $push: { offer_cart: { artwork: objectId(id), offerprice } } }
+      { $push: { offer_cart: { artwork: objectId(id), offerprice, type: type } } }
     );
 
     if (result.modifiedCount === 0) {
@@ -1787,6 +1787,7 @@ const getCartItems = async (req, res) => {
             },
             pricing: "$artworkDetails.pricing",
             offerprice: "$offer_cart.offerprice",
+            type: "$offer_cart.type",
           },
         },
       ]),

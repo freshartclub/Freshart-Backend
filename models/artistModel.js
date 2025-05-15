@@ -111,6 +111,7 @@ const artistSchema = new mongoose.Schema(
       {
         artwork: { type: mongoose.Schema.Types.ObjectId },
         offerprice: { type: Number },
+        type: { type: String },
       },
     ],
     wishlist: [{ type: mongoose.Schema.Types.ObjectId }],

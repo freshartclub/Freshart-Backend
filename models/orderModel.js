@@ -8,6 +8,9 @@ const orderSchema = new mongoose.Schema(
     type: {
       type: String,
     },
+    art_type: {
+      type: String,
+    },
     status: {
       type: String,
     },

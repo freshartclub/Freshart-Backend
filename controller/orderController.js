@@ -18,7 +18,6 @@ const SubscriptionTransaction = require("../models/subscriptionTransaction");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const EmailType = require("../models/emailTypeModel");
-const exp = require("constants");
 
 const url = "https://remote.sandbox.addonpayments.com/remote";
 
@@ -42,17 +41,13 @@ const createOrder = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const user = await Artist.findOne({ _id: req.user._id }, { cart: 1, billingInfo: 1 }).lean();
+  const user = await Artist.findOne({ _id: req.user._id }, { cart: 1, billingInfo: 1, offer_cart: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
-  const { time, currency } = req.body;
+  const { time, currency, type, tax, shipping, note } = req.body;
   const orderId = uuidv4();
 
   let items = [];
   let fullItemsDetails = [];
-
-  if (req.body?.items?.length == 0) {
-    return res.status(400).send({ message: "Please select artwork" });
-  }
 
   const defaultBilling = user.billingInfo.find((i) => i.isDefault == true);
   let address;
@@ -82,12 +77,14 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
   const isoCountry = getNumericCountryCode(defaultBilling.billingDetails.billingCountry);
 
-  if (req.body.type === "purchase") {
-    for (const item of req.body.items) {
+  if (type === "instant") {
+    if (user.cart.length == 0) return res.status(400).send({ message: "No Artwork in Instant Purchase Cart" });
+    for (const item of user.cart) {
       const artwork = await ArtWork.findOne(
         { _id: item, status: "published", "commercialization.activeTab": "purchase", "inventoryShipping.comingSoon": false },
         { status: 1, pricing: 1 }
       ).lean();
+
       if (artwork && artwork.status == "published") {
         items.push(item);
 
@@ -102,114 +99,78 @@ const createOrder = catchAsyncError(async (req, res, next) => {
         });
       }
     }
+  } else if (type) {
+    const offerArt = user.offer_cart.filter((i) => i.type == type);
+    if (offerArt.length == 0) return res.status(400).send({ message: "No Artwork Found" });
 
-    if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
-
-    total = subTotal - totalDiscount + Number(req.body.shipping);
-    const taxAmount = (total * Number(req.body.tax)) / 100;
-    total = total + Number(taxAmount.toFixed(2));
-
-    await Order.create({
-      orderId: orderId,
-      type: "purchase",
-      user: user._id,
-      status: "created",
-      tax: req.body.tax,
-      taxAmount: taxAmount,
-      billingAddress: defaultBilling.billingDetails,
-      shippingAddress: address,
-      shipping: req.body.shipping,
-      discount: totalDiscount,
-      subTotal: subTotal,
-      total: total,
-      items: fullItemsDetails.map((i) => {
-        return {
-          artwork: i._id,
-          other: {
-            subTotal: i.subTotal,
-            totalDiscount: i.totalDiscount,
-            discount: i.discount,
-          },
-        };
-      }),
-      currency: currency,
-      note: req.body.note,
-    });
-
-    const amountRound = total * 100;
-
-    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}`;
-    const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
-
-    const finalString = `${hash1}.${process.env.SECRET}`;
-    const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
-
-    return res
-      .status(200)
-      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: amountRound, currency: currency, iso: isoCountry });
-  } else {
-    for (const item of req.body.items) {
+    for (const item of offerArt) {
       const artwork = await ArtWork.findOne(
-        { _id: item, status: "published", "commercialization.activeTab": "subscription" },
+        { _id: item.artwork, status: "published", "commercialization.activeTab": "purchase", "inventoryShipping.comingSoon": false },
         { status: 1, pricing: 1 }
       ).lean();
-      if (artwork && artwork.status == "published") items.push(item);
 
-      subTotal += Number(artwork.pricing.basePrice);
-      totalDiscount += (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice);
+      if (artwork && artwork.status == "published") {
+        items.push(item);
 
-      fullItemsDetails.push({
-        _id: item,
-        subTotal: Number(artwork.pricing.basePrice),
-        totalDiscount: (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice),
-        discount: artwork.pricing.dpersentage,
-      });
+        subTotal += Number(item.offerprice);
+        totalDiscount += 0;
+
+        fullItemsDetails.push({
+          _id: item,
+          subTotal: Number(item.offerprice),
+          totalDiscount: 0,
+          discount: 0,
+        });
+      }
     }
-
-    if (items.length == 0) return res.status(400).send({ message: "Please select artwork" });
-
-    total = subTotal - totalDiscount + Number(req.body.shipping);
-    const taxAmount = (total * Number(req.body.tax)) / 100;
-    total = total + Number(taxAmount.toFixed(2));
-
-    await Order.create({
-      orderId: orderId,
-      type: "subscription",
-      user: user._id,
-      status: "created",
-      tax: 0,
-      taxAmount: 0,
-      billingAddress: defaultBilling.billingDetails,
-      shippingAddress: address,
-      shipping: req.body.shipping,
-      discount: 0,
-      subTotal: 0,
-      total: 0,
-      items: fullItemsDetails.map((i) => {
-        return {
-          artwork: i._id,
-          other: {
-            subTotal: i.subTotal,
-            totalDiscount: i.totalDiscount,
-            discount: i.discount,
-          },
-        };
-      }),
-      note: req.body.note,
-    });
-
-    const amountRound = total * 100;
-
-    const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}`;
-    const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
-
-    const finalString = `${hash1}.${process.env.SECRET}`;
-    const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
-
-    return res
-      .status(200)
-      .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: amountRound, currency: currency, iso: isoCountry });
   }
+
+  if (items.length == 0) return res.status(400).send({ message: "No Artwork Found" });
+
+  total = subTotal - totalDiscount + Number(shipping);
+  const taxAmount = (total * Number(tax)) / 100;
+  total = total + taxAmount;
+  total = total.toFixed(2);
+
+  await Order.create({
+    orderId: orderId,
+    type: "purchase",
+    user: user._id,
+    status: "created",
+    tax: tax,
+    taxAmount: taxAmount,
+    billingAddress: defaultBilling.billingDetails,
+    shippingAddress: address,
+    shipping: shipping,
+    discount: totalDiscount,
+    subTotal: subTotal,
+    total: total,
+    art_type: type,
+    items: fullItemsDetails.map((i) => {
+      return {
+        artwork: i._id,
+        other: {
+          subTotal: i.subTotal,
+          totalDiscount: i.totalDiscount,
+          discount: i.discount,
+        },
+      };
+    }),
+    currency: currency,
+    note: note,
+  });
+
+  const amountRound = total * 100;
+
+  const hashString = `${time}.${process.env.MERCHANT_ID}.${orderId}.${amountRound}.${currency}`;
+  const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
+
+  const finalString = `${hash1}.${process.env.SECRET}`;
+  const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
+
+  return res
+    .status(200)
+    .send({ message: "Order Created Successfully", data: sha1Hash, orderId: orderId, amount: amountRound, currency: currency, iso: isoCountry });
 });
 
 const checkPayerExist = catchAsyncError(async (req, res, next) => {
@@ -2505,7 +2466,12 @@ const getResponData = catchAsyncError(async (req, res, next) => {
 
   const artworks = order.items.map((item) => item.artwork);
 
-  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { item: { $in: artworks } } } });
+  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { $in: artworks } } });
+
+  if (order.art_type == "instant") {
+    await ArtWork.updateMany({ _id: { $in: artworks } }, { $set: { status: "sold" } });
+  }
+
   res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });
 });
 
