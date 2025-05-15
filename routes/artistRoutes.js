@@ -63,6 +63,7 @@ const {
   unfollowArtist,
   getUserFollowList,
   deleteUploadImage,
+  addToOfferCart,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -179,6 +180,8 @@ router.get("/get-recent-view", validateToken, getRecentlyView);
 router.get("/get-other-artworks", getOtherArtworks);
 
 router.patch("/add-to-cart/:id", validateToken, addToCart);
+
+router.patch("/add-offer-cart/:id", validateToken, addToOfferCart);
 
 router.patch("/remove-from-cart/:id", validateToken, removeFromCart);
 

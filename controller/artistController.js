@@ -1608,16 +1608,64 @@ const addToCart = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const artwork = await Artwork.findById(id);
+    const artwork = await Artwork.findById(id, { status: 1, "commercialization.activeTab": 1, "commercialization.purchaseType": 1 }).lean();
+    if (!artwork) return res.status(400).send({ message: "Artwork not found" });
+
     if (artwork.status !== "published") {
-      return res.status(400).send({ message: "Item canaot be added to cart" });
+      return res.status(400).send({ message: "Item cannot be added to cart" });
+    }
+
+    if (artwork.commercialization.activeTab === "purchase" && artwork.commercialization.purchaseType !== "Fixed Price") {
+      return res.status(400).send({ message: "Item cannot be added to cart" });
+    }
+
+    const result = await Artist.updateOne({ _id: req.user._id, cart: { $ne: id } }, { $push: { cart: id } });
+
+    if (result.modifiedCount === 0) {
+      return res.status(400).send({ message: "Item already added to cart" });
+    }
+
+    return res.status(200).send({ message: "Item added to cart successfully" });
+  } catch (error) {
+    APIErrorLog.error(error);
+    return res.status(500).send({ message: "Something went wrong" });
+  }
+};
+
+const addToOfferCart = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { offerprice, offerId } = req.body;
+
+    const makeOffer = await MakeOffer.findById(offerId, { status: 1, counterOffer: 1, artwork: 1 }).lean();
+    if (!makeOffer) return res.status(400).send({ message: "Your Offer not found" });
+
+    if (makeOffer.status !== "complete") {
+      return res.status(400).send({ message: "Your Offer is expired or not completed" });
+    }
+
+    if (makeOffer.counterOffer[makeOffer.counterOffer.length - 1].isAccepted !== true) {
+      return res.status(400).send({ message: "Your Offer is not accepted" });
+    }
+
+    const artwork = await Artwork.findById(id, { status: 1, "commercialization.activeTab": 1, "commercialization.purchaseType": 1 }).lean();
+    if (!artwork) return res.status(400).send({ message: "Artwork not found" });
+
+    if (makeOffer.artwork.toString() !== id) {
+      return res.status(400).send({ message: "Artwork not found" });
+    }
+
+    if (artwork.status !== "published") {
+      return res.status(400).send({ message: "Item cannot be added to cart" });
+    }
+
+    if (artwork.commercialization.activeTab !== "purchase" || artwork.commercialization.purchaseType === "Fixed Price") {
+      return res.status(400).send({ message: "Item cannot be added to cart" });
     }
 
     const result = await Artist.updateOne(
-      { _id: req.user._id, "cart.item": { $ne: id } },
-      {
-        $push: { cart: { item: id, quantity: 1 } },
-      }
+      { _id: req.user._id, "offer_cart.artwork": { $ne: id } },
+      { $push: { offer_cart: { artwork: objectId(id), offerprice } } }
     );
 
     if (result.modifiedCount === 0) {
@@ -1634,46 +1682,20 @@ const addToCart = async (req, res) => {
 const removeFromCart = async (req, res) => {
   try {
     const { id } = req.params;
-    const { remove } = req.query;
+    const { type } = req.query;
 
-    if (remove && remove == "true") {
-      await Artist.updateOne(
-        {
-          _id: req.user._id,
-          "cart.item": id,
-        },
-        {
-          $pull: { cart: { item: id } },
-        }
-      );
-
-      return res.status(200).send({ message: "Item removed from cart" });
+    let result = "";
+    if (type === "offer") {
+      result = await Artist.updateOne({ _id: req.user._id }, { $pull: { offer_cart: { artwork: id } } });
+    } else {
+      result = await Artist.updateOne({ _id: req.user._id }, { $pull: { cart: id } });
     }
 
-    const result = await Artist.updateOne(
-      {
-        _id: req.user._id,
-        "cart.item": id,
-      },
-      {
-        $inc: { "cart.$.quantity": -1 }, // Decrement quantity by 1
-      }
-    );
-
-    if (result && result.modifiedCount === 0) {
-      return res.status(404).send({ message: "Item not found in the cart" });
+    if (result.modifiedCount === 0) {
+      return res.status(400).send({ message: "Item not found in cart" });
     }
 
-    await Artist.updateOne(
-      {
-        _id: req.user._id,
-      },
-      {
-        $pull: { cart: { quantity: { $lte: 0 } } }, // Remove items with quantity 0 or less
-      }
-    );
-
-    return res.status(200).send({ message: `${result.modifiedCount} item(s) removed from cart` });
+    return res.status(200).send({ message: "Item removed from cart" });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1706,38 +1728,71 @@ const likeOrUnlikeArtwork = async (req, res) => {
 
 const getCartItems = async (req, res) => {
   try {
-    const data = await Artist.aggregate([
-      { $match: { _id: req.user._id } },
-      {
-        $lookup: {
-          from: "artworks",
-          localField: "cart.item",
-          foreignField: "_id",
-          as: "cartItems",
+    const [cart, offer_cart] = await Promise.all([
+      Artist.aggregate([
+        { $match: { _id: req.user._id } },
+        {
+          $lookup: {
+            from: "artworks",
+            localField: "cart",
+            foreignField: "_id",
+            pipeline: [{ $project: { _id: 1, artworkName: 1, "media.mainImage": 1, commercialization: 1, pricing: 1 } }],
+            as: "cartItems",
+          },
         },
-      },
-      {
-        $project: {
-          _id: 0,
-          cart: {
-            $map: {
-              input: "$cartItems",
-              as: "item",
-              in: {
-                _id: "$$item._id",
-                quantity: "$$item.quantity",
-                artworkName: "$$item.artworkName",
-                media: "$$item.media",
-                commercialization: "$$item.commercialization",
-                pricing: "$$item.pricing",
+        {
+          $project: {
+            _id: 0,
+            cart: {
+              $map: {
+                input: "$cartItems",
+                as: "item",
+                in: {
+                  _id: "$$item._id",
+                  artworkName: "$$item.artworkName",
+                  media: "$$item.media.mainImage",
+                  commercialization: {
+                    activeTab: "$$item.commercialization.activeTab",
+                    purchaseType: "$$item.commercialization.purchaseType",
+                  },
+                  pricing: "$$item.pricing",
+                },
               },
             },
           },
         },
-      },
+      ]),
+      Artist.aggregate([
+        { $match: { _id: req.user._id } },
+        { $unwind: "$offer_cart" },
+        {
+          $lookup: {
+            from: "artworks",
+            localField: "offer_cart.artwork",
+            foreignField: "_id",
+            pipeline: [{ $project: { _id: 1, artworkName: 1, "media.mainImage": 1, commercialization: 1, pricing: 1 } }],
+            as: "artworkDetails",
+          },
+        },
+        { $unwind: "$artworkDetails" },
+        {
+          $project: {
+            _id: 0,
+            _id: "$artworkDetails._id",
+            artworkName: "$artworkDetails.artworkName",
+            media: "$artworkDetails.media.mainImage",
+            commercialization: {
+              activeTab: "$artworkDetails.commercialization.activeTab",
+              purchaseType: "$artworkDetails.commercialization.purchaseType",
+            },
+            pricing: "$artworkDetails.pricing",
+            offerprice: "$offer_cart.offerprice",
+          },
+        },
+      ]),
     ]);
 
-    return res.status(200).send({ data: data[0] });
+    return res.status(200).send({ cart: cart[0]?.cart, offer_cart: offer_cart });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -1757,8 +1812,11 @@ const getUnAutorisedCartItems = async (req, res) => {
           $project: {
             _id: 1,
             artworkName: 1,
-            media: 1,
-            commercialization: 1,
+            media: "$media.mainImage",
+            commercialization: {
+              "commercialization.activeTab": 1,
+              "commercialization.purchaseType": 1,
+            },
             pricing: 1,
           },
         },
@@ -2792,6 +2850,7 @@ module.exports = {
   getUserTickets,
   replyTicketUser,
   addToCart,
+  addToOfferCart,
   removeFromCart,
   likeOrUnlikeArtwork,
   getCartItems,

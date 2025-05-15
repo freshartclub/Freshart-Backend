@@ -106,23 +106,14 @@ const artistSchema = new mongoose.Schema(
         type: String,
       },
     },
-    cart: [
+    cart: [{ type: mongoose.Schema.Types.ObjectId, default: [] }],
+    offer_cart: [
       {
-        item: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "ArtWork",
-        },
-        quantity: {
-          type: Number,
-          default: 1,
-        },
+        artwork: { type: mongoose.Schema.Types.ObjectId },
+        offerprice: { type: Number },
       },
     ],
-    wishlist: {
-      type: [mongoose.Schema.Types.ObjectId],
-      ref: "ArtWork",
-      default: [],
-    },
+    wishlist: [{ type: mongoose.Schema.Types.ObjectId }],
     isDeleted: {
       type: Boolean,
       default: false,
