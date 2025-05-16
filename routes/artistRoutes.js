@@ -270,6 +270,6 @@ router.get("/get-following", validateToken, getUserFollowList);
 
 // --------------------------- visulaise --------------------------
 
-router.get("/get-visualise-data", validateToken, getAllUserVisualize);
+router.get("/get-visualise-data", getAllUserVisualize);
 
 module.exports = router;

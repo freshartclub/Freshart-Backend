@@ -25,6 +25,7 @@ const CheckImage = require("../models/checkImageModel");
 const Circle = require("../models/circleModel");
 const Follow = require("../models/followerModel");
 const generateInviteCode = require("../functions/generateInviteCode");
+const deleteRemovedMedia = require("../functions/deleteMedia");
 
 const isStrongPassword = (password) => {
   const uppercaseRegex = /[A-Z]/;
@@ -1755,7 +1756,44 @@ const getCartItems = async (req, res) => {
                     activeTab: "$$item.commercialization.activeTab",
                     purchaseType: "$$item.commercialization.purchaseType",
                   },
-                  pricing: "$$item.pricing",
+                  pricing: {
+                    basePrice: {
+                      $cond: {
+                        if: {
+                          $and: [
+                            { $eq: ["$$item.commercialization.activeTab", "purchase"] },
+                            { $eq: ["$$item.commercialization.purchaseType", "Fixed Price"] },
+                          ],
+                        },
+                        then: "$$item.pricing.basePrice",
+                        else: "$$REMOVE",
+                      },
+                    },
+                    currency: {
+                      $cond: {
+                        if: {
+                          $and: [
+                            { $eq: ["$$item.commercialization.activeTab", "purchase"] },
+                            { $eq: ["$$item.commercialization.purchaseType", "Fixed Price"] },
+                          ],
+                        },
+                        then: "$$item.pricing.currency",
+                        else: "$$REMOVE",
+                      },
+                    },
+                    dpersentage: {
+                      $cond: {
+                        if: {
+                          $and: [
+                            { $eq: ["$$item.commercialization.activeTab", "purchase"] },
+                            { $eq: ["$$item.commercialization.purchaseType", "Fixed Price"] },
+                          ],
+                        },
+                        then: "$$item.pricing.dpersentage",
+                        else: "$$REMOVE",
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -1785,7 +1823,44 @@ const getCartItems = async (req, res) => {
               activeTab: "$artworkDetails.commercialization.activeTab",
               purchaseType: "$artworkDetails.commercialization.purchaseType",
             },
-            pricing: "$artworkDetails.pricing",
+            pricing: {
+              basePrice: {
+                $cond: {
+                  if: {
+                    $and: [
+                      { $eq: ["$artworkDetails.commercialization.activeTab", "purchase"] },
+                      { $eq: ["$artworkDetails.commercialization.purchaseType", "Fixed Price"] },
+                    ],
+                  },
+                  then: "$artworkDetails.pricing.basePrice",
+                  else: "$$REMOVE",
+                },
+              },
+              currency: {
+                $cond: {
+                  if: {
+                    $and: [
+                      { $eq: ["$artworkDetails.commercialization.activeTab", "purchase"] },
+                      { $eq: ["$artworkDetails.commercialization.purchaseType", "Fixed Price"] },
+                    ],
+                  },
+                  then: "$artworkDetails.pricing.currency",
+                  else: "$$REMOVE",
+                },
+              },
+              dpersentage: {
+                $cond: {
+                  if: {
+                    $and: [
+                      { $eq: ["$artworkDetails.commercialization.activeTab", "purchase"] },
+                      { $eq: ["$artworkDetails.commercialization.purchaseType", "Fixed Price"] },
+                    ],
+                  },
+                  then: "$artworkDetails.pricing.dpersentage",
+                  else: "$$REMOVE",
+                },
+              },
+            },
             offerprice: "$offer_cart.offerprice",
             type: "$offer_cart.type",
           },
@@ -1807,26 +1882,54 @@ const getUnAutorisedCartItems = async (req, res) => {
     ids = ids.split(",").map((id) => objectId(id));
 
     if (ids.length > 0) {
-      const data = await Artwork.aggregate([
-        { $match: { _id: { $in: ids } }, status: "published" },
+      const cart = await Artwork.aggregate([
+        { $match: { _id: { $in: ids }, status: "published" } },
         {
           $project: {
             _id: 1,
             artworkName: 1,
             media: "$media.mainImage",
             commercialization: {
-              "commercialization.activeTab": 1,
-              "commercialization.purchaseType": 1,
+              activeTab: "$commercialization.activeTab",
+              purchaseType: "$commercialization.purchaseType",
             },
-            pricing: 1,
+            pricing: {
+              basePrice: {
+                $cond: {
+                  if: {
+                    $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+                  },
+                  then: "$pricing.basePrice",
+                  else: "$$REMOVE",
+                },
+              },
+              currency: {
+                $cond: {
+                  if: {
+                    $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+                  },
+                  then: "$pricing.currency",
+                  else: "$$REMOVE",
+                },
+              },
+              dpersentage: {
+                $cond: {
+                  if: {
+                    $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+                  },
+                  then: "$pricing.dpersentage",
+                  else: "$$REMOVE",
+                },
+              },
+            },
           },
         },
       ]);
 
-      return res.status(200).send({ data: { cart: data } });
+      return res.status(200).send({ cart: cart });
     }
 
-    return res.status(200).send({ data: { cart: [] } });
+    return res.status(200).send({ cart: [] });
   } catch (error) {
     APIErrorLog.error(error);
     return res.status(500).send({ message: "Something went wrong" });
@@ -2758,12 +2861,10 @@ const getUploadAllImages = catchAsyncError(async (req, res, next) => {
 const deleteUploadImage = catchAsyncError(async (req, res, next) => {
   const imageId = req.params.id;
 
-  const image = await CheckImage.findOneAndUpdate({ _id: imageId, user: req.user._id }, { isDeleted: true }, { new: true });
+  const deleteImg = await CheckImage.findOneAndDelete({ _id: imageId });
+  const image = deleteImg.image;
 
-  if (!image) {
-    return res.status(404).json({ message: "Image not found or unauthorized" });
-  }
-
+  await deleteRemovedMedia([image], []);
   return res.status(200).json({ message: "Image deleted successfully" });
 });
 

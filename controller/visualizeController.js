@@ -103,7 +103,6 @@ const getAllUserVisualize = catchAsyncError(async (req, res) => {
     },
   ]);
 
-  // Convert `_id` to key name
   const groupedData = {};
   allVisualize.forEach((group) => {
     groupedData[group._id] = group.data;
