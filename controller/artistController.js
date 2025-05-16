@@ -660,8 +660,14 @@ const becomeArtist = async (req, res) => {
           email: req.body.email.toLowerCase(),
           isDeleted: false,
         },
-        { isArtistRequestStatus: 1 }
-      ).lean(true);
+        { isArtistRequestStatus: 1, isActivated: 1 }
+      ).lean();
+
+      if (user && user?.isActivated == true) {
+        return res.status(400).send({
+          message: "You are already an artist",
+        });
+      }
 
       if (user && user?.isArtistRequestStatus === "pending") {
         return res.status(400).send({
@@ -1685,8 +1691,10 @@ const removeFromCart = async (req, res) => {
     const { id } = req.params;
     const { type } = req.query;
 
+    console.log(type, id);
+
     let result = "";
-    if (type === "offer") {
+    if (type == "offer") {
       result = await Artist.updateOne({ _id: req.user._id }, { $pull: { offer_cart: { artwork: id } } });
     } else {
       result = await Artist.updateOne({ _id: req.user._id }, { $pull: { cart: id } });
@@ -1769,18 +1777,7 @@ const getCartItems = async (req, res) => {
                         else: "$$REMOVE",
                       },
                     },
-                    currency: {
-                      $cond: {
-                        if: {
-                          $and: [
-                            { $eq: ["$$item.commercialization.activeTab", "purchase"] },
-                            { $eq: ["$$item.commercialization.purchaseType", "Fixed Price"] },
-                          ],
-                        },
-                        then: "$$item.pricing.currency",
-                        else: "$$REMOVE",
-                      },
-                    },
+                    currency: "$$item.pricing.currency",
                     dpersentage: {
                       $cond: {
                         if: {
@@ -1836,18 +1833,7 @@ const getCartItems = async (req, res) => {
                   else: "$$REMOVE",
                 },
               },
-              currency: {
-                $cond: {
-                  if: {
-                    $and: [
-                      { $eq: ["$artworkDetails.commercialization.activeTab", "purchase"] },
-                      { $eq: ["$artworkDetails.commercialization.purchaseType", "Fixed Price"] },
-                    ],
-                  },
-                  then: "$artworkDetails.pricing.currency",
-                  else: "$$REMOVE",
-                },
-              },
+              currency: "$artworkDetails.pricing.currency",
               dpersentage: {
                 $cond: {
                   if: {

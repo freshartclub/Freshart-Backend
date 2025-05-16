@@ -1,81 +1,50 @@
 const multer = require("multer");
-const mongoose = require("mongoose");
 const sharp = require("sharp");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 const THUMBNAIL_MAX_SIZE = 80 * 1024;
 
+const generateRandomString = () => {
+  return crypto.randomBytes(5).toString("hex").slice(0, 10);
+};
+
+const generateFilename = (originalname) => {
+  const ext = path.extname(originalname).slice(1);
+  const randomStr = generateRandomString();
+  const timestamp = Date.now();
+  return `${randomStr}-${timestamp}.${ext}`;
+};
+
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    if (file?.fieldname === "collectionFile") {
-      if (file.mimetype.startsWith("image/")) {
-        return cb(null, "./public/uploads/users");
-      } else {
-        return cb(null, "./public/uploads/videos");
-      }
-    }
+    const basePath = "./public/uploads";
 
-    if (file?.fieldname === "circleFile") {
-      if (file.mimetype.startsWith("image/")) {
-        return cb(null, "./public/uploads/users");
-      } else {
-        return cb(null, "./public/uploads/videos");
-      }
+    if (file?.fieldname === "collectionFile" || file?.fieldname === "circleFile") {
+      const typePath = file.mimetype.startsWith("image/") ? "users" : "videos";
+      return cb(null, `${basePath}/${typePath}`);
     }
 
     if (file?.fieldname === "ticketImg") {
-      if (file.mimetype.startsWith("image/")) {
-        return cb(null, "./public/uploads/users");
-      } else {
-        return cb(null, "./public/uploads/documents");
-      }
+      const typePath = file.mimetype.startsWith("image/") ? "users" : "documents";
+      return cb(null, `${basePath}/${typePath}`);
     }
 
     if (file?.fieldname === "uploadDocs") {
-      cb(null, "./public/uploads/documents");
+      return cb(null, `${basePath}/documents`);
     }
 
     if (["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname)) {
-      return cb(null, "./public/uploads/videos");
+      return cb(null, `${basePath}/videos`);
     }
 
-    return cb(null, "./public/uploads/users");
+    return cb(null, `${basePath}/users`);
   },
 
   filename: function (req, file, cb) {
-    const fileExtension = path.extname(file.originalname).slice(1);
-    let data = req?.user?._id;
-    if (
-      [
-        "disciplineImage",
-        "profileImage",
-        "additionalImage",
-        "images",
-        "inProcessImage",
-        "uploadDocs",
-        "additionalVideo",
-        "mainImage",
-        "mainVideo",
-        "otherVideo",
-        "backImage",
-        "insigniaImage",
-        "avatar",
-        "catalogImg",
-        "ticketImg",
-        "collectionFile",
-        "expertImg",
-        "evidenceImg",
-        "planImg",
-        "carouselImg",
-        "checkImage",
-        "circleFile",
-      ].includes(file?.fieldname)
-    ) {
-      data = mongoose.Types.ObjectId();
-    }
-    cb(null, `${data}.${fileExtension}`);
+    cb(null, generateFilename(file.originalname));
   },
 });
 
@@ -90,35 +59,22 @@ const fileFilter = (req, file, cb) => {
     "application/pdf",
   ]);
 
-  if (file?.fieldname === "uploadDocs") {
-    if (docMimeTypes.has(file.mimetype)) {
-      return cb(null, true);
-    }
-  }
+  const field = file?.fieldname;
 
-  if (file?.fieldname === "collectionFile") {
-    if (videoMimeTypes.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
-      return cb(null, true);
-    }
-  }
+  const fieldValidators = {
+    uploadDocs: docMimeTypes,
+    collectionFile: new Set([...imageMimeTypes, ...videoMimeTypes]),
+    circleFile: new Set([...imageMimeTypes, ...videoMimeTypes]),
+    ticketImg: new Set([...imageMimeTypes, ...docMimeTypes]),
+    additionalVideo: videoMimeTypes,
+    mainVideo: videoMimeTypes,
+    otherVideo: videoMimeTypes,
+    default: imageMimeTypes,
+  };
 
-  if (file?.fieldname === "circleFile") {
-    if (videoMimeTypes.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
-      return cb(null, true);
-    }
-  }
+  const validator = fieldValidators[field] || fieldValidators.default;
 
-  if (file?.fieldname === "ticketImg") {
-    if (docMimeTypes.has(file.mimetype) || imageMimeTypes.has(file.mimetype)) {
-      return cb(null, true);
-    }
-  }
-
-  if (["additionalVideo", "mainVideo", "otherVideo"].includes(file?.fieldname) && videoMimeTypes.has(file.mimetype)) {
-    return cb(null, true);
-  }
-
-  if (imageMimeTypes.has(file.mimetype)) {
+  if (validator.has(file.mimetype)) {
     return cb(null, true);
   }
 
@@ -126,7 +82,6 @@ const fileFilter = (req, file, cb) => {
   return cb(null, false, req.fileValidationError);
 };
 
-// Multer Upload Configuration
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,

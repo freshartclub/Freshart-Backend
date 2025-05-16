@@ -13,12 +13,10 @@ const SubscribeArtwork = require("../models/subscribeArtwork");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 
+const languageCode = ["EN", "CAT", "ES"];
+
 const checkOutSub = catchAsyncError(async (req, res, next) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
-
   const checkValid = await checkValidations(errors);
   if (checkValid.type === "error") {
     return res.status(400).send({
@@ -33,13 +31,13 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
   }
 
   const artist = await Artist.findOne({ _id: req.user._id }, { cart: 1 }).lean();
+  if (!artist) return res.status(400).send({ message: "Artist not found" });
 
   const artworks = await ArtWork.find(
     {
-      _id: { $in: artist.cart.map((art) => art.item) },
+      _id: { $in: artist.cart },
       "commercialization.activeTab": "subscription",
       status: "published",
-      isDeleted: false,
     },
     { _id: 1, commercialization: 1 }
   ).lean();
@@ -48,7 +46,7 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
   const missingIds = ids.filter((id) => !foundIds.includes(id));
 
   if (missingIds.length > 0) {
-    return res.status(404).send({
+    return res.status(400).send({
       message: "Some artworks were not found or are not available for subscription.",
       missingArtworks: missingIds,
     });
@@ -164,7 +162,6 @@ const confrimExchange = catchAsyncError(async (req, res, next) => {
   const { subscribeIds, exchangeIds, returnDate, pickupDate, instructions } = req.body;
 
   if (exchangeIds && exchangeIds.length > 0) {
-    // if user has already has an another artwork
     const exchange = await SubscribeArtwork.find({ artwork: { $in: exchangeIds }, user: req.user._id, status: "active" }).lean();
 
     if (exchange.length !== exchangeIds.length) {
@@ -201,8 +198,10 @@ const confrimExchange = catchAsyncError(async (req, res, next) => {
     status: "requested",
   });
 
-  let langCode = req.body?.langCode || "EN";
-  if (langCode == "GB") langCode = "EN";
+  let langCode = "EN";
+  if (req.body?.langCode && languageCode.includes(req.body?.langCode)) {
+    langCode = req.body.langCode;
+  }
 
   const findEmail = await EmailType.findOne({
     emailType: "artwork-subscribe-request",
@@ -213,15 +212,14 @@ const confrimExchange = catchAsyncError(async (req, res, next) => {
   artOwners.forEach(async (owner) => {
     const artist = await Artist.findOne({ _id: owner }, { email: 1, artistName: 1 }).lean();
 
-    let artworkRows = artworks
+    let artworkRows = validArtworks
       .map(
         (art) => `
       <tr>
         <td><img src="${art.image}" alt="${art.name}" width="100"/></td>
         <td>${art.name}</td>
-        <td>${art._id}</td>
         <td>
-          <a href="https://freshartclub.com/artist-panel">Accept / Reject</a>
+          <a href="https://freshartclub.com/artist-panel/order/approve-order?id=${newSub._id}">Accept / Reject</a>
         </td>
       </tr>
     `
@@ -243,6 +241,16 @@ const confrimExchange = catchAsyncError(async (req, res, next) => {
     message: "Exchange Requested Successfully.",
     data: newSub,
   });
+});
+
+const createLogistics = catchAsyncError(async (req, res, next) => {
+  const errors = validationResult(req);
+  const checkValid = await checkValidations(errors);
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
+  }
 });
 
 module.exports = { checkOutSub, confrimExchange };
