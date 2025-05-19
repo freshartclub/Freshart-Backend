@@ -30,7 +30,7 @@ const {
   verifyOrderSMSOTP,
 } = require("../controller/orderController");
 const { createPayerBody, createSubscribeOrderBody, createOrderBody, checkOutSubBody, confrimExchangeBody } = require("../validations/validator");
-const { checkOutSub, confrimExchange } = require("../controller/checkOutSubController");
+const { checkOutSub, confrimExchange, createPurchaseLogistics } = require("../controller/checkOutSubController");
 
 const router = express.Router();
 
@@ -93,5 +93,6 @@ router.post("/cancel/:id", validateToken, cancelSchedule);
 
 router.post("/check-sub", validateToken, checkOutSubBody, checkOutSub);
 router.post("/exchange", validateToken, confrimExchangeBody, confrimExchange);
+router.post("/purchase/logistics", createPurchaseLogistics);
 
 module.exports = router;

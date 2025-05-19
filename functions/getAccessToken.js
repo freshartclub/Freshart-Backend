@@ -1,5 +1,6 @@
 require("dotenv").config();
 const axios = require("axios");
+const qs = require("qs");
 const crypto = require("crypto");
 
 const generateNonce = () => crypto.randomBytes(16).toString("hex");
@@ -71,24 +72,63 @@ async function getSingleAccessToken() {
   }
 }
 
-// ------------------- shipment token generate -------------------------
+// ---------------------------- ms oauth -------------------------
 
-async function getShipmentAccessToken() {
-  const url = "https://servicios.apipre.seur.io/pic_token";
+async function getToken() {
+  try {
+    const response = await axios.post(
+      `https://login.microsoftonline.com/${process.env.MAIL_TENANT_ID}/oauth2/v2.0/token`,
+      new URLSearchParams({
+        client_id: process.env.MAIL_CLIENT_ID,
+        scope: "https://outlook.office365.com/.default offline_access",
+        client_secret: process.env.MAIL_CLIENT_SECRET,
+        grant_type: "password",
+        username: process.env.MAIL_USER,
+        password: process.env.MAIL_PASS,
+      })
+    );
 
-  const data = qs.stringify({
-    grant_type: "password",
-    client_id: process.env.SHIPMENT_CLIENT_ID,
-    client_secret: process.env.SHIPMENT_CLIENT_SECRET,
-    username: process.env.SHIPMENT_USERNAME,
-    password: process.env.SHIPMENT_PASSWORD,
-  });
-
-  const response = await axios.post(url, data, {
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-  });
-
-  return response.data.access_token;
+    return response.data.access_token;
+  } catch (error) {
+    console.error("Error getting access token:", error.response?.data || error.message);
+    throw error;
+  }
 }
 
-module.exports = { getAccessToken, getSingleAccessToken, getShipmentAccessToken };
+// ------------------- shipment token generate -------------------------
+
+async function getShipmentAccessToken(req, res) {
+  try {
+    // Your data object
+    const data = {
+      grant_type: "password",
+      client_id: process.env.SHIPMENT_CLIENT_ID,
+      client_secret: process.env.SHIPMENT_CLIENT_SECRET,
+      username: process.env.SHIPMENT_USERNAME,
+      password: process.env.SHIPMENT_PASSWORD,
+    };
+
+    // Convert to URLSearchParams
+    const params = new URLSearchParams();
+    for (const key in data) {
+      params.append(key, data[key]);
+    }
+
+    // Make the API request
+    const response = await axios.post("https://servicios.apipre.seur.io/pic_token", params, {
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+    });
+
+    // Send response back
+    return res.status(200).json(response.data);
+  } catch (error) {
+    console.error("Error fetching token:", error.response?.data || error.message);
+    return res.status(500).send({ message: "Error fetching token" });
+  }
+
+  // return response.data.access_token;
+}
+
+module.exports = { getAccessToken, getSingleAccessToken, getToken, getShipmentAccessToken };

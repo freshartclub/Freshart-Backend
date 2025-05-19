@@ -1778,6 +1778,7 @@ const getCartItems = async (req, res) => {
                       },
                     },
                     currency: "$$item.pricing.currency",
+                    vatAmount: "$$item.pricing.vatAmount",
                     dpersentage: {
                       $cond: {
                         if: {
@@ -1834,6 +1835,7 @@ const getCartItems = async (req, res) => {
                 },
               },
               currency: "$artworkDetails.pricing.currency",
+              vatAmount: "$artworkDetails.pricing.vatAmount",
               dpersentage: {
                 $cond: {
                   if: {

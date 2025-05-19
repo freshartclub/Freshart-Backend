@@ -12,6 +12,7 @@ const { validationResult } = require("express-validator");
 const SubscribeArtwork = require("../models/subscribeArtwork");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
+const { getShipmentAccessToken } = require("../functions/getAccessToken");
 
 const languageCode = ["EN", "CAT", "ES"];
 
@@ -148,9 +149,6 @@ const checkOutSub = catchAsyncError(async (req, res, next) => {
 
 const confrimExchange = catchAsyncError(async (req, res, next) => {
   const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
-  }
 
   const checkValid = await checkValidations(errors);
   if (checkValid.type === "error") {
@@ -173,7 +171,7 @@ const confrimExchange = catchAsyncError(async (req, res, next) => {
 
   // if user has no another artwork
   const validArtworks = await ArtWork.find({ _id: { $in: subscribeIds }, status: "published" }, { owner: 1, artworkName: 1, artworkId: 1 }).lean();
-  const artOwners = new Set();
+  let artOwners = new Set();
 
   if (validArtworks.length !== subscribeIds.length) {
     return res.status(400).send({
@@ -196,6 +194,10 @@ const confrimExchange = catchAsyncError(async (req, res, next) => {
     returnDate,
     instructions,
     status: "requested",
+  });
+
+  validArtworks.forEach((art) => {
+    artOwners.add(art.owner);
   });
 
   let langCode = "EN";
@@ -243,7 +245,7 @@ const confrimExchange = catchAsyncError(async (req, res, next) => {
   });
 });
 
-const createLogistics = catchAsyncError(async (req, res, next) => {
+const createPurchaseLogistics = catchAsyncError(async (req, res, next) => {
   const errors = validationResult(req);
   const checkValid = await checkValidations(errors);
   if (checkValid.type === "error") {
@@ -251,6 +253,11 @@ const createLogistics = catchAsyncError(async (req, res, next) => {
       message: checkValid.errors.msg,
     });
   }
+
+  const getToken = getShipmentAccessToken(req, res);
+  console.log(getToken);
+
+  // res.status(200).send({ message: "Success", data: getToken });
 });
 
-module.exports = { checkOutSub, confrimExchange };
+module.exports = { checkOutSub, confrimExchange, createPurchaseLogistics };
