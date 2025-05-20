@@ -93,6 +93,16 @@ const confrimExchangeBody = [
   body("instructions").exists({ checkFalsy: true }).withMessage("Instructions is required").isString().withMessage("Instructions is invalid"),
 ];
 
+const acceptRejectOrderRequestBody = [
+  param("id").exists({ checkFalsy: true }).withMessage("Order Id is required"),
+  body("status").exists({ checkFalsy: true }).withMessage("Status is required").isIn(["accepted", "rejected"]).withMessage("Status is invalid"),
+  body("userId").exists({ checkFalsy: true }).withMessage("User Id is required"),
+  body("morningFrom").exists({ checkFalsy: true }).withMessage("Morning From is required").isTime().withMessage("Morning From is invalid"),
+  body("morningTo").exists({ checkFalsy: true }).withMessage("Morning To is required").isTime().withMessage("Morning To is invalid"),
+  body("eveningFrom").exists({ checkFalsy: true }).withMessage("Evening From is required").isTime().withMessage("Evening From is invalid"),
+  body("eveningTo").exists({ checkFalsy: true }).withMessage("Evening To is required").isTime().withMessage("Evening To is invalid"),
+];
+
 module.exports = {
   loginData,
   createOrderBody,
@@ -103,4 +113,5 @@ module.exports = {
   makeOfferArtistBody,
   confrimExchangeBody,
   addToCartOfferBody,
+  acceptRejectOrderRequestBody,
 };

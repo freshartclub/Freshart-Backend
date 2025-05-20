@@ -16,6 +16,50 @@ const { getShipmentAccessToken } = require("../functions/getAccessToken");
 
 const languageCode = ["EN", "CAT", "ES"];
 
+const formatDate = (date) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+const generateRef = () => {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let ref = "";
+  for (let i = 0; i < 8; i++) {
+    ref += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return ref;
+};
+
+const generateFACRef = () => {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let ref = "FAC-INV-";
+  for (let i = 0; i < 4; i++) {
+    ref += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  ref += "-";
+  let numbers = "0123456789";
+  for (let i = 0; i < 4; i++) {
+    ref += numbers.charAt(Math.floor(Math.random() * numbers.length));
+  }
+
+  return ref;
+};
+
+const formatTime = (time) => {
+  const d = new Date(time);
+  return `${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}`;
+};
+
+const name = (val) => {
+  let fullName = val?.artistName || "";
+
+  if (val?.nickName) fullName += " " + `"${val?.nickName}"`;
+  if (val?.artistSurname1) fullName += " " + val?.artistSurname1;
+  if (val?.artistSurname2) fullName += " " + val?.artistSurname2;
+
+  return fullName.trim();
+};
+
 const checkOutSub = catchAsyncError(async (req, res, next) => {
   const errors = validationResult(req);
   const checkValid = await checkValidations(errors);
@@ -254,10 +298,117 @@ const createPurchaseLogistics = catchAsyncError(async (req, res, next) => {
     });
   }
 
-  const getToken = getShipmentAccessToken(req, res);
-  console.log(getToken);
+  const access_token = getShipmentAccessToken(req, res);
+  const { id: userId } = req.params;
+  const { ids: artworkIds, morningFrom, morningTo, eveningFrom, eveningTo, observe } = req.body;
 
-  // res.status(200).send({ message: "Success", data: getToken });
+  const [artist, user] = await Promise.all([
+    Artist.findOne(
+      { _id: req.user._id, isActivated: true },
+      { address: 1, email: 1, phone: 1, nickName: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, artistId: 1 }
+    ).lean(),
+    Artist.findOne(
+      { _id: userId },
+      { address: 1, email: 1, nickName: 1, phone: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, userId: 1 }
+    ).lean(),
+  ]);
+
+  if (!artist || !user) return res.status(400).send({ message: "Artist/User not found" });
+
+  let parcels = [];
+  const artworks = await ArtWork.find(
+    {
+      _id: { $in: artworkIds },
+      owner: req.user._id,
+      "commercialization.activeTab": "purchase",
+      status: "published",
+    },
+    { _id: 1, commercialization: 1, inventoryShipping: 1 }
+  ).lean();
+
+  if (artworks.length === 0) {
+    return res.status(400).send({
+      message: "Please provide valid artwork ids.",
+    });
+  }
+
+  if (artworks.length !== ids.length) {
+    return res.status(400).send({
+      message: "Some artworks were not found or are not available for purchase.",
+    });
+  }
+
+  artworks.forEach((art) => {
+    parcels.push({
+      weight: art.inventoryShipping.packageWeight,
+      length: art.inventoryShipping.packageLength,
+      height: art.inventoryShipping.packageHeight,
+      width: art.inventoryShipping.packageWidth,
+      packReference: generateRef(),
+    });
+  });
+
+  const data = {
+    customer: {
+      accountNumber: "77017-8",
+      idNumber: "A17521279",
+      name: "Fresh Art Club",
+      email: "logistics@freshartclub.com",
+      phone: "+34 638 549 463",
+    },
+    collectionDate: formatDate(new Date()),
+    serviceCode: 1,
+    productCode: 2,
+    ref: generateFACRef(),
+    label: true,
+    payer: "ORD",
+    sender: {
+      name: name(artist),
+      contactName: artist.nickName ? artist.nickName : name(artist),
+      idNumber: artist.artistId,
+      phone: artist.phone,
+      email: artist.email,
+      address: {
+        streetName: artist.address.residentialAddress,
+        postalCode: artist.address.zipCode,
+        cityName: artist.address.city,
+        country: artist.address.country,
+      },
+    },
+    receiver: {
+      name: name(user),
+      contactName: user.nickName ? user.nickName : name(user),
+      idNumber: user.userId,
+      phone: user.phone,
+      email: user.email,
+      address: {
+        streetName: user.address.residentialAddress,
+        postalCode: user.address.zipCode,
+        cityName: user.address.city,
+        country: user.address.country,
+      },
+    },
+    parcels: parcels,
+    observations: observe,
+    restrictions: {
+      scheduleMorningTimeSlotFrom: formatTime(morningFrom),
+      scheduleMorningTimeSlotTo: formatTime(morningTo),
+      scheduleEveningTimeSlotFrom: formatTime(eveningFrom),
+      scheduleEveningTimeSlotTo: formatTime(eveningTo),
+    },
+    insuredValue: 3000,
+  };
+
+  const response = await axios.post("https://pic-pre.apicast.seur.io/v1/collections", data, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
+    },
+  });
+
+  return res.status(200).send({
+    message: "Logistics created successfully.",
+  });
 });
 
 module.exports = { checkOutSub, confrimExchange, createPurchaseLogistics };

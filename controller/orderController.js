@@ -18,10 +18,54 @@ const SubscriptionTransaction = require("../models/subscriptionTransaction");
 const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const EmailType = require("../models/emailTypeModel");
+const { getShipmentAccessToken } = require("../functions/getAccessToken");
 
 const url = "https://remote.sandbox.addonpayments.com/remote";
-
 const languageCode = ["EN", "CAT", "ES"];
+
+const formatDate = (date) => {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+};
+
+const generateRef = () => {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let ref = "";
+  for (let i = 0; i < 8; i++) {
+    ref += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  return ref;
+};
+
+const generateFACRef = () => {
+  const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let ref = "FAC-INV-";
+  for (let i = 0; i < 4; i++) {
+    ref += characters.charAt(Math.floor(Math.random() * characters.length));
+  }
+  ref += "-";
+  let numbers = "0123456789";
+  for (let i = 0; i < 4; i++) {
+    ref += numbers.charAt(Math.floor(Math.random() * numbers.length));
+  }
+
+  return ref;
+};
+
+const formatTime = (time) => {
+  const d = new Date(time);
+  return `${d.getHours()}:${d.getMinutes()}:${d.getSeconds()}`;
+};
+
+const name = (val) => {
+  let fullName = val?.artistName || "";
+
+  if (val?.nickName) fullName += " " + `"${val?.nickName}"`;
+  if (val?.artistSurname1) fullName += " " + val?.artistSurname1;
+  if (val?.artistSurname2) fullName += " " + val?.artistSurname2;
+
+  return fullName.trim();
+};
 
 function getTimestamp() {
   const now = new Date();
@@ -2007,6 +2051,7 @@ const getArtistSingleOrder = catchAsyncError(async (req, res, next) => {
           $push: {
             other: "$items.other",
             artwork: "$items.artwork",
+            logistics: "$items.logistics",
           },
         },
       },
@@ -2210,20 +2255,140 @@ const getUserSingleOrder = catchAsyncError(async (req, res, next) => {
 });
 
 const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
-  const { id } = req.params;
-  let { status } = req.body;
-
-  if (!id) return res.status(404).send({ message: "OrderId not found" });
-
-  if (status !== "accept" && status !== "reject") return res.status(400).send({ message: "Please provide valid status" });
-
-  if (status === "accept") {
-    status = "accepted";
-  } else {
-    status = "rejected";
+  const errors = validationResult(req);
+  const checkValid = await checkValidations(errors);
+  if (checkValid.type === "error") {
+    return res.status(400).send({
+      message: checkValid.errors.msg,
+    });
   }
 
-  await Order.updateOne({ _id: id }, { $set: { status: status } });
+  const { id: orderID } = req.params;
+  const { status, userId, morningFrom, morningTo, eveningFrom, eveningTo, observe } = req.body;
+  // if (status !== "accept" && status !== "reject") return res.status(400).send({ message: "Please provide valid status" });
+
+  const [order, artist, user] = await Promise.all([
+    Order.findOne({ _id: orderID }, { items: 1, status: 1, user: 1 }).lean(),
+    Artist.findOne(
+      { _id: req.user._id, isActivated: true },
+      { address: 1, email: 1, phone: 1, nickName: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, artistId: 1 }
+    ).lean(),
+    Artist.findOne(
+      { _id: userId },
+      { address: 1, email: 1, nickName: 1, phone: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, userId: 1 }
+    ).lean(),
+  ]);
+
+  if (!order) return res.status(400).send({ message: "Order not found" });
+  if (!artist || !user) return res.status(400).send({ message: "Artist/User not found" });
+
+  // const access_token = getShipmentAccessToken(req, res);
+  let parcels = [];
+
+  const artworks = await ArtWork.find(
+    {
+      _id: { $in: order.items.map((item) => item.artwork) },
+      owner: req.user._id,
+    },
+    { status: 1, owner: 1, commercialization: 1, inventoryShipping: 1 }
+  ).lean();
+
+  const initialArtworks = artworks.length;
+  const availableArtworks = artworks.filter((artwork) => artwork.status === "not-available");
+
+  if (availableArtworks.length == 0) {
+    return res.status(400).send({ message: "All Artworks are not available" });
+  }
+
+  if (initialArtworks !== availableArtworks.length) return res.status(400).send({ message: "Some Artwork are not available" });
+
+  availableArtworks.forEach((art) => {
+    parcels.push({
+      weight: art.inventoryShipping.packageWeight,
+      length: art.inventoryShipping.packageLength,
+      height: art.inventoryShipping.packageHeight,
+      width: art.inventoryShipping.packageWidth,
+      packReference: generateRef(),
+    });
+  });
+
+  const data = {
+    customer: {
+      accountNumber: "77017-8",
+      idNumber: "A17521279",
+      name: "Fresh Art Club",
+      email: "logistics@freshartclub.com",
+      phone: "+34 638 549 463",
+    },
+    collectionDate: formatDate(new Date()),
+    serviceCode: 1,
+    productCode: 2,
+    ref: generateFACRef(),
+    label: true,
+    payer: "ORD",
+    sender: {
+      name: name(artist),
+      contactName: artist.nickName ? artist.nickName : name(artist),
+      idNumber: artist.artistId,
+      phone: artist.phone,
+      email: artist.email,
+      address: {
+        streetName: artist.address.residentialAddress,
+        postalCode: artist.address.zipCode,
+        cityName: artist.address.city,
+        country: artist.address.country,
+      },
+    },
+    receiver: {
+      name: name(user),
+      contactName: user.nickName ? user.nickName : name(user),
+      idNumber: user.userId,
+      phone: user.phone,
+      email: user.email,
+      address: {
+        streetName: user.address.residentialAddress,
+        postalCode: user.address.zipCode,
+        cityName: user.address.city,
+        country: user.address.country,
+      },
+    },
+    parcels: parcels,
+    observations: observe,
+    restrictions: {
+      scheduleMorningTimeSlotFrom: formatTime(morningFrom),
+      scheduleMorningTimeSlotTo: formatTime(morningTo),
+      scheduleEveningTimeSlotFrom: formatTime(eveningFrom),
+      scheduleEveningTimeSlotTo: formatTime(eveningTo),
+    },
+    insuredValue: 3000,
+  };
+
+  // const response = await axios.post("https://pic-pre.apicast.seur.io/v1/collections", data, {
+  //   headers: {
+  //     "Content-Type": "application/json",
+  //     Authorization: `Bearer ${access_token}`,
+  //   },
+  // });
+
+  // console.log(response.data);
+
+  const availableArtworkIds = availableArtworks.map((art) => art._id);
+
+  await Order.updateOne(
+    { _id: orderID, "items.artwork": { $in: availableArtworkIds } },
+    {
+      $set: {
+        "items.$[].logistics.status": "processing",
+        "items.$[].logistics.collectionRef": "gfgfhfh" || response.data.collectionRef,
+        "items.$[].logistics.morningFrom": morningFrom,
+        "items.$[].logistics.morningTo": morningTo,
+        "items.$[].logistics.eveningFrom": eveningFrom,
+        "items.$[].logistics.eveningTo": eveningTo,
+        "items.$[].logistics.observations": observe,
+      },
+    }
+  );
+
   return res.status(200).send({ message: `Order Request ${status}` });
 });
 
@@ -2469,7 +2634,7 @@ const getResponData = catchAsyncError(async (req, res, next) => {
   await Artist.updateOne({ _id: order.user }, { $pull: { cart: { $in: artworks } } });
 
   if (order.art_type == "instant") {
-    await ArtWork.updateMany({ _id: { $in: artworks } }, { $set: { status: "sold" } });
+    await ArtWork.updateMany({ _id: { $in: artworks } }, { $set: { status: "not-available" } });
   }
 
   res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });

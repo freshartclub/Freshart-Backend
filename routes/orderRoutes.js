@@ -29,7 +29,14 @@ const {
   sendOrderSMSOTP,
   verifyOrderSMSOTP,
 } = require("../controller/orderController");
-const { createPayerBody, createSubscribeOrderBody, createOrderBody, checkOutSubBody, confrimExchangeBody } = require("../validations/validator");
+const {
+  createPayerBody,
+  createSubscribeOrderBody,
+  createOrderBody,
+  checkOutSubBody,
+  confrimExchangeBody,
+  acceptRejectOrderRequestBody,
+} = require("../validations/validator");
 const { checkOutSub, confrimExchange, createPurchaseLogistics } = require("../controller/checkOutSubController");
 
 const router = express.Router();
@@ -60,7 +67,7 @@ router.get("/get-artist-order", validateToken, getArtistOrders);
 
 router.get("/get-artist-single-order/:id", validateToken, getArtistSingleOrder);
 
-router.patch("/accept-order-request/:id", validateToken, acceptRejectOrderRequest);
+router.post("/accept-order/:id", validateToken, acceptRejectOrderRequestBody, acceptRejectOrderRequest);
 
 router.patch("/upload-evidence/:id", validateToken, uploadEvedience);
 

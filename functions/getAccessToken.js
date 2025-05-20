@@ -1,6 +1,5 @@
 require("dotenv").config();
 const axios = require("axios");
-const qs = require("qs");
 const crypto = require("crypto");
 
 const generateNonce = () => crypto.randomBytes(16).toString("hex");
@@ -37,7 +36,6 @@ async function getAccessToken() {
     return response.data;
   } catch (error) {
     console.error("Error getting access token:", error.response?.data || error.message);
-    throw error;
   }
 }
 
@@ -68,7 +66,6 @@ async function getSingleAccessToken() {
     return response.data;
   } catch (error) {
     console.error("Error getting access token:", error.response?.data || error.message);
-    throw error;
   }
 }
 
@@ -91,7 +88,6 @@ async function getToken() {
     return response.data.access_token;
   } catch (error) {
     console.error("Error getting access token:", error.response?.data || error.message);
-    throw error;
   }
 }
 
@@ -99,7 +95,6 @@ async function getToken() {
 
 async function getShipmentAccessToken(req, res) {
   try {
-    // Your data object
     const data = {
       grant_type: "password",
       client_id: process.env.SHIPMENT_CLIENT_ID,
@@ -108,27 +103,22 @@ async function getShipmentAccessToken(req, res) {
       password: process.env.SHIPMENT_PASSWORD,
     };
 
-    // Convert to URLSearchParams
     const params = new URLSearchParams();
     for (const key in data) {
       params.append(key, data[key]);
     }
 
-    // Make the API request
     const response = await axios.post("https://servicios.apipre.seur.io/pic_token", params, {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
     });
 
-    // Send response back
-    return res.status(200).json(response.data);
+    return response.data.access_token;
   } catch (error) {
     console.error("Error fetching token:", error.response?.data || error.message);
-    return res.status(500).send({ message: "Error fetching token" });
+    return res.status(500).send({ messaclearge: "Error fetching token" });
   }
-
-  // return response.data.access_token;
 }
 
 module.exports = { getAccessToken, getSingleAccessToken, getToken, getShipmentAccessToken };

@@ -50,7 +50,7 @@ const orderSchema = new mongoose.Schema(
     total: {
       type: Number,
     },
-    items: [{ artwork: { type: mongoose.Schema.Types.ObjectId }, other: { type: Object } }],
+    items: [{ artwork: { type: mongoose.Schema.Types.ObjectId }, logistics: { type: Object }, other: { type: Object } }],
     evidence: {
       type: Object,
     },
