@@ -87,7 +87,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
   const user = await Artist.findOne({ _id: req.user._id }, { cart: 1, billingInfo: 1, offer_cart: 1 }).lean();
   if (!user) return res.status(400).send({ message: "User not found" });
-  const { time, currency, type, tax, shipping, note } = req.body;
+  const { time, currency, type, shipping, note } = req.body;
   const orderId = uuidv4();
 
   let items = [];
@@ -111,6 +111,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
   }
 
   let subTotal = 0;
+  let vatAmount = 0;
   let totalDiscount = 0;
   let total = 0;
 
@@ -133,11 +134,13 @@ const createOrder = catchAsyncError(async (req, res, next) => {
         items.push(item);
 
         subTotal += Number(artwork.pricing.basePrice);
+        vatAmount += (artwork.pricing.vatAmount / 100) * Number(artwork.pricing.basePrice);
         totalDiscount += (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice);
 
         fullItemsDetails.push({
-          _id: item,
+          _id: artwork._id,
           subTotal: Number(artwork.pricing.basePrice),
+          vatAmount: artwork.pricing.vatAmount,
           totalDiscount: (artwork.pricing.dpersentage / 100) * Number(artwork.pricing.basePrice),
           discount: artwork.pricing.dpersentage,
         });
@@ -157,11 +160,13 @@ const createOrder = catchAsyncError(async (req, res, next) => {
         items.push(item);
 
         subTotal += Number(item.offerprice);
+        vatAmount += (artwork.pricing.vatAmount / 100) * Number(item.offerprice);
         totalDiscount += 0;
 
         fullItemsDetails.push({
           _id: item,
           subTotal: Number(item.offerprice),
+          vatAmount: artwork.pricing.vatAmount,
           totalDiscount: 0,
           discount: 0,
         });
@@ -171,9 +176,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
 
   if (items.length == 0) return res.status(400).send({ message: "No Artwork Found" });
 
-  total = subTotal - totalDiscount + Number(shipping);
-  const taxAmount = (total * Number(tax)) / 100;
-  total = total + taxAmount;
+  total = subTotal - totalDiscount + Number(shipping) + Number(vatAmount);
   total = total.toFixed(2);
 
   await Order.create({
@@ -181,8 +184,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
     type: "purchase",
     user: user._id,
     status: "created",
-    tax: tax,
-    taxAmount: taxAmount,
+    taxAmount: vatAmount,
     billingAddress: defaultBilling.billingDetails,
     shippingAddress: address,
     shipping: shipping,
@@ -195,6 +197,7 @@ const createOrder = catchAsyncError(async (req, res, next) => {
         artwork: i._id,
         other: {
           subTotal: i.subTotal,
+          vatAmount: i.vatAmount,
           totalDiscount: i.totalDiscount,
           discount: i.discount,
         },
@@ -1585,7 +1588,7 @@ const cancelSchedule = catchAsyncError(async (req, res, next) => {
   if (sub.status == "expired" || sub.status == "cancelled")
     return res.status(400).send({ message: "You can't cancel an expired or cancelled subscription" });
 
-  const plan = await Plan.findOne({ _id: sub.plan }, { planName: 1, planGrp: 1 }).lean();
+  // const plan = await Plan.findOne({ _id: sub.plan }, { planName: 1, planGrp: 1 }).lean();
 
   if (numSub > 1 && sub.isCurrActive)
     return res
@@ -2265,10 +2268,9 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
 
   const { id: orderID } = req.params;
   const { status, userId, morningFrom, morningTo, eveningFrom, eveningTo, observe } = req.body;
-  // if (status !== "accept" && status !== "reject") return res.status(400).send({ message: "Please provide valid status" });
 
   const [order, artist, user] = await Promise.all([
-    Order.findOne({ _id: orderID }, { items: 1, status: 1, user: 1 }).lean(),
+    Order.findOne({ _id: orderID }, { items: 1, status: 1, user: 1, orderID: 1, currency: 1 }).lean(),
     Artist.findOne(
       { _id: req.user._id, isActivated: true },
       { address: 1, email: 1, phone: 1, nickName: 1, artistName: 1, artistSurname1: 1, artistSurname2: 1, artistId: 1 }
@@ -2282,12 +2284,73 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
   if (!order) return res.status(400).send({ message: "Order not found" });
   if (!artist || !user) return res.status(400).send({ message: "Artist/User not found" });
 
-  // const access_token = getShipmentAccessToken(req, res);
+  if (order.status !== "pending") {
+    return res.status(400).send({ message: "Only Pending Order can be rejected/accepted" });
+  }
+
+  if (status == "rejected") {
+    const transaction = await Transaction.findOne({ orderId: order.orderId }, { transcationId: 1, amount: 1 }).lean();
+
+    const timestamp = getTimestamp();
+    const orderId = generateRandomOrderId();
+    const MERCHANT_ID = process.env.MERCHANT_ID;
+    const SECRET = process.env.SECRET;
+
+    const hashString = `${timestamp}.${MERCHANT_ID}.${orderId}.${transaction.amount}.${order.currency}.${transaction.transcationId}`;
+    const hash1 = crypto.createHash("sha1").update(hashString).digest("hex");
+
+    const finalString = `${hash1}.${SECRET}`;
+    const sha1Hash = crypto.createHash("sha1").update(finalString).digest("hex");
+
+    function generateXmlRequest() {
+      const builder = new Builder({ headless: true });
+      const xmlObj = {
+        request: {
+          $: { type: "rebate", timestamp },
+          merchantid: MERCHANT_ID,
+          account: "internet",
+          amount: { _: newAmount, $: { currency: newCurr } },
+          orderid: orderId,
+          pasref: transaction.transcationId,
+          authcode: "1234",
+          comments: {
+            comment: {
+              $: { id: "1" },
+              _: "Order Rejected",
+            },
+          },
+          sha1hash: sha1Hash,
+        },
+      };
+
+      const xmlBody = builder.buildObject(xmlObj);
+      return `<?xml version="1.0" encoding="UTF-8"?>\n${xmlBody}`;
+    }
+
+    const xmlRequest = generateXmlRequest();
+    const storeResponse = await axios.post(`${url}`, xmlRequest, {
+      headers: {
+        "Content-Type": "text/xml",
+      },
+    });
+
+    const parseStoreResponse = await parseStringPromise(storeResponse.data);
+    if (parseStoreResponse.response.result[0] !== "00") {
+      return res.status(400).send({ message: parseStoreResponse.response.message[1] });
+    }
+
+    await Order.updateOne({ _id: order._id }, { $set: { status: "rejected" } });
+    return res.status(200).send({ message: "Order Rejected" });
+  }
+
+  const access_token = getShipmentAccessToken(req, res);
   let parcels = [];
 
   const artworks = await ArtWork.find(
     {
-      _id: { $in: order.items.map((item) => item.artwork) },
+      _id: {
+        $in: order.items.filter((item) => !item.other?.isCancelled).map((item) => item.artwork),
+      },
       owner: req.user._id,
     },
     { status: 1, owner: 1, commercialization: 1, inventoryShipping: 1 }
@@ -2363,14 +2426,14 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     insuredValue: 3000,
   };
 
-  // const response = await axios.post("https://pic-pre.apicast.seur.io/v1/collections", data, {
-  //   headers: {
-  //     "Content-Type": "application/json",
-  //     Authorization: `Bearer ${access_token}`,
-  //   },
-  // });
+  const response = await axios.post("https://pic-pre.apicast.seur.io/v1/collections", data, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${access_token}`,
+    },
+  });
 
-  // console.log(response.data);
+  console.log(response.data);
 
   const availableArtworkIds = availableArtworks.map((art) => art._id);
 
@@ -2379,7 +2442,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     {
       $set: {
         "items.$[].logistics.status": "processing",
-        "items.$[].logistics.collectionRef": "gfgfhfh" || response.data.collectionRef,
+        "items.$[].logistics.collectionRef": response.data.collectionRef,
         "items.$[].logistics.morningFrom": morningFrom,
         "items.$[].logistics.morningTo": morningTo,
         "items.$[].logistics.eveningFrom": eveningFrom,
@@ -2615,7 +2678,7 @@ const getResponData = catchAsyncError(async (req, res, next) => {
   const order = await Order.findOneAndUpdate(
     { orderId: req.body?.ORDER_ID },
     {
-      $set: { status: "successfull" },
+      $set: { status: "pending" },
     }
   ).lean();
 
@@ -2630,14 +2693,12 @@ const getResponData = catchAsyncError(async (req, res, next) => {
   });
 
   const artworks = order.items.map((item) => item.artwork);
+  await Promise.all([
+    Artist.updateOne({ _id: order.user }, { $pull: { cart: { $in: artworks } } }),
+    ArtWork.updateMany({ _id: { $in: artworks } }, { $set: { status: "not-available" } }),
+  ]);
 
-  await Artist.updateOne({ _id: order.user }, { $pull: { cart: { $in: artworks } } });
-
-  if (order.art_type == "instant") {
-    await ArtWork.updateMany({ _id: { $in: artworks } }, { $set: { status: "not-available" } });
-  }
-
-  res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });
+  return res.status(200).send({ message: "Payment Successfull. Wait for 5-10 seconds..." });
 });
 
 const getKey = catchAsyncError(async (req, res, next) => {
@@ -2656,7 +2717,7 @@ const getStaus = catchAsyncError(async (req, res, next) => {
     return res.status(400).json({ status: "pending" });
   }
 
-  if (order.status == "successfull") {
+  if (order.status == "pending") {
     return res.status(200).send({ status: "success" });
   } else {
     return res.status(200).send({ status: "fail" });

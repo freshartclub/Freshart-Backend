@@ -8,7 +8,6 @@ const loginData = [
 const createOrderBody = [
   body("time").exists({ checkFalsy: true }).withMessage("Time is required"),
   body("currency").exists({ checkFalsy: true }).withMessage("Currency is required"),
-  body("tax").exists({ checkFalsy: true }).isFloat({ min: 0.01 }).withMessage("Tax is required"),
   body("shipping").exists({ checkFalsy: true }).isFloat({ min: 0.01 }).withMessage("Shipping is required"),
   body("note").optional().isString().withMessage("Note is invalid"),
   body("type")

@@ -29,9 +29,6 @@ const orderSchema = new mongoose.Schema(
     shippingAddress: {
       type: Object,
     },
-    tax: {
-      type: Number,
-    },
     taxAmount: {
       type: Number,
     },
