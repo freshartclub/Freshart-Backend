@@ -2426,7 +2426,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     insuredValue: 3000,
   };
 
-  const response = await axios.post("https://servicios.apipre.seur.io/v1/collections", data, {
+  const response = await axios.post("https://servicios.apipre.seur.io/pic/v1/collections", data, {
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${access_token}`,
