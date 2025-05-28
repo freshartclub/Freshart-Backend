@@ -1,6 +1,8 @@
 require("dotenv").config();
 const axios = require("axios");
 const crypto = require("crypto");
+const { createLog } = require("./common");
+const APIErrorLog = createLog("API_error_log");
 
 const generateNonce = () => crypto.randomBytes(16).toString("hex");
 
@@ -115,6 +117,7 @@ async function getShipmentAccessToken(req, res) {
     });
 
     console.log(response.data);
+    APIErrorLog.error(response.data);
 
     return response.data.access_token;
   } catch (error) {
