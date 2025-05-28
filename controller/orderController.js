@@ -19,6 +19,8 @@ const { checkValidations } = require("../functions/checkValidation");
 const { sendMail } = require("../functions/mailer");
 const EmailType = require("../models/emailTypeModel");
 const { getShipmentAccessToken } = require("../functions/getAccessToken");
+const { createLog } = require("../functions/common");
+const APIErrorLog = createLog("API_error_log");
 
 const url = "https://remote.sandbox.addonpayments.com/remote";
 const languageCode = ["EN", "CAT", "ES"];
