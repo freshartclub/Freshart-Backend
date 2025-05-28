@@ -2345,7 +2345,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     return res.status(200).send({ message: "Order Rejected" });
   }
 
-  const access_token = getShipmentAccessToken(req, res);
+  const access_token = await getShipmentAccessToken(req, res);
   let parcels = [];
 
   const artworks = await ArtWork.find(

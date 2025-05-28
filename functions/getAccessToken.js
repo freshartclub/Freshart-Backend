@@ -116,12 +116,9 @@ async function getShipmentAccessToken(req, res) {
       },
     });
 
-    console.log(response.data.access_token);
-    APIErrorLog.error(response.data.access_token);
-
     return response.data.access_token;
   } catch (error) {
-    console.error("Error fetching token:", error.response?.data || error.message);
+    APIErrorLog.error("Error fetching token:", error.response?.data || error.message);
     return res.status(500).send({ messaclearge: "Error fetching token" });
   }
 }
