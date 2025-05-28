@@ -2419,12 +2419,14 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     },
     parcels: parcels,
     observations: observe,
-    restrictions: {
-      scheduleMorningTimeSlotFrom: morningFrom + ":00",
-      scheduleMorningTimeSlotTo: morningTo + ":00",
-      scheduleEveningTimeSlotFrom: eveningFrom + ":00",
-      scheduleEveningTimeSlotTo: eveningTo + ":00",
-    },
+    restrictions: [
+      {
+        scheduleMorningTimeSlotFrom: morningFrom + ":00",
+        scheduleMorningTimeSlotTo: morningTo + ":00",
+        scheduleEveningTimeSlotFrom: eveningFrom + ":00",
+        scheduleEveningTimeSlotTo: eveningTo + ":00",
+      },
+    ],
     insuredValue: 3000,
   };
 
