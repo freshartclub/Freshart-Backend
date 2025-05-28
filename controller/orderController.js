@@ -27,7 +27,10 @@ const languageCode = ["EN", "CAT", "ES"];
 
 const formatDate = (date) => {
   const d = new Date(date);
-  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
 };
 
 const generateRef = () => {
