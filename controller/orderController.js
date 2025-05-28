@@ -2348,7 +2348,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     return res.status(200).send({ message: "Order Rejected" });
   }
 
-  const access_token = await getShipmentAccessToken(req, res);
+  // const access_token = await getShipmentAccessToken(req, res);
   let parcels = [];
 
   const artworks = await ArtWork.find(
@@ -2372,10 +2372,10 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
 
   availableArtworks.forEach((art) => {
     parcels.push({
-      weight: art.inventoryShipping.packageWeight,
-      length: art.inventoryShipping.packageLength,
-      height: art.inventoryShipping.packageHeight,
-      width: art.inventoryShipping.packageWidth,
+      weight: Number(art.inventoryShipping.packageWeight),
+      length: Number(art.inventoryShipping.packageLength),
+      height: Number(art.inventoryShipping.packageHeight),
+      width: Number(art.inventoryShipping.packageWidth),
       packReference: generateRef(),
     });
   });
@@ -2404,7 +2404,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
         streetName: artist.address.residentialAddress,
         postalCode: artist.address.zipCode,
         cityName: artist.address.city,
-        country: artist.address.country,
+        country: "ES",
       },
     },
     receiver: {
@@ -2417,7 +2417,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
         streetName: user.address.residentialAddress,
         postalCode: user.address.zipCode,
         cityName: user.address.city,
-        country: user.address.country,
+        country: "ES",
       },
     },
     parcels: parcels,
@@ -2434,6 +2434,10 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     insuredValue: 5.5,
     cashOnDeliveryValue: 5.124,
   };
+
+  console.log(data);
+
+  return res.status(400).send({ message: "heheh" });
 
   const response = await axios.post("https://servicios.apipre.seur.io/pic/v1/collections", data, {
     headers: {
