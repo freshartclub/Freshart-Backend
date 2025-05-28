@@ -2419,15 +2419,17 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     },
     parcels: parcels,
     observations: observe,
-    restrictions: [
-      {
-        scheduleMorningTimeSlotFrom: morningFrom + ":00",
-        scheduleMorningTimeSlotTo: morningTo + ":00",
-        scheduleEveningTimeSlotFrom: eveningFrom + ":00",
-        scheduleEveningTimeSlotTo: eveningTo + ":00",
-      },
-    ],
-    insuredValue: 3000,
+    // restrictions: [
+    //   {
+    //     scheduleMorningTimeSlotFrom: morningFrom + ":00",
+    //     scheduleMorningTimeSlotTo: morningTo + ":00",
+    //     scheduleEveningTimeSlotFrom: eveningFrom + ":00",
+    //     scheduleEveningTimeSlotTo: eveningTo + ":00",
+    //   },
+    // ],
+    declaredValue: 4,
+    insuredValue: 5.5,
+    cashOnDeliveryValue: 5.124,
   };
 
   const response = await axios.post("https://servicios.apipre.seur.io/pic/v1/collections", data, {
