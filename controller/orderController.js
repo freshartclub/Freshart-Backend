@@ -2428,11 +2428,6 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     insuredValue: 3000,
   };
 
-  APIErrorLog.error(data);
-  APIErrorLog.error(access_token);
-
-  return res.status(400).send({ message: "Order accepted" });
-
   const response = await axios.post("https://servicios.apipre.seur.io/pic/v1/collections", data, {
     headers: {
       "Content-Type": "application/json",
