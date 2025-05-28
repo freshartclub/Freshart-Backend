@@ -2269,6 +2269,8 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
   const { id: orderID } = req.params;
   const { status, userId, morningFrom, morningTo, eveningFrom, eveningTo, observe } = req.body;
 
+  console.log(req.body);
+
   const [order, artist, user] = await Promise.all([
     Order.findOne({ _id: orderID }, { items: 1, status: 1, user: 1, orderID: 1, currency: 1 }).lean(),
     Artist.findOne(
@@ -2425,6 +2427,8 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     },
     insuredValue: 3000,
   };
+
+  console.log(data);
 
   const response = await axios.post("https://servicios.apipre.seur.io/pic/v1/collections", data, {
     headers: {
