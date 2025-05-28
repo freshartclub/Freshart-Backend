@@ -2426,8 +2426,8 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     insuredValue: 3000,
   };
 
-  console.log(data);
-  console.log(access_token);
+  APIErrorLog.error(data);
+  APIErrorLog.error(access_token);
 
   return res.status(400).send({ message: "Order accepted" });
 
