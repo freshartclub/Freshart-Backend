@@ -2348,7 +2348,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     return res.status(200).send({ message: "Order Rejected" });
   }
 
-  // const access_token = await getShipmentAccessToken(req, res);
+  const access_token = await getShipmentAccessToken(req, res);
   let parcels = [];
 
   const artworks = await ArtWork.find(
@@ -2435,9 +2435,9 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     cashOnDeliveryValue: 5.124,
   };
 
-  console.log(data);
+  // console.log(data);
 
-  return res.status(400).send({ message: "heheh" });
+  // return res.status(400).send({ message: "heheh" });
 
   const response = await axios.post("https://servicios.apipre.seur.io/pic/v1/collections", data, {
     headers: {
