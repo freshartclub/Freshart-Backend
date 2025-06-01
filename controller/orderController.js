@@ -2430,12 +2430,11 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     //     scheduleEveningTimeSlotTo: eveningTo + ":00",
     //   },
     // ],
-    declaredValue: 4,
-    insuredValue: 5.5,
-    cashOnDeliveryValue: 5.124,
+    insuredValue: 3000,
   };
 
   // console.log(data);
+  APIErrorLog.error(data);
 
   // return res.status(400).send({ message: "heheh" });
 
@@ -2446,7 +2445,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     },
   });
 
-  console.log(response.data);
+  APIErrorLog.error(response.data);
 
   const availableArtworkIds = availableArtworks.map((art) => art._id);
 
