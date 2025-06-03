@@ -26,11 +26,13 @@ const url = "https://remote.sandbox.addonpayments.com/remote";
 const languageCode = ["EN", "CAT", "ES"];
 
 const formatDate = (date) => {
-  // get date 2 days after
-  const d = new Date(date) + 2 * 24 * 60 * 60 * 1000;
+  const d = new Date(date);
+  d.setTime(d.getTime() + 2 * 24 * 60 * 60 * 1000);
+
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
 };
 
