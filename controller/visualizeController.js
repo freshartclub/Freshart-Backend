@@ -46,10 +46,16 @@ const getAllVisualize = catchAsyncError(async (req, res) => {
     {
       $match: {
         ...(s && {
-          $or: [{ name: { $regex: s, $options: "i" } }, { tags: { $elemMatch: { $regex: s, $options: "i" } } }],
+          $or: [
+            { name: { $regex: s, $options: "i" } },
+            { tags: { $elemMatch: { $regex: s, $options: "i" } } },
+          ],
         }),
         ...(grp && { group: { $regex: grp, $options: "i" } }),
       },
+    },
+    {
+      $sort: { createdAt: -1 }, 
     },
     {
       $project: {
@@ -67,6 +73,7 @@ const getAllVisualize = catchAsyncError(async (req, res) => {
 
   return res.status(200).send({ data: allVisualize });
 });
+
 
 const getVisualizeById = catchAsyncError(async (req, res) => {
   const { id } = req.params;
