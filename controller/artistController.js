@@ -2559,7 +2559,6 @@ const createInvite = async (req, res) => {
       "%name%": payload.firstName,
       "%link%": `https://www.dev.freshartclub.com/signup?invite=${payload.inviteCode}`,
     };
-
     await sendMail("sample-email", mailVaribles, payload.email.toLowerCase());
     return res.status(200).send({ message: "Invite created successfully", data: invite._id });
   } catch (error) {
@@ -2580,7 +2579,6 @@ const randomInviteCode = async (req, res) => {
     for (let i = 0; i < 4; i++) {
       inviteCode += charset.charAt(Math.floor(Math.random() * charset.length));
     }
-
     const code = generateInviteCode(inviterId, inviteCode);
 
     return res.status(200).send({ data: code });
@@ -2835,6 +2833,30 @@ const uploadCheckImages = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ message: "Image uploaded successfully" });
 });
 
+const updateCropArea = catchAsyncError(async (req, res, next) => {
+  const { _id, area_x1, area_y1, area_x2, area_y2 } = req.body;
+
+  if (!_id) {
+    return res.status(400).send({ message: "Missing image ID (_id)" });
+  }
+
+  const existing = await CheckImage.findOne({ _id, user: req.user._id, isDeleted: false });
+
+  if (!existing) {
+    return res.status(404).send({ message: "Image record not found" });
+  }
+
+  existing.area_x1 = area_x1;
+  existing.area_y1 = area_y1;
+  existing.area_x2 = area_x2;
+  existing.area_y2 = area_y2;
+
+  await existing.save();
+
+  return res.status(200).send({ message: "Crop area updated successfully", data: existing });
+});
+
+
 const getUploadLatestImage = catchAsyncError(async (req, res, next) => {
   const latestImg = await CheckImage.findOne({ user: req.user._id }, { image: 1 }).sort({ createdAt: -1 }).lean();
   return res.status(200).send({ data: latestImg });
@@ -2977,4 +2999,5 @@ module.exports = {
   unfollowArtist,
   getUserFollowList,
   deleteUploadImage,
+  updateCropArea,
 };

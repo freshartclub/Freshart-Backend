@@ -64,6 +64,7 @@ const {
   getUserFollowList,
   deleteUploadImage,
   addToOfferCart,
+  updateCropArea,
 } = require("../controller/artistController");
 const validateToken = require("../middleware/validateTokenHandler");
 const {
@@ -261,6 +262,8 @@ router.post("/check-upload-images", validateToken, uploadCheckImages);
 router.get("/get-upload-images", validateToken, getUploadLatestImage);
 router.get("/get-all-images", validateToken, getUploadAllImages);
 router.patch("/delete-uploaded-image/:id", validateToken, deleteUploadImage);
+router.post("/update-crop-area", validateToken, updateCropArea);
+
 
 // -------------------------- follow artist -----------------------------
 
@@ -270,6 +273,6 @@ router.get("/get-following", validateToken, getUserFollowList);
 
 // --------------------------- visulaise --------------------------
 
-router.get("/get-visualise-data", getAllUserVisualize);
+router.get("/get-visualise-data/:id?",  getAllUserVisualize);
 
 module.exports = router;

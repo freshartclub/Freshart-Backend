@@ -1782,25 +1782,34 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         artworkName: 1,
         additionalInfo: 1,
         provideArtistName: 1,
+        purchaseType: "$commercialization.purchaseType",
         activeTab: "$commercialization.activeTab",
         price: {
           $cond: {
             if: {
-              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+              $and: [
+                { $eq: ["$commercialization.activeTab", "purchase"] },
+                { $in: ["$commercialization.purchaseType", ["Fixed Price", "Downward Offer"]] },
+              ],
             },
             then: "$pricing.basePrice",
             else: "$$REMOVE",
           },
         },
+
         currency: {
           $cond: {
             if: {
-              $and: [{ $eq: ["$commercialization.activeTab", "purchase"] }, { $eq: ["$commercialization.purchaseType", "Fixed Price"] }],
+              $and: [
+                { $eq: ["$commercialization.activeTab", "purchase"] },
+                { $in: ["$commercialization.purchaseType", ["Fixed Price", "Downward Offer"]] },
+              ],
             },
             then: "$pricing.currency",
             else: "$$REMOVE",
           },
         },
+
         dpersentage: {
           $cond: {
             if: {

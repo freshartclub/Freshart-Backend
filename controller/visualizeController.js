@@ -4,6 +4,7 @@ const { fileUploadFunc } = require("../functions/common");
 const objectId = require("mongoose").Types.ObjectId;
 const Visualize = require("../models/visualizeModel");
 const deleteRemovedMedia = require("../functions/deleteMedia");
+const CheckImage = require("../models/checkImageModel");
 
 const addVisualize = catchAsyncError(async (req, res) => {
   const { id } = req.params;
@@ -76,10 +77,10 @@ const getVisualizeById = catchAsyncError(async (req, res) => {
 });
 
 const getAllUserVisualize = catchAsyncError(async (req, res) => {
+  const userId = req.params.id || req.user?._id;
+
   const allVisualize = await Visualize.aggregate([
-    {
-      $match: { isDeleted: false },
-    },
+    { $match: { isDeleted: false } },
     {
       $project: {
         _id: 1,
@@ -108,7 +109,20 @@ const getAllUserVisualize = catchAsyncError(async (req, res) => {
     groupedData[group._id] = group.data;
   });
 
-  return res.status(200).send({ data: groupedData });
+  let allImages = [];
+  if (userId) {
+    allImages = await CheckImage.find(
+      { user: userId, isDeleted: false },
+      { _id: 0, image: 1, width: 1, height: 1, name: 1, area_x1: 1, area_y1: 1, area_x2: 1, area_y2: 1, createdAt: 1 }
+    )
+      .sort({ createdAt: -1 })
+      .lean();
+  }
+
+  return res.status(200).send({
+    data: groupedData,
+    ...(allImages.length > 0 && { images: allImages }),
+  });
 });
 
 module.exports = { addVisualize, getAllVisualize, getVisualizeById, getAllUserVisualize };
