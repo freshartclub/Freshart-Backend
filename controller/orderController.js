@@ -27,9 +27,12 @@ const languageCode = ["EN", "CAT", "ES"];
 
 const formatDate = (date) => {
   const d = new Date(date);
+  d.setTime(d.getTime() + 2 * 24 * 60 * 60 * 1000);
+
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
+
   return `${year}-${month}-${day}`;
 };
 
@@ -2389,7 +2392,7 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
       phone: "+34 638 549 463",
     },
     collectionDate: formatDate(new Date()),
-    serviceCode: 1,
+    serviceCode: 31,
     productCode: 2,
     ref: generateFACRef(),
     label: true,
@@ -2397,7 +2400,6 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     sender: {
       name: name(artist),
       contactName: artist.nickName ? artist.nickName : name(artist),
-      idNumber: artist.artistId,
       phone: artist.phone,
       email: artist.email,
       address: {
@@ -2410,7 +2412,6 @@ const acceptRejectOrderRequest = catchAsyncError(async (req, res, next) => {
     receiver: {
       name: name(user),
       contactName: user.nickName ? user.nickName : name(user),
-      idNumber: user.userId,
       phone: user.phone,
       email: user.email,
       address: {
