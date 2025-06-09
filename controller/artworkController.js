@@ -1490,6 +1490,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
           catalogInfo: 1,
           reviewDetails: 1,
           createdAt: 1,
+        
         },
       },
     ]);
@@ -1565,6 +1566,8 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
               profile: "$ownerInfo.profile.mainImage",
             },
             artworkName: 1,
+            isArtProvider: 1,
+            provideArtistName: 1,
             artworkCreationYear: 1,
             artworkSeries: 1,
             productDescription: 1,
@@ -1574,6 +1577,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
               packageMaterial: "$inventoryShipping.packageMaterial",
               packageWeight: "$inventoryShipping.packageWeight",
               packageWidth: "$inventoryShipping.packageWidth",
+              location : "$inventoryShipping.location",
             },
             media: 1,
             discipline: "$discipline.artworkDiscipline",
@@ -1591,6 +1595,10 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
               frameLenght: "$additionalInfo.frameLenght",
               frameWidth: "$additionalInfo.frameWidth",
               weight: "$additionalInfo.weight",
+              artworkTheme: "$additionalInfo.artworkTheme",
+              artworkStyle : "$additionalInfo.artworkStyle",
+              emotions: "$additionalInfo.emotions",
+              colors: "$additionalInfo.colors",
             },
             commercialization: {
               $mergeObjects: [
@@ -1615,6 +1623,7 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
               },
             },
             tags: 1,
+           
           },
         },
       ]);
@@ -1639,6 +1648,8 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
             offensive: "$additionalInfo.offensive",
             commingSoon: "$inventoryShipping.comingSoon",
             artworkName: 1,
+            isArtProvider: 1,
+            provideArtistName: 1,
             mainImage: "$media.mainImage",
             additionalInfo: {
               technic: "$additionalInfo.artworkTechnic",
@@ -1646,6 +1657,11 @@ const getArtworkById = catchAsyncError(async (req, res, next) => {
               height: "$additionalInfo.height",
               length: "$additionalInfo.length",
               offensive: "$additionalInfo.offensive",
+              artworkTheme: "$additionalInfo.artworkTheme",
+              artworkStyle: "$additionalInfo.artworkStyle",
+              emotions: "$additionalInfo.emotions",
+              colors: "$additionalInfo.colors",
+
             },
             pricing: {
               currency: "$pricing.currency",
@@ -1782,6 +1798,7 @@ const getHomeArtwork = catchAsyncError(async (req, res, next) => {
         artworkName: 1,
         additionalInfo: 1,
         provideArtistName: 1,
+        exclusive: 1,
         purchaseType: "$commercialization.purchaseType",
         activeTab: "$commercialization.activeTab",
         price: {
@@ -2395,11 +2412,16 @@ const getAllArtworks = catchAsyncError(async (req, res, next) => {
         commercialization: 1,
         owner: 1,
         status: 1,
+        exclusive: 1,
       },
     },
     { $sort: { _id: direction === "prev" ? 1 : -1, ...(newIn && { createdAt: -1 }) } },
     { $limit: limit + 1 },
   ]);
+
+  
+
+
 
   const hasNextPage =
     (currPage === 1 && artworkList.length > limit) || artworkList.length > limit || (direction === "prev" && artworkList.length === limit);
@@ -2715,6 +2737,18 @@ const makeUserOffer = catchAsyncError(async (req, res, next) => {
     Artist.updateOne({ _id: userId }, { $inc: { monthlyNegotiations: -1 } }),
   ]);
 
+
+    //  const mailVaribles = {
+    //     "%head%": findEmail.emailHead,
+    //     "%email%": user.email,
+    //     "%msg%": findEmail.emailDesc,
+    //     "%name%": user.artistName,
+    //     "%otp%": otp,
+    //   };
+  
+    //   await sendMail("sample-email", mailVaribles, user.email);
+
+
   return res.status(200).send({
     message: "Offer submitted successfully.",
   });
@@ -2870,6 +2904,89 @@ const makeArtistOffer = catchAsyncError(async (req, res, next) => {
   return res.status(200).send({ message: "Counter Offer made successfully." });
 });
 
+
+const getArtworksBySeriesName = catchAsyncError(async (req, res, next) => {
+  const { series } = req.params;
+
+  if (!series) return res.status(400).send({ message: "Series name is required" });
+
+  console.log("Series" , series)
+
+  const artworks = await ArtWork.aggregate([
+    {
+      $match: {
+        isDeleted: false,
+        status: "published",
+        artworkSeries: series,
+        "inventoryShipping.comingSoon": true,
+      },
+    },
+    {
+      $project: {
+        _id: 1,
+        artworkName: 1,
+        artworkSeries: 1,
+        additionalInfo: 1,
+        discipline: 1,
+        "inventoryShipping.comingSoon": 1,
+        "media": "$media.mainImage",
+        activeTab: "$commercialization.activeTab",
+        price: {
+          $cond: {
+            if: {
+              $and: [
+               { $eq: ["$commercialization.activeTab", "purchase"] },
+               { $eq: ["$commercialization.purchaseType", "Fixed Price"] },
+              ],
+            },
+            then: "$pricing.basePrice",
+            else: "$$REMOVE",
+          },
+        },
+        currency: {
+          $cond: {
+            if: {
+              $and: [
+                { $eq: ["$commercialization.activeTab", "purchase"] },
+                { $eq: ["$commercialization.purchaseType", "Fixed Price"] },
+              ],
+            },
+            then: "$pricing.currency",
+            else: "$$REMOVE",
+          },
+        },
+        discount: {
+          $cond: {
+            if: {
+              $and: [
+                { $eq: ["$commercialization.activeTab", "purchase"] },
+                { $eq: ["$commercialization.purchaseType", "Fixed Price"] },
+              ],
+            },
+            then: "$pricing.dpersentage", 
+            else: "$$REMOVE",
+          },
+        },
+        provideArtistName: 1,
+        "owner.artistName": 1,
+        "owner.artistSurname1": 1,
+        "owner.artistSurname2": 1,
+        createdAt: 1,
+      },
+    },
+    { $sort: { createdAt: -1 } },
+  ]);
+
+  console.log("artwork" , artworks)
+
+  res.status(200).json({
+    data: artworks,
+    url: "https://dev.freshartclub.com/images",
+  });
+});
+
+
+
 module.exports = {
   adminCreateArtwork,
   artistCreateArtwork,
@@ -2894,4 +3011,5 @@ module.exports = {
   makeUserOffer,
   getOffer,
   makeArtistOffer,
+  getArtworksBySeriesName
 };

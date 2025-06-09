@@ -84,6 +84,7 @@ const {
   makeUserOffer,
   makeArtistOffer,
   getOffer,
+  getArtworksBySeriesName,
 } = require("../controller/artworkController");
 const { getActiveIncident } = require("../controller/incidentController");
 const { getAllSeriesList } = require("../controller/generalController");
@@ -197,6 +198,8 @@ router.get("/get-all-incidents", validateToken, getActiveIncident);
 router.get("/get-all-artworks", getAllArtworks);
 
 router.get("/get-artist-artworks-by-series/:id", validateToken, getArtworkGroupBySeries);
+
+router.get("/get-artwork-by-name/:series", validateToken, getArtworksBySeriesName);
 
 router.patch("/like-unlike-artwork/:id", validateToken, likeOrUnlikeArtwork);
 
